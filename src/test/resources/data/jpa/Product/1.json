@@ -1,4 +1,13 @@
 {
     "id": 1,
-    "version": 0
+    "version": 0,
+    "sku": "SKU-001",
+    "name": "Arcadia First Edition",
+    "description": "Numbered first edition",
+    "price": 49.99,
+    "currency": "EUR",
+    "editionSize": 10,
+    "trackingMode": "QUANTITY",
+    "launchAt": "2026-09-26T10:00:00Z",
+    "status": "PUBLISHED"
 }

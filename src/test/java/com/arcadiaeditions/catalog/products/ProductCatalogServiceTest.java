@@ -52,7 +52,7 @@ class ProductCatalogServiceTest {
 
     @Test
     void updateProductTest() {
-        Long id = null;
+        Long id = 1L;
         UpdateProductInput input = null; // TODO
         // TODO fill input data
         // input.setSku("");

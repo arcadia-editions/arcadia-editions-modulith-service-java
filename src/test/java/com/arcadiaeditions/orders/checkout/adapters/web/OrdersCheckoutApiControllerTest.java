@@ -36,7 +36,7 @@ public class OrdersCheckoutApiControllerTest {
 
     @Test
     public void getOrderTest() {
-        Long id = null;
+        Long id = 1L;
         var response = controller.getOrder(id);
         Assertions.assertEquals(200, response.getStatusCode().value());
     }
