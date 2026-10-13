@@ -1,0 +1,62 @@
+// formatter:off
+package com.arcadiaeditions;
+
+import com.tngtech.archunit.core.importer.ImportOption.DoNotIncludeTests;
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchRule;
+import org.jmolecules.archunit.JMoleculesDddRules;
+
+/**
+ * Verifies the jMolecules stereotypes ZenWave generated.
+ *
+ * <p>
+ * Unlike {@code ArchitectureTest}, which matches package names, these rules read the annotations
+ * themselves — so they keep working whatever project layout you choose, and they fail when an
+ * annotation stops matching the code it sits on.
+ * </p>
+ *
+ * <p>
+ * Requires {@code org.jmolecules.integrations:jmolecules-archunit} on the test classpath.
+ * </p>
+ */
+@AnalyzeClasses(packages = "com.arcadiaeditions", importOptions = DoNotIncludeTests.class)
+class JMoleculesArchitectureTest {
+
+    /** Every type annotated {@code @Entity} or {@code @AggregateRoot} must declare an {@code @Identity}. */
+    @ArchTest
+    static final ArchRule entitiesHaveIdentities =
+            JMoleculesDddRules.annotatedEntitiesAndAggregatesNeedToHaveAnIdentifier();
+
+    /** A {@code @ValueObject} must not reference an entity or an aggregate. */
+    @ArchTest
+    static final ArchRule valueObjectsDoNotReferenceEntities =
+            JMoleculesDddRules.valueObjectsMustNotReferToIdentifiables();
+
+    /** An {@code @Entity} must not be shared between two aggregates. */
+    @ArchTest
+    static final ArchRule entitiesBelongToTheirAggregate =
+            JMoleculesDddRules.entitiesShouldBeDeclaredForUseInSameAggregate();
+
+    /**
+     * Nothing may hold a direct reference to an {@code @AggregateRoot} — only an identifier or an
+     * {@code Association}.
+     *
+     * <p>
+     * Note that ZenWave maps a bidirectional relationship to a plain object reference:
+     * {@code Customer{addresses} to Address{customer}} generates a {@code private Customer customer}
+     * field, which this rule rejects even though both types live in the same aggregate. To opt out,
+     * comment out the {@code @ArchTest} below — this file is generated once and never overwritten,
+     * so the edit survives regeneration.
+     * </p>
+     */
+    @ArchTest
+    static final ArchRule aggregateReferencesUseIdsOrAssociations =
+            JMoleculesDddRules.aggregateReferencesShouldBeViaIdOrAssociation();
+
+    // No ensureLayering() rule here. It encodes Evans' layering, in which infrastructure is the
+    // bottom layer and may not reference the domain. This project is the three tier
+    // web -> service -> repository, and a Spring Data repository names its aggregate in its own
+    // type signature, so that rule cannot pass for any model. The layer annotations still document
+    // the tiers; only this one check is omitted.
+}
