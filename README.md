@@ -159,12 +159,21 @@ Claude Code and Grok invoke skills as `/skill-name`, and Codex as `$skill-name`.
 | Step | Run | Result |
 |---|---|---|
 | ZFL flow → ZDL (only when you start from a ZFL business flow) | `/zfl-to-zdl <flow.zfl>` | one ZDL per bounded context |
+| Baseline health check | `mvn -DskipTests clean compile`, inspect mapper warnings and generated `TODO`s | generated structure is current and its known gaps are visible |
+| Generate basic test data (JPA) | `/zenwave-test-data` | one valid, consistent example per entity in `src/test/resources/data.sql` and `data/jpa/<Entity>/*.json` |
 | Find what the generator left out | `/zenwave-gap-report` | `docs/zenwave-gap-report.md`: model gaps, missing wiring, unimplemented methods, mapper and test gaps, open questions |
-| Fix model gaps | edit the ZDL, regenerate ([Code Generation](#code-generation)), re-run `/zenwave-gap-report` | no model gaps left |
-| Generate test data (JPA) | `/zenwave-test-data` | `src/test/resources/data.sql` + `data/jpa/<Entity>/*.json` |
+| Fix model gaps | edit the ZDL, regenerate ([Code Generation](#code-generation)), then repeat the health check, basic test data and gap report | no model gaps left |
+| Generate scenario test data (JPA) | `/zenwave-test-scenarios` | fixture chains for each command precondition, branch, failure path and observed outcome |
 | Spec a flow | `/speckit-constitution` (once), then `/speckit-specify`, `/speckit-clarify`, `/speckit-plan`, `/speckit-tasks` | `specs/NNN-<flow>/` with tasks seeded from the gap report |
 | Implement | `/speckit-implement Use the zenwave-fill-gaps skill for each task.`, or `/zenwave-fill-gaps <finding-id>` | code and tests |
 | Check drift and close | `/speckit-converge`, `mvn test`, `/zenwave-gap-report` | no blockers or majors left |
+
+Run basic test data before the gap report so the project starts with fixtures that
+load in both test modes. Replace that basic set with scenario test data only when
+service or flow tests are about to be written: the scenario skill reads the gap
+report's fixture findings and open questions. After a model change, rerun the health
+check, basic data and gap report; refresh an existing scenario set with
+`zenwave-test-scenarios`, never `zenwave-test-data`, so its coverage rows remain.
 
 To export only the Hibernate DDL (no project configuration needed):
 
