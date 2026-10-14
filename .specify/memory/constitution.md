@@ -57,12 +57,18 @@ each other.
 
 Generated code falls into two groups, and they are treated differently:
 
-- **Regenerated structure.** Domain classes, repositories, DTOs, events, mappers and the
-  OpenAPI interfaces and models under `target/` MUST NOT be hand-edited. Change the model
-  and regenerate.
-- **Generated once, then developer-owned.** Service implementations, event listeners and
-  their MapStruct mappers, tests, `src/test/resources/data*` and `DockerComposeInitializer`.
-  Behavior is written here.
+- **Regenerated structure.** Domain classes (entities, enums, domain events), input/output
+  DTOs, inbound service interfaces, event publishers, and the OpenAPI interfaces and models
+  under `target/` MUST NOT be hand-edited. Change the model and regenerate.
+- **Generated once, then developer-owned.** Service implementations, Spring Data
+  repositories, MapStruct mappers (service, events and event-listener mappers), event
+  listeners, in-memory test repositories and configs, tests, `src/test/resources/data*` and
+  `DockerComposeInitializer`. Behavior is written here: repositories gain query methods
+  (e.g. natural-key finders), mappers gain mapping configuration. Neither may add structure
+  the model owns (fields, inputs, events, commands, states).
+- The generator's overwrite setting decides which group a file belongs to: a file the
+  generator writes with skip-overwrite is developer-owned, any other generated file is
+  regenerated structure.
 - Regeneration runs without `--force` unless the intent is to overwrite developer-owned
   files, and every regeneration is followed by a `git diff` review.
 
@@ -146,4 +152,4 @@ Where it conflicts with other guidance, it wins. `AGENTS.md` / `CLAUDE.md` and
   Check), `/speckit-analyze` reports violations, and reviews check that no structure was
   hand-written outside the models.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
+**Version**: 1.0.1 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
