@@ -24,6 +24,11 @@ public class PaymentsProcessingServiceEventsListener {
     }
 
     @ApplicationModuleListener
+    public void authorizePayment(PaymentRetried event) {
+        paymentsProcessingService.authorizePayment(mapper.asAuthorizePaymentInput(event));
+    }
+
+    @ApplicationModuleListener
     public void retryPayment(PaymentFailed event) {
         // TODO CUSTOM_REQUIRED: resolve the Payment id for PaymentFailed (no event field is assumed to carry it)
         Long id = null;

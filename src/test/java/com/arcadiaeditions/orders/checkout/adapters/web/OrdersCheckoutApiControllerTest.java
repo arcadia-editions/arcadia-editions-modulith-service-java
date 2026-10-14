@@ -33,4 +33,11 @@ public class OrdersCheckoutApiControllerTest {
         var response = controller.startOrderCheckout(reqBody);
         Assertions.assertEquals(201, response.getStatusCode().value());
     }
+
+    @Test
+    public void getOrderTest() {
+        Long id = null;
+        var response = controller.getOrder(id);
+        Assertions.assertEquals(200, response.getStatusCode().value());
+    }
 }

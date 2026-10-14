@@ -17,8 +17,6 @@ public class PaymentAuthorized implements Serializable {
     @java.io.Serial
     private static final long serialVersionUID = 1L;
 
-    private String paymentId;
-
     private String orderId;
 
     private String customerId;
@@ -30,15 +28,6 @@ public class PaymentAuthorized implements Serializable {
     private String providerReference;
 
     private Instant authorizedAt;
-
-    public String getPaymentId() {
-        return paymentId;
-    }
-
-    public PaymentAuthorized setPaymentId(String paymentId) {
-        this.paymentId = paymentId;
-        return this;
-    }
 
     public String getOrderId() {
         return orderId;

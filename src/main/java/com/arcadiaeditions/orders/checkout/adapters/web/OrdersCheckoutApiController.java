@@ -59,6 +59,18 @@ public class OrdersCheckoutApiController implements OrdersCheckoutApi {
         return ResponseEntity.status(201).body(responseDTO);
     }
 
+    @Override
+    public ResponseEntity<OrderDTO> getOrder(Long id) {
+        log.debug("REST request to getOrder: {}", id);
+        var order = ordersCheckoutService.getOrder(id);
+        if (order.isPresent()) {
+            OrderDTO responseDTO = mapper.asOrderDTO(order.get());
+            return ResponseEntity.status(200).body(responseDTO);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     protected Pageable pageOf(Integer page, Integer limit, List<String> sort) {
         Sort sortOrder = sort != null
                 ? Sort.by(sort.stream()

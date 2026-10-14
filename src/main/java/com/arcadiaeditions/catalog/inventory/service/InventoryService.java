@@ -32,5 +32,5 @@ public interface InventoryService {
      * With Events: [StockReservationConfirmed].
      *
      */
-    public List<StockReservation> confirmStockReservation(Long id);
+    public List<StockReservation> confirmStockReservation(ConfirmStockReservationInput input);
 }

@@ -35,9 +35,9 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void saveTest() {
         Payment payment = new Payment();
-        payment.setPaymentId("");
         payment.setOrderId("");
         payment.setCustomerId("");
+        payment.setPaymentMethodId("");
         payment.setCustomerEmail("");
         payment.setAmount(BigDecimal.valueOf(0));
         payment.setCurrency("");
@@ -65,9 +65,9 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     void updateTest() {
         var id = 1L;
         var payment = paymentRepository.findById(id).orElseThrow();
-        payment.setPaymentId("");
         payment.setOrderId("");
         payment.setCustomerId("");
+        payment.setPaymentMethodId("");
         payment.setCustomerEmail("");
         payment.setAmount(BigDecimal.valueOf(0));
         payment.setCurrency("");
@@ -82,9 +82,9 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         payment.setFailureReason("");
 
         payment = paymentRepository.save(payment);
-        Assertions.assertEquals("", payment.getPaymentId());
         Assertions.assertEquals("", payment.getOrderId());
         Assertions.assertEquals("", payment.getCustomerId());
+        Assertions.assertEquals("", payment.getPaymentMethodId());
         Assertions.assertEquals("", payment.getCustomerEmail());
         Assertions.assertEquals(BigDecimal.valueOf(0), payment.getAmount());
         Assertions.assertEquals("", payment.getCurrency());

@@ -17,21 +17,21 @@ public interface PaymentsProcessingService {
     /**
      *
      *
-     * With Events: [PaymentAuthorized, PaymentDeclined, PaymentFailed].
+     * With Events: [[PaymentAuthorized, PaymentDeclined, PaymentFailed]].
      *
      */
     public Payment authorizePayment(AuthorizePaymentInput input);
     /**
      *
      *
-     * With Events: [PaymentRetried, PaymentRetryExhausted].
+     * With Events: [[PaymentRetried, PaymentRetryExhausted]].
      *
      */
     public Payment retryPayment(Long id, RetryPaymentInput input);
     /**
      *
      *
-     * With Events: [PaymentCaptured, PaymentCaptureFailed].
+     * With Events: [[PaymentCaptured, PaymentCaptureFailed]].
      *
      */
     public Payment capturePayment(Long id, CapturePaymentInput input);

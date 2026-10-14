@@ -35,4 +35,9 @@ public interface OrdersCheckoutService {
      *
      */
     public Order cancelOrder(Long id, CancelOrderInput input);
+    /**
+     *
+     *
+     */
+    public Optional<Order> getOrder(Long id);
 }

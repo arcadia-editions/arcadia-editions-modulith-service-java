@@ -13,6 +13,10 @@ public interface PaymentsProcessingServiceEventsListenerMapper {
             Mappers.getMapper(PaymentsProcessingServiceEventsListenerMapper.class);
 
     /** Add {@code @Mapping} here when MapStruct cannot infer the conversion. */
+    com.arcadiaeditions.payments.processing.application.port.in.dto.AuthorizePaymentInput asAuthorizePaymentInput(
+            PaymentRetried event);
+
+    /** Add {@code @Mapping} here when MapStruct cannot infer the conversion. */
     com.arcadiaeditions.payments.processing.application.port.in.dto.RetryPaymentInput asRetryPaymentInput(
             PaymentFailed event);
 

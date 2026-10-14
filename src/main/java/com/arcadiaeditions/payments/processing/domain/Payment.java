@@ -30,16 +30,16 @@ public class Payment implements Serializable {
     private Integer version;
 
     @NotNull
-    @Column(name = "payment_id", nullable = false, unique = true)
-    private String paymentId;
-
-    @NotNull
     @Column(name = "order_id", nullable = false, unique = true)
     private String orderId;
 
     @NotNull
     @Column(name = "customer_id", nullable = false)
     private String customerId;
+
+    @NotNull
+    @Column(name = "payment_method_id", nullable = false)
+    private String paymentMethodId;
 
     /**
      * Carried so PaymentCaptured can drive the order confirmation e-mail.
@@ -104,15 +104,6 @@ public class Payment implements Serializable {
         return this;
     }
 
-    public String getPaymentId() {
-        return paymentId;
-    }
-
-    public Payment setPaymentId(String paymentId) {
-        this.paymentId = paymentId;
-        return this;
-    }
-
     public String getOrderId() {
         return orderId;
     }
@@ -128,6 +119,15 @@ public class Payment implements Serializable {
 
     public Payment setCustomerId(String customerId) {
         this.customerId = customerId;
+        return this;
+    }
+
+    public String getPaymentMethodId() {
+        return paymentMethodId;
+    }
+
+    public Payment setPaymentMethodId(String paymentMethodId) {
+        this.paymentMethodId = paymentMethodId;
         return this;
     }
 

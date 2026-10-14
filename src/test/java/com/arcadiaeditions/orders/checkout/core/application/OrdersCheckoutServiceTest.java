@@ -1,5 +1,6 @@
 package com.arcadiaeditions.orders.checkout.core.application;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import com.arcadiaeditions.orders.checkout.config.*;
@@ -42,5 +43,12 @@ class OrdersCheckoutServiceTest {
 
     @Test
     void cancelOrderTest() { // TODO: implement this test
+    }
+
+    @Test
+    void getOrderTest() {
+        Long id = null;
+        var order = ordersCheckoutService.getOrder(id);
+        assertTrue(order.isPresent());
     }
 }

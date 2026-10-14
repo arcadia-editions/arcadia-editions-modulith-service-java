@@ -14,15 +14,11 @@ public class InMemoryEventPublisher implements EventPublisher {
         return events;
     }
 
-    public void onPaymentDeclined(PaymentDeclined event) {
+    public void onPaymentFailed(PaymentFailed event) {
         events.add(event);
     }
 
-    public void onPaymentRetryExhausted(PaymentRetryExhausted event) {
-        events.add(event);
-    }
-
-    public void onPaymentCaptureFailed(PaymentCaptureFailed event) {
+    public void onPaymentAuthorized(PaymentAuthorized event) {
         events.add(event);
     }
 
@@ -30,11 +26,15 @@ public class InMemoryEventPublisher implements EventPublisher {
         events.add(event);
     }
 
-    public void onPaymentVoided(PaymentVoided event) {
+    public void onPaymentRetryExhausted(PaymentRetryExhausted event) {
         events.add(event);
     }
 
-    public void onPaymentFailed(PaymentFailed event) {
+    public void onPaymentDeclined(PaymentDeclined event) {
+        events.add(event);
+    }
+
+    public void onPaymentCaptureFailed(PaymentCaptureFailed event) {
         events.add(event);
     }
 
@@ -42,7 +42,7 @@ public class InMemoryEventPublisher implements EventPublisher {
         events.add(event);
     }
 
-    public void onPaymentAuthorized(PaymentAuthorized event) {
+    public void onPaymentVoided(PaymentVoided event) {
         events.add(event);
     }
 }

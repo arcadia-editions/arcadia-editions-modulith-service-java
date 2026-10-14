@@ -72,11 +72,24 @@ public class InventoryServiceImpl implements InventoryService {
         return stockReservations;
     }
 
-    public List<StockReservation> confirmStockReservation(Long id) {
+    public List<StockReservation> confirmStockReservation(ConfirmStockReservationInput input) {
 
-        log.debug("Request confirmStockReservation: {}", id);
+        log.debug("Request confirmStockReservation: {}", input);
 
-        var stockReservations = stockReservationRepository.findAll();
+        // TODO CUSTOM_REQUIRED: load the StockReservation(s) this transition applies to, e.g. by a correlation key in
+        // the input
+        List<StockReservation> stockReservations = List.of();
+        stockReservations.forEach(existingStockReservation -> {
+            StockReservationTransitions.ensureCanConfirmStockReservation(existingStockReservation);
+            inventoryServiceMapper.update(existingStockReservation, input);
+            existingStockReservation.setStatus(ReservationStatus.CONFIRMED);
+        });
+        stockReservations = stockReservationRepository.saveAll(stockReservations);
+        // emit events
+        stockReservations.forEach(eventSource -> {
+            var stockReservationConfirmed = eventsMapper.asStockReservationConfirmed(eventSource);
+            eventPublisher.onStockReservationConfirmed(stockReservationConfirmed);
+        });
         return stockReservations;
     }
 }

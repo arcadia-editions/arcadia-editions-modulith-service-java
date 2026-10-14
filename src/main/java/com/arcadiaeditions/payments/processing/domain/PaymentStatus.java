@@ -11,6 +11,7 @@ public enum PaymentStatus {
     FAILED,
     RETRY_EXHAUSTED,
     CAPTURED,
+    CAPTURE_FAILED,
     VOIDED,
     ;
 }

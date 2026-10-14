@@ -17,8 +17,6 @@ public class PaymentCaptureFailed implements Serializable {
     @java.io.Serial
     private static final long serialVersionUID = 1L;
 
-    private String paymentId;
-
     private String orderId;
 
     private String customerId;
@@ -26,15 +24,6 @@ public class PaymentCaptureFailed implements Serializable {
     private String reason;
 
     private Instant failedAt;
-
-    public String getPaymentId() {
-        return paymentId;
-    }
-
-    public PaymentCaptureFailed setPaymentId(String paymentId) {
-        this.paymentId = paymentId;
-        return this;
-    }
 
     public String getOrderId() {
         return orderId;

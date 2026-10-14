@@ -16,15 +16,11 @@ public class DefaultEventPublisher implements EventPublisher {
         this.applicationEventPublisher = applicationEventPublisher;
     }
 
-    public void onPaymentDeclined(PaymentDeclined event) {
+    public void onPaymentFailed(PaymentFailed event) {
         applicationEventPublisher.publishEvent(event);
     }
 
-    public void onPaymentRetryExhausted(PaymentRetryExhausted event) {
-        applicationEventPublisher.publishEvent(event);
-    }
-
-    public void onPaymentCaptureFailed(PaymentCaptureFailed event) {
+    public void onPaymentAuthorized(PaymentAuthorized event) {
         applicationEventPublisher.publishEvent(event);
     }
 
@@ -32,11 +28,15 @@ public class DefaultEventPublisher implements EventPublisher {
         applicationEventPublisher.publishEvent(event);
     }
 
-    public void onPaymentVoided(PaymentVoided event) {
+    public void onPaymentRetryExhausted(PaymentRetryExhausted event) {
         applicationEventPublisher.publishEvent(event);
     }
 
-    public void onPaymentFailed(PaymentFailed event) {
+    public void onPaymentDeclined(PaymentDeclined event) {
+        applicationEventPublisher.publishEvent(event);
+    }
+
+    public void onPaymentCaptureFailed(PaymentCaptureFailed event) {
         applicationEventPublisher.publishEvent(event);
     }
 
@@ -44,7 +44,7 @@ public class DefaultEventPublisher implements EventPublisher {
         applicationEventPublisher.publishEvent(event);
     }
 
-    public void onPaymentAuthorized(PaymentAuthorized event) {
+    public void onPaymentVoided(PaymentVoided event) {
         applicationEventPublisher.publishEvent(event);
     }
 }

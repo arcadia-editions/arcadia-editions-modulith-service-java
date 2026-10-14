@@ -19,6 +19,11 @@ public interface InventoryServiceMapper {
 
     @Mapping(target = "id", ignore = true)
     StockReservation update(@MappingTarget StockReservation entity, ReserveStockInput input);
+    // ConfirmStockReservationInputnull-StockReservation confirmStockReservation
+    StockReservation asStockReservation(ConfirmStockReservationInput input);
+
+    @Mapping(target = "id", ignore = true)
+    StockReservation update(@MappingTarget StockReservation entity, ConfirmStockReservationInput input);
     // ReleaseStockInputnull-StockReservation releaseStock
     StockReservation asStockReservation(ReleaseStockInput input);
 

@@ -6,19 +6,19 @@ import com.arcadiaeditions.payments.processing.domain.event.*;
 @org.jmolecules.architecture.hexagonal.SecondaryPort
 public interface EventPublisher {
 
-    void onPaymentDeclined(PaymentDeclined event);
+    void onPaymentFailed(PaymentFailed event);
 
-    void onPaymentRetryExhausted(PaymentRetryExhausted event);
-
-    void onPaymentCaptureFailed(PaymentCaptureFailed event);
+    void onPaymentAuthorized(PaymentAuthorized event);
 
     void onPaymentRetried(PaymentRetried event);
 
-    void onPaymentVoided(PaymentVoided event);
+    void onPaymentRetryExhausted(PaymentRetryExhausted event);
 
-    void onPaymentFailed(PaymentFailed event);
+    void onPaymentDeclined(PaymentDeclined event);
+
+    void onPaymentCaptureFailed(PaymentCaptureFailed event);
 
     void onPaymentCaptured(PaymentCaptured event);
 
-    void onPaymentAuthorized(PaymentAuthorized event);
+    void onPaymentVoided(PaymentVoided event);
 }

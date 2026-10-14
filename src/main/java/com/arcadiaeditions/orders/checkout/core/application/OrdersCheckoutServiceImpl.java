@@ -58,7 +58,8 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
     }
 
     public Order confirmOrder(Long id) {
-        // TODO: call CatalogInventoryZdl InventoryService.confirmStockReservation() -> StockReservation
+        // TODO: call CatalogInventoryZdl InventoryService.confirmStockReservation(ConfirmStockReservationInput) ->
+        // StockReservation
         //       then emit one of: StockReservationConfirmed
 
         log.debug("Request confirmOrder: {}", id);
@@ -95,6 +96,14 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
         // emit events
         var orderCancelled = eventsMapper.asOrderCancelled(order);
         eventPublisher.onOrderCancelled(orderCancelled);
+        return order;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Order> getOrder(Long id) {
+
+        log.debug("[CRUD] Request to get Order : {}", id);
+        var order = orderRepository.findById(id);
         return order;
     }
 }

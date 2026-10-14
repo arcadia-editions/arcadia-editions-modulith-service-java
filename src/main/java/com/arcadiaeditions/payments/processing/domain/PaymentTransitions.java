@@ -20,7 +20,8 @@ public final class PaymentTransitions {
                 entity,
                 PaymentStatus.AUTHORIZED,
                 PaymentStatus.AUTHORIZATION_REQUESTED,
-                PaymentStatus.FAILED);
+                PaymentStatus.FAILED,
+                PaymentStatus.CAPTURE_FAILED);
     }
 
     private static void require(String command, Payment entity, PaymentStatus... allowed) {
