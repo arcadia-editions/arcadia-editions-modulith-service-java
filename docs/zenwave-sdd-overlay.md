@@ -102,25 +102,20 @@ bash .claude/skills/zenwave-test-data/scripts/export-ddl.sh    # -> target/ddl/s
 - Naming conventions (ids, channels, topics): `.claude/skills/zfl-to-zdl/references/zdl-asyncapi-naming-conventions.md`
 - ZDL/ZFL comments were LLM-generated and are not authoritative. Cite structure
   (fields, inputs, annotations, ZFL edges) as evidence, never a comment alone.
-- Decisions already taken (2026-10-14, model loop on the gap report):
-  - **Correlation by `orderId`.** Event-driven commands that keep an `(id)` parameter
+- Decisions already taken (2026-10-14, open questions of the gap report):
+  - **Correlation by `orderId` (Q-01).** Event-driven commands that take an `(id)` parameter
     (`confirmOrder`, `cancelOrder`, `retryPayment`, `capturePayment`, `voidPayment`)
     resolve the aggregate in code with a `findByOrderId(event.orderId)` lookup.
-    `confirmStockReservation` takes `ConfirmStockReservationInput { orderId }`.
-  - **Payment retry (M-01).** `authorizePayment` also listens to `PaymentRetried`; on a
-    retry the input's payment data is null by design and the service loads the stored
-    `Payment` by `orderId` (get-or-create). One `Payment` per order (`orderId unique`).
-  - **Branch outcomes (M-04, Q-03).** `@transition(to:)` holds one state (the generator
-    renders a single enum constant), so it names the happy-path target. Alternative
-    outcomes set an existing enum state in code. Capture failure → `CAPTURE_FAILED`,
-    which `voidPayment` accepts.
-  - **Reservation expiry (Q-04, M-05, G-CI-05).** Out of scope for this iteration; no scheduler.
-  - **Stock unavailable (Q-05, M-06b).** The order is not persisted (the ZFL is right).
-    `StockUnavailable` still carries a generated `orderId` as correlation id.
-  - **Capture trigger (Q-06, M-06c).** Capture fires on `FulfillmentScheduled` (demo;
-    `markReadyToShip` stays unreachable).
-  - **Order query (Q-07).** `GET /orders/{id}` → `getOrder(id) Order?`.
-  - **Prices (Q-08).** For now the client's `items[].unitPrice` and `currency` are accepted
+  - **Payment retry data (Q-02).** On `PaymentRetried`, `authorizePayment`'s input carries no
+    payment data (the 4 `zdl.data-lineage` lint warnings are accepted): the service loads the
+    stored `Payment` by `orderId` (get-or-create). One `Payment` per order (`orderId unique`).
+  - **Branch outcomes (Q-03).** `@transition(to:)` holds one state (the generator renders a
+    single enum constant), so it names the happy-path target. Alternative outcomes set their
+    lifecycle state in code (e.g. capture failure → `CAPTURE_FAILED`).
+  - **Reservation expiry (Q-04, M-01, G-CI-05).** Out of scope for this iteration; no scheduler.
+  - **Stock unavailable (Q-05).** The order is not persisted (as the ZFL says); the request is
+    answered 409 with the unavailable items. `StockUnavailable` still carries a generated
+    `orderId` as correlation id.
+  - **Prices (Q-06).** For now the client's `items[].unitPrice` and `currency` are accepted
     as sent; `totalAmount` = Σ quantity × unitPrice. A later iteration may fetch prices from
     `catalog.products` (needs a products query plus `@calls`).
-  - **`voidPayment` compensation (M-06a).** `@compensates(authorizePayment)` in the ZFL.
