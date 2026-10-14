@@ -11,8 +11,8 @@ A Java + Spring Boot service created from the ZenWave archetype. Its structure i
    1. [From the domain model: zenwave-scripts.zw](#from-the-domain-model-zenwave-scriptszw)
    2. [At build time: OpenAPI and AsyncAPI (Maven)](#at-build-time-openapi-and-asyncapi-maven)
 6. [Spec-Driven Development with zenwave-sdd](#spec-driven-development-with-zenwave-sdd)
-   1. [Install the skills and Spec Kit](#install-the-skills-and-spec-kit)
-   2. [Run the skills](#run-the-skills)
+   1. [How this project was made](#how-this-project-was-made)
+   2. [What's next](#whats-next)
 
 ## Getting Started
 
@@ -101,87 +101,192 @@ To serve more API files in SwaggerUI, add them to `application.yml` (`springdoc.
 
 ## Spec-Driven Development with zenwave-sdd
 
-The generator creates the structure: entities, services, events, mappers and test skeletons. It leaves the behavior as `TODO`s. The [zenwave-sdd](https://github.com/ZenWave360/zenwave-sdd) skills find and fill those gaps, and [GitHub Spec Kit](https://github.com/github/spec-kit) gives the work a standard shape (`spec.md` → `plan.md` → `tasks.md`). The full workflow is in the [zenwave-sdd manual](https://github.com/ZenWave360/zenwave-sdd/blob/main/MANUAL.md).
+The generator creates the structure: entities, services, events, mappers and test skeletons. It leaves the behavior as `TODO`s. The [zenwave-sdd](https://github.com/ZenWave360/zenwave-sdd) skills find and fill those gaps, and [GitHub Spec Kit](https://github.com/github/spec-kit) gives the work a standard shape (`spec.md` → `plan.md` → `tasks.md`).
 
-The rule they all follow: **models own structure.** If a behavior needs a field, event, command or state that the ZDL doesn't have, fix the ZDL and regenerate. Never hand-add it to code.
+One rule above all: **models own structure.** If a behavior needs a field, event, command or state that the ZDL doesn't have, fix the ZDL and regenerate. Never hand-add it to code.
 
-### Install the skills and Spec Kit
+The generic, step-by-step guide is [zenwave-sdd GETTING-STARTED](https://github.com/ZenWave360/zenwave-sdd/blob/main/GETTING-STARTED.md) (the same guide is in the README of every project created from the ZenWave archetypes). This section is how it was applied to this project: what was done, with the commits, and what's next, with the exact commands for this repo.
 
-Run once, from the project root, after the first generation. It installs a pinned zenwave-sdd release for Claude Code, Codex and Grok:
+**How to run a skill.** Open your AI agent in the root of this repo. In Claude Code and Grok, type `/skill-name`; in Codex, `$skill-name`. Lines starting with `/` are typed into the agent; `bash` blocks run in Git Bash, from the root of this repo.
+
+### How this project was made
+
+#### 1. The models ✅
+
+Nothing in this repo is modeled here. The models live in two sibling repos, which must be cloned next to this one:
 
 ```bash
-ZWSDD=v0.1.0-rc1                                     # zenwave-sdd release tag
-tmp=$(mktemp -d)
-git clone -q --depth 1 --branch "$ZWSDD" https://github.com/ZenWave360/zenwave-sdd "$tmp"
+cd ..
+git clone https://github.com/arcadia-editions/arcadia-editions-architecture.git   # ZFL: business-flows/place-order-flow.zfl
+git clone https://github.com/arcadia-editions/arcadia-editions-modulith-api.git   # ZDL: one *-domain-model.zdl per module, plus orders-checkout-openapi.yml
+cd -
+```
 
-# the same skills into each agent's folder (copies; symlinks are unreliable on Windows)
-for dir in .claude/skills .agents/skills .grok/skills; do
-  mkdir -p "$dir" && cp -r "$tmp"/skills/* "$dir"/
-done
+The ZFL flow is written for the microservices layout (`@zdl("orders-checkout-api/domain-model.zdl")`). In this modulith, each of those maps to `../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl`, and so on: the mapping is in the overlay.
 
-mkdir -p docs
-cp "$tmp"/templates/project-overlay.md docs/zenwave-sdd-overlay.md
-cp "$tmp"/speckit/constitution-zenwave.md docs/
-echo "$ZWSDD" > docs/zenwave-sdd.version
-rm -rf "$tmp"
+The generator doesn't read the ZDLs from that repo directly, but from a jar that packages them, `com.arcadiaeditions.modulith.application.arcadia-editions-modulith:service-all:0.0.1`. Build and install it into `~/.m2`:
 
-# Spec Kit, for every agent you use (claude is the default)
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
-specify init --here --integration claude --script sh
-specify integration install codex
-specify integration install grok
-specify integration use claude
+```bash
+bash ../arcadia-editions-modulith-api/package-local-service-all.sh
+```
+
+#### 2. Created from the ZenWave Java archetype ✅ (`a348d77`)
+
+With JPA and Spring Modulith, base package `com.arcadiaeditions`. See [the archetype command](https://github.com/ZenWave360/zenwave-sdd/blob/main/MANUAL.md#41-create-the-project-with-the-zenwave-archetype-).
+
+#### 3. Pointed the generation at the models ✅ (`560ed22`)
+
+- Deleted the sample `zenwave-model.zdl`.
+- `zenwave-scripts.zw`: `@import("com.arcadiaeditions.modulith.application.arcadia-editions-modulith:service-all:0.0.1")`, and one `BackendApplicationDefaultPlugin` block per module, each with `zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/<module>-domain-model.zdl"`. The OpenAPI plugins read `orders-checkout-openapi.yml` from the same jar.
+- `pom.xml`: `service-all` as a dependency, also of `openapi-generator-maven-plugin`, which now reads its `inputSpec` from the jar. Removed the AsyncAPI properties: events are in-process, there's no AsyncAPI.
+
+#### 4. Generated the code ✅ (`4e2dbcb`)
+
+Ran every plugin in `zenwave-scripts.zw` ([Code Generation](#code-generation)).
+
+#### 5. Installed zenwave-sdd and Spec Kit ✅ (`1bed3a5`)
+
+zenwave-sdd `v0.1.0-rc1` for Claude Code, Codex and Grok (`.claude/skills/`, `.agents/skills/`, `.grok/skills/`), Spec Kit (`.specify/`), `AGENTS.md` and `CLAUDE.md`, with [the install commands of the guide](https://github.com/ZenWave360/zenwave-sdd/blob/main/GETTING-STARTED.md#01-install-the-skills-and-spec-kit). To upgrade, run them again with a new tag and review the `git diff`.
+
+#### 6. Filled in the overlay ✅
+
+[docs/zenwave-sdd-overlay.md](docs/zenwave-sdd-overlay.md) tells every skill where the models of step 1 are, how the ZFL `@zdl(...)` paths map to the ZDL files, how to extract the ZDLs from the jar and check them against the working copy, the shape (modulith, `@listener`, JPA), the module packages, and the build, regenerate and lint commands. Update it if a repo moves, or a flow or module is added.
+
+Checks (each must list files, and the last one must print nothing):
+
+```bash
+ls ../arcadia-editions-architecture/business-flows/*.zfl
+ls ../arcadia-editions-modulith-api/*-domain-model.zdl
+ls ~/.m2/repository/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/service-all/0.0.1/*.jar
+grep -nE '<(path|org|commands|jdk|Project|link|list|\.\.\.)>' docs/zenwave-sdd-overlay.md
+```
+
+#### 7. Generated basic test data ✅ (`791fbb0`)
+
+```text
+/zenwave-test-data
+```
+
+One consistent example per entity in `src/test/resources/data.sql` and `src/test/resources/data/jpa/<Entity>/1.json`.
+
+### What's next
+
+#### 8. Create the Spec Kit constitution
+
+`.specify/memory/constitution.md` is still the empty Spec Kit template.
+
+```text
+/speckit-constitution Capture this project's existing practices (don't invent standards).
+Include the article in docs/constitution-zenwave.md verbatim.
+```
+
+Read it and commit it.
+
+#### 9. Run the gap report
+
+First check that the jar matches the ZDLs in `arcadia-editions-modulith-api` (the code was generated from the jar). This must print nothing; if it prints a file, do step 10 items 3–5 first:
+
+```bash
+P=com/arcadiaeditions/modulith/application/arcadia-editions-modulith
+mkdir -p target/models && unzip -o -q -j ~/.m2/repository/$P/service-all/0.0.1/service-all-0.0.1.jar "$P/*-domain-model.zdl" -d target/models
+for f in ../arcadia-editions-modulith-api/*-domain-model.zdl; do diff -q "$f" "target/models/$(basename "$f")"; done
 ```
 
 Then:
 
-1. **Fill in `docs/zenwave-sdd-overlay.md`.** It's how the skills find your ZFL and ZDL files, and learn the deployment shape (microservices or modulith), the packages, and the build and regenerate commands.
-2. **Point every agent at it.** Create `AGENTS.md` (read by Codex and Grok) and a `CLAUDE.md` that imports it:
-
-   ```bash
-   cat > AGENTS.md <<'EOF'
-   # Agent instructions
-   - Before running any zenwave-* skill, read docs/zenwave-sdd-overlay.md.
-   - Models own structure: never hand-edit generated structure; model gaps go back to the ZDL + regeneration (docs/constitution-zenwave.md).
-   - Spec Kit features live in specs/NNN-<feature>/; the constitution is .specify/memory/constitution.md.
-   EOF
-   printf '@AGENTS.md\n' > CLAUDE.md
-   ```
-
-3. **Commit** the skill folders, `docs/`, `.specify/`, `AGENTS.md` and `CLAUDE.md`, so the whole team works with the same versions.
-
-To upgrade, re-run the first block with a new `ZWSDD` tag, and review the `git diff`.
-
-### Run the skills
-
-Claude Code and Grok invoke skills as `/skill-name`, and Codex as `$skill-name`. Any agent also understands "run the zenwave-gap-report skill".
-
-| Step | Run | Result |
-|---|---|---|
-| ZFL flow → ZDL (only when you start from a ZFL business flow) | `/zfl-to-zdl <flow.zfl>` | one ZDL per bounded context |
-| Baseline health check | `mvn -DskipTests clean compile`, inspect mapper warnings and generated `TODO`s | generated structure is current and its known gaps are visible |
-| Generate basic test data (JPA) | `/zenwave-test-data` | one valid, consistent example per entity in `src/test/resources/data.sql` and `data/jpa/<Entity>/*.json` |
-| Find what the generator left out | `/zenwave-gap-report` | `docs/zenwave-gap-report.md`: model gaps, missing wiring, unimplemented methods, mapper and test gaps, open questions |
-| Fix model gaps | edit the ZDL, regenerate ([Code Generation](#code-generation)), then repeat the health check, basic test data and gap report | no model gaps left |
-| Generate scenario test data (JPA) | `/zenwave-test-scenarios` | fixture chains for each command precondition, branch, failure path and observed outcome |
-| Spec a flow | `/speckit-constitution` (once), then `/speckit-specify`, `/speckit-clarify`, `/speckit-plan`, `/speckit-tasks` | `specs/NNN-<flow>/` with tasks seeded from the gap report |
-| Implement | `/speckit-implement Use the zenwave-fill-gaps skill for each task.`, or `/zenwave-fill-gaps <finding-id>` | code and tests |
-| Check drift and close | `/speckit-converge`, `mvn test`, `/zenwave-gap-report` | no blockers or majors left |
-
-Run basic test data before the gap report so the project starts with fixtures that
-load in both test modes. Replace that basic set with scenario test data only when
-service or flow tests are about to be written: the scenario skill reads the gap
-report's fixture findings and open questions. After a model change, rerun the health
-check, basic data and gap report; refresh an existing scenario set with
-`zenwave-test-scenarios`, never `zenwave-test-data`, so its coverage rows remain.
-
-To export only the Hibernate DDL (no project configuration needed):
-
-```bash
-bash .claude/skills/zenwave-test-data/scripts/export-ddl.sh    # -> target/ddl/schema.sql
+```text
+/zenwave-gap-report
 ```
 
-The prompts for each Spec Kit step, and the reasoning behind them, are in the [zenwave-sdd manual](https://github.com/ZenWave360/zenwave-sdd/blob/main/MANUAL.md).
+You get `docs/zenwave-gap-report.md`: model gaps (M-\*), open questions (Q-\*), code gaps per module (G-\*) and cross-cutting ones (X-\*). Commit it.
+
+#### 10. Fix the model gaps (repeat until none are left)
+
+For each M-\* and Q-\*, decide the answer, then:
+
+1. Edit the ZDL in `../arcadia-editions-modulith-api/` (or the ZFL in `../arcadia-editions-architecture/business-flows/`).
+2. Lint, and fix every error:
+
+   ```bash
+   bash .claude/skills/zfl-to-zdl/scripts/lint-zdl.sh --strict ../arcadia-editions-modulith-api
+   ```
+
+3. Rebuild the jar. It packages git-tracked files, so add new ones first:
+
+   ```bash
+   (cd ../arcadia-editions-modulith-api && git add -A)
+   bash ../arcadia-editions-modulith-api/package-local-service-all.sh
+   ```
+
+4. Regenerate with `zenwave-scripts.zw` ([Code Generation](#code-generation)), without `--force`.
+5. `git diff --stat`: every module whose ZDL changed must have changes.
+6. Check the baseline, refresh the test data and re-run the report:
+
+   ```bash
+   mvn -DskipTests clean compile 2>&1 | tee target/compile.log
+   grep -i "unmapped target" target/compile.log
+   grep -rn "TODO CUSTOM_REQUIRED\|TODO: implement" src/main
+   ```
+
+   ```text
+   /zenwave-test-data
+   /zenwave-gap-report
+   ```
+
+#### 11. Generate scenario test data
+
+When the report has no model gaps left, before writing service or flow tests:
+
+```text
+/zenwave-test-scenarios
+```
+
+From then on, refresh the data with `/zenwave-test-scenarios`, never `/zenwave-test-data`.
+
+#### 12. Spec and implement the place-order flow
+
+Feature `001-place-order-flow` (and `000-<module>-baseline` for gaps outside the flow). In order, reading each result:
+
+```text
+/speckit-specify PlaceOrderFlow from ../arcadia-editions-architecture/business-flows/place-order-flow.zfl.
+Behavior only: reference ZFL steps and ZDL elements by their exact names.
+The findings for this flow are in docs/zenwave-gap-report.md.
+```
+
+```text
+/speckit-clarify
+```
+
+```text
+/speckit-plan Structure is fixed by the ZDL and the generated code (constitution).
+Do NOT write data-model.md or contracts/: add a "ZDL cross-reference" table
+(element | file:line | used by) instead. Copy this flow's slice of
+docs/zenwave-gap-report.md into research.md.
+```
+
+```text
+/speckit-tasks Seed tasks from the gap-report findings for this flow, keeping their ids
+(e.g. "T012 [G-OC-03] confirmOrder: load by orderId, guard, CONFIRMED, save, emit").
+One phase per bounded context in flow order, then flow-level tests.
+```
+
+```text
+/speckit-analyze
+/speckit-implement Use the zenwave-fill-gaps skill for each task.
+/speckit-converge
+```
+
+If `/speckit-clarify` needs a new field, event or command, go back to step 10.
+
+#### 13. Verify and close
+
+```bash
+mvn test
+```
+
+Then `/zenwave-gap-report` again: done when tests are green and there are no blockers or majors left for the flow.
+
+If something goes wrong, see [If something goes wrong](https://github.com/ZenWave360/zenwave-sdd/blob/main/GETTING-STARTED.md#if-something-goes-wrong) in the guide.
 
 Happy Coding!! 🚀🚀🚀
 
