@@ -20,16 +20,12 @@ elements exactly and does not restate their structure. Missing behavior is inven
 Answered by the model owner while reviewing the gap report (also recorded in
 `docs/zenwave-sdd-overlay.md`, "Decisions already taken"):
 
-- Q: How does a command triggered by an event find its aggregate when the event has no surrogate id? → A: By `orderId`. `confirmStockReservation` takes `ConfirmStockReservationInput { orderId }`; the commands that keep an `(id)` parameter resolve it with a lookup by `orderId`.
-- Q: How is `PaymentRetried → authorizePayment` modeled (M-01)? → A: `authorizePayment` also listens to `PaymentRetried`. One `Payment` per order; a retry re-authorizes the same payment, using the payment data already stored on it (including `paymentMethodId`).
-- Q: What is the payment state after a failed capture (Q-03)? → A: `CAPTURE_FAILED`, from which `voidPayment` is allowed.
-- Q: How are alternative outcomes represented when `@transition(to:)` holds one state (M-04)? → A: `to` names the happy-path state; each alternative outcome sets an existing lifecycle state.
+- Q: How does a command triggered by an event find its aggregate when the event carries only the order reference (Q-01)? → A: By `orderId`, looked up in the target context.
+- Q: On a payment retry, where does the payment data come from (Q-02)? → A: From the order's one `Payment`; a retry re-authorizes the same payment with the data already stored on it (including `paymentMethodId`).
+- Q: How are alternative outcomes recorded when a command declares one target state (Q-03)? → A: The declared state is the happy path; each alternative outcome sets its own lifecycle state (e.g. capture failure → `CAPTURE_FAILED`).
 - Q: Is reservation expiry (`ReservationExpired`, Q-04) in scope? → A: No, deferred to a later iteration.
-- Q: Is an order kept when stock is unavailable (Q-05)? → A: No. The customer is told immediately; the `StockUnavailable` notice still carries an order reference for correlation.
-- Q: What triggers payment capture (Q-06)? → A: `FulfillmentScheduled`, as in the ZFL edge.
-- Q: Can the customer read the order (Q-07)? → A: Yes, `getOrder(id)` (`GET /orders/{id}`).
-- Q: Where do prices come from (Q-08)? → A: For now, from the customer's request as sent; fetching them from the product catalog is a later iteration.
-- Q: Which compensation does `voidPayment` perform (M-06a)? → A: It compensates `authorizePayment`.
+- Q: Is an order kept when stock is unavailable (Q-05)? → A: No. The customer is told immediately, with the unavailable items; the `StockUnavailable` notice still carries an order reference for correlation.
+- Q: Where do prices come from (Q-06)? → A: For now, from the customer's request as sent; fetching them from the product catalog is a later iteration.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -173,7 +169,7 @@ matches the latest outcome.
 
 **Query**
 
-- **FR-014**: Customers MUST be able to read an order by its reference, including status and cancellation reason. (Q-07)
+- **FR-014**: Customers MUST be able to read an order by its reference, including status and cancellation reason. (`getOrder`)
 
 **Cross-cutting**
 
@@ -205,12 +201,12 @@ matches the latest outcome.
 
 ## Assumptions
 
-- **Scope**: Reservation expiry (`ReservationExpired`, G-CI-05, M-05) is out of scope for this iteration; without it, an order whose payment never resolves keeps its stock held.
-- **Prices**: Unit prices and currency are taken from the checkout request; they are not checked against the product catalog.
-- **Payment attempts** (Q-09): at most 3 authorization attempts per order, with a short delay between retries; the limit is configuration.
-- **Payment provider and notification channel** (Q-13): for this demo, stand-in adapters simulate the payment provider and e-mail delivery; the outcome can be forced in tests.
-- **Fulfillment decision** (Q-10): for this demo, a stand-in decides scheduled or failed; it can be forced in tests. `markReadyToShip` stays out of the flow.
-- **Released confirmed stock** (Q-11): releasing a confirmed reservation returns its quantity from sold to available.
-- **Business references** (Q-14): order, reservation, fulfillment and notification references use the prefixed format already used in the fixtures (e.g. `ORD-…`).
+- **Scope**: Reservation expiry (`ReservationExpired`, G-CI-05, M-01) is out of scope for this iteration; without it, an order whose payment never resolves keeps its stock held.
+- **Prices** (Q-06): Unit prices and currency are taken from the checkout request; they are not checked against the product catalog.
+- **Payment attempts** (Q-07): at most 3 authorization attempts per order, with a short delay between retries; the limit is configuration.
+- **Payment provider and notification channel** (Q-11): for this demo, stand-in adapters simulate the payment provider and e-mail delivery; the outcome can be forced in tests.
+- **Fulfillment decision** (Q-08): for this demo, a stand-in decides scheduled or failed; it can be forced in tests. `markReadyToShip` stays out of the flow.
+- **Released confirmed stock** (Q-09): releasing a confirmed reservation returns its quantity from sold to available.
+- **Business references** (Q-12): order, reservation, fulfillment and notification references use the prefixed format already used in the fixtures (e.g. `ORD-…`).
 - **Stock setup**: inventory positions exist before a drop (backoffice; `000-catalog-inventory-baseline`).
-- **Readiness**: The model changes of 2026-10-14 (API repo `991d42a`, `9cca14e`; architecture repo `915d073`) are regenerated, and `docs/zenwave-gap-report.md` says READY.
+- **Readiness**: `docs/zenwave-gap-report.md` says READY for the models at API repo `9cca14e` and architecture repo `915d073`.

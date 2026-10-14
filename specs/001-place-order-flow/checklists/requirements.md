@@ -34,10 +34,9 @@
 - Iteration 1: one implementation detail ("in-process redelivery") in Edge Cases was reworded. Passed on iteration 2.
 - ZFL/ZDL element names (`startOrderCheckout`, `PaymentAuthorized`, …) are kept on purpose: the
   constitution requires specs to reference model elements by their exact names. They are domain
-  vocabulary, not technology. The one endpoint path (`GET /orders/{id}`) appears only in the recorded
-  clarification, as the model owner stated it.
+  vocabulary, not technology.
 - Gap-report ids (G-\*, X-\*, Q-\*) on requirements are traceability for `/speckit-tasks`.
-- Not-model-affecting questions Q-09, Q-10, Q-11, Q-13 and Q-14 were resolved as documented
+- Not-model-affecting questions Q-07, Q-08, Q-09, Q-11 and Q-12 were resolved as documented
   assumptions instead of clarification markers; `/speckit-clarify` can confirm or override them.
 - Gate: `/speckit-plan` must not start until a fresh `docs/zenwave-gap-report.md` says READY
   (constitution, "Models Own Structure").
