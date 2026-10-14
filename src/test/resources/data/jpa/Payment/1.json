@@ -1,9 +1,9 @@
 {
     "id": 1,
     "version": 0,
-    "paymentId": "PAY-001",
     "orderId": "ORD-001",
     "customerId": "CUST-001",
+    "paymentMethodId": "PM-001",
     "customerEmail": "customer@example.com",
     "amount": 49.99,
     "currency": "EUR",

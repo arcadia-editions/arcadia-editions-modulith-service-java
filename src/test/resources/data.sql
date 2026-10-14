@@ -24,8 +24,8 @@ VALUES (nextval('checkout_order_seq'), 0, 'ORD-001', 'CONFIRMED', 'CUST-001', 'c
         49.99, 'EUR', '2026-09-26T13:00:00Z', '2026-09-26T13:05:00Z');
 
 -- Payments processing
-INSERT INTO payment (id, version, payment_id, order_id, customer_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'PAY-001', 'ORD-001', 'CUST-001', 'customer@example.com', 49.99, 'EUR', 'AUTHORIZED', 'PROV-001', 1, '2026-09-26T13:03:00Z');
+INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
+VALUES (nextval('payment_seq'), 0, 'ORD-001', 'CUST-001', 'PM-001', 'customer@example.com', 49.99, 'EUR', 'AUTHORIZED', 'PROV-001', 1, '2026-09-26T13:03:00Z');
 
 -- Fulfillment shipping
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, scheduled_at)

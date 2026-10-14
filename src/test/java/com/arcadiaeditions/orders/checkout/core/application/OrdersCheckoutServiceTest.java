@@ -47,7 +47,7 @@ class OrdersCheckoutServiceTest {
 
     @Test
     void getOrderTest() {
-        Long id = null;
+        Long id = 1L;
         var order = ordersCheckoutService.getOrder(id);
         assertTrue(order.isPresent());
     }
