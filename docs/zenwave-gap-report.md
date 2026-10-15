@@ -3,12 +3,12 @@
 | | |
 |---|---|
 | Date | 2026-10-14 |
-| Code baseline | `cabbe60` (chore: update README.md and zenwave-sdd-overlay.md). Generated code is in `a77adb1` (feat: Full modulith generated with zenwave-scripts.zw) |
+| Code baseline | `9b2c40c` (docs: amend constitution to v1.0.1). Generated code is in `2d5a0a3` (feat: Full modulith generated with zenwave-scripts.zw), which now includes the regeneration of orders-checkout and payments-processing after the `orderId` model change |
 | Flows | `../arcadia-editions-architecture/business-flows/place-order-flow.zfl` (at `915d073`) |
-| Models | `../arcadia-editions-modulith-api/*-domain-model.zdl` (6 files, at `9cca14e`). Staleness check passed: identical to the `service-all-0.0.1` jar the code was generated from |
+| Models | `../arcadia-editions-modulith-api/*-domain-model.zdl` (6 files, at `166be74` feat(models): key event-driven commands by orderId). Staleness check passed: identical to the `service-all-0.0.1` jar the code was generated from |
 | Decisions | `docs/zenwave-sdd-overlay.md`, "Decisions already taken" (2026-10-14) |
 | Deployment shape | Modulith (Spring Modulith 2.0, in-process events, JDBC event publication registry) |
-| Produced with | `zenwave-gap-report` (read-only) |
+| Produced with | `zenwave-gap-report` (read-only). Re-run 2026-10-14 after the model change; previous run at code `cabbe60` / models `9cca14e` |
 
 Code paths are relative to `src/main/java/com/arcadiaeditions/` unless they start with `src/`.
 ZDL references use `<bc>.zdl:<line>`, short for `../arcadia-editions-modulith-api/<bc>-domain-model.zdl`.
@@ -21,22 +21,29 @@ ZFL references use `zfl:<line>` for `place-order-flow.zfl`.
 >
 > Deferred by decision, not blocking: reservation expiry (`ReservationExpired`), so M-01, Q-04 and
 > G-CI-05 are out of scope for this iteration. Q-01..Q-06 are answered (overlay, "Decisions already
-> taken"). The open questions Q-07..Q-12 don't affect the models.
+> taken"); Q-01 is now settled in the models (commands keyed by `orderId`). The open questions
+> Q-07..Q-12 don't affect the models.
 
 ## Summary
 
-1. **Six listeners crash at runtime.** `Long id = null` is passed to `findById` in `confirmOrder`,
-   `cancelOrder`, `retryPayment`, `capturePayment` (×1) and `voidPayment` (×2): the triggering events
-   carry only `orderId`. The target context can look the aggregate up, so these are **code** gaps
-   (Q-01): resolve it with `findByOrderId(event.orderId)` (G-OC-06, G-PP-05). The same crash class also
+1. **Since the model change, every listener is fully wired** (G-OC-06, G-PP-05 resolved):
+   `confirmOrder`, `cancelOrder`, `retryPayment`, `capturePayment` and `voidPayment` take an input
+   with `orderId`, mapped by name from the triggering event. **They still fail at runtime**: each
+   loads its aggregate from `Optional.empty()` (`TODO CUSTOM_REQUIRED`) and then `orElseThrow()`s, so
+   every event-driven step after authorization throws and is resubmitted every 30 s. Filling the
+   load with `findByOrderId(input.orderId)` is G-OC-07 / G-PP-07, now blockers. The same crash class
    includes `OrderCreated.amount` being unmapped (G-OC-03) and `Enum.valueOf` on free-text reasons
    (G-CI-04).
 2. **Every ZFL edge has a trigger in code**, except the reservation-expiry timer (deferred) and the two
    synchronous `@calls` (`reserveStock`, `confirmStockReservation`), which are `// TODO`s.
-3. **The generated "not implemented" pattern is in 12 of 15 flow service methods.** They build a new
-   empty entity, never save it, and emit every alternative. `confirmStockReservation` and
-   `releaseStock` have the generated load/guard/save loop, but load `List.of()`; and they would emit
-   one event per reservation instead of one per order.
+3. **The generated "not implemented" pattern is in 6 of 15 flow service methods** (`startOrderCheckout`,
+   `authorizePayment`, `scheduleFulfillment`, the three notifications): they build a new empty entity,
+   never save it, and emit every alternative. `reserveStock` does nothing. Seven transition commands have the
+   generated load/guard/save shape with an empty load (`Optional.empty()` for `confirmOrder`,
+   `cancelOrder`, `retryPayment`, `capturePayment`, `voidPayment`; `List.of()` for
+   `confirmStockReservation`, `releaseStock`). The two inventory ones would also emit one event per
+   reservation instead of one per order; `retryPayment` and `capturePayment` still emit both
+   alternatives.
 4. **`authorizePayment` must be get-or-create by `orderId`.** It is triggered by both `OrderCreated`
    and `PaymentRetried`; on a retry the input's payment fields are null (Q-02), and the service has to
    use the stored `Payment`.
@@ -49,9 +56,9 @@ ZFL references use `zfl:<line>` for `place-order-flow.zfl`.
 |---|---|---|---|---|
 | blocker | 0 | 7 | 0 | — |
 | major | 0 | 20 | 4 | — |
-| minor | 0 | 11 | 4 | — |
+| minor | 0 | 9 | 4 | — |
 | deferred | 1 (M-01) | 1 (G-CI-05) | — | 1 (Q-04) |
-| **total open** | **0** | **38** | **8** | **6** (Q-07..Q-12, not model-affecting) |
+| **total open** | **0** | **36** | **8** | **6** (Q-07..Q-12, not model-affecting) |
 
 ### Tooling notes (not findings)
 
@@ -69,7 +76,15 @@ ZFL references use `zfl:<line>` for `place-order-flow.zfl`.
   SDK rewrites shared files (`common/mappers/BaseMapper`, the root `package-info`, the architecture
   tests, `DockerComposeInitializer`), and its output depends on which module ran last. Align the
   versions before regenerating, and review shared files in the `git diff`.
-- `target/compile.log` holds the current compile: 56 MapStruct unmapped-target warnings.
+- **T-05.** The re-generation after the `orderId` model change (2026-10-14) deleted the generated-once
+  files that had to change (both service impls and service mappers, the five listeners and their
+  mappers, none edited since generation) and regenerated without `--force`. Discarded as T-04
+  drift: a new root-level `src/test/java/com/arcadiaeditions/ArchitectureTest.java` (hexagonal rules
+  applied to every module) and line-ending-only rewrites of six payments files. Generator quirk kept
+  as generated: `OrdersCheckoutServiceMapper` has `// <Input>null-Order <command>` comments and an
+  unused `asOrder(<Input>)` per command.
+- Current compile (`mvn -DskipTests clean compile`): 58 MapStruct unmapped-target warnings (was 56;
+  the 2 new ones are the expected entity mappings `asOrder`/`update` for `ConfirmOrderInput`).
 
 ## 1. Model gaps (human decision: ZFL / ZDL change + regeneration; agents never edit the models)
 
@@ -94,28 +109,31 @@ the happy-path state and the alternative outcomes have their own lifecycle state
 | 1 | `StartOrderCheckout → startOrderCheckout` (`zfl:82`) | ✅ `POST /api/orders/start-checkout` `orders/checkout/adapters/web/OrdersCheckoutApiController.java:54` | ✅ | ❌ G-OC-01 |
 | 2 | `startOrderCheckout` `call reserveStock` (`zfl:84`) | ❌ `// TODO: call …reserveStock` in `OrdersCheckoutServiceImpl.java:45` | — | ❌ G-CI-01 |
 | 3 | `OrderCreated → authorizePayment` (`zfl:108`) | ✅ `payments/processing/adapter/in/event/checkout/OrdersCheckoutEventsListener.java:26` | ⚠️ `amount` null upstream (G-OC-03) | ❌ G-PP-01 |
-| 4 | `PaymentFailed → retryPayment` (`zfl:124`) | ✅ `payments/processing/adapter/in/event/processing/PaymentsProcessingServiceEventsListener.java:32` | ❌ `id = null` (G-PP-05) | ❌ G-PP-02 |
+| 4 | `PaymentFailed → retryPayment` (`zfl:124`) | ✅ `payments/processing/adapter/in/event/processing/PaymentsProcessingServiceEventsListener.java:32` | ⚠️ `orderId` mapped; load is `Optional.empty()` (G-PP-07) | ❌ G-PP-02 |
 | 5 | `PaymentRetried → authorizePayment` (`zfl:132`) | ✅ `PaymentsProcessingServiceEventsListener.java:27` | ⚠️ payment fields null by design; loaded by `orderId` | ❌ G-PP-01 |
-| 6 | `PaymentAuthorized → confirmOrder` (`zfl:146`) | ✅ `orders/checkout/adapters/events/processing/PaymentsProcessingEventsListener.java:24` | ❌ `id = null` (G-OC-06) | ⚠️ G-OC-02 |
+| 6 | `PaymentAuthorized → confirmOrder` (`zfl:146`) | ✅ `orders/checkout/adapters/events/processing/PaymentsProcessingEventsListener.java:26` | ⚠️ `orderId` mapped; load is `Optional.empty()` (G-OC-07) | ⚠️ G-OC-02 |
 | 7 | `confirmOrder` `call confirmStockReservation` (`zfl:148`) | ❌ `// TODO` in `OrdersCheckoutServiceImpl.java:60` | ✅ `ConfirmStockReservationInput { orderId }` | ❌ G-CI-02 |
 | 8 | `OrderConfirmed → scheduleFulfillment` (`zfl:166`) | ✅ `fulfillment/shipping/checkout/OrdersCheckoutEventsListener.java:19` | ✅ | ❌ G-FS-01 |
-| 9 | `FulfillmentScheduled → capturePayment` (`zfl:178`) | ✅ `payments/processing/adapter/in/event/shipping/FulfillmentShippingEventsListener.java:26` | ❌ `id = null` (G-PP-05) | ❌ G-PP-03 |
+| 9 | `FulfillmentScheduled → capturePayment` (`zfl:178`) | ✅ `payments/processing/adapter/in/event/shipping/FulfillmentShippingEventsListener.java:26` | ⚠️ `orderId` mapped; load is `Optional.empty()` (G-PP-07) | ❌ G-PP-03 |
 | 10 | `PaymentCaptured → sendOrderConfirmation` (`zfl:189`) | ✅ `notifications/consumer/events/processing/PaymentsProcessingEventsListener.java:26` | ✅ | ❌ G-NC-01 |
 | 11 | `StockUnavailable → sendStockUnavailableNotification` (`zfl:199`) | ✅ `notifications/consumer/events/checkout/OrdersCheckoutEventsListener.java:26` | ⚠️ `unavailableItems` null upstream (G-OC-04) | ❌ G-NC-02 |
-| 12 | `FulfillmentFailed → voidPayment` (`zfl:211`) | ✅ `FulfillmentShippingEventsListener.java:34` | ❌ `id = null` (G-PP-05) | ❌ G-PP-04 |
-| 13 | `PaymentCaptureFailed → voidPayment` (`zfl:211`) | ✅ `PaymentsProcessingServiceEventsListener.java:39` | ❌ `id = null` (G-PP-05) | ❌ G-PP-04 |
+| 12 | `FulfillmentFailed → voidPayment` (`zfl:211`) | ✅ `FulfillmentShippingEventsListener.java:32` | ⚠️ `orderId` mapped; load is `Optional.empty()` (G-PP-07) | ❌ G-PP-04 |
+| 13 | `PaymentCaptureFailed → voidPayment` (`zfl:211`) | ✅ `PaymentsProcessingServiceEventsListener.java:37` | ⚠️ `orderId` mapped; load is `Optional.empty()` (G-PP-07) | ❌ G-PP-04 |
 | 14 | `PaymentDeclined / PaymentRetryExhausted / PaymentVoided → releaseStock` (`zfl:224`) | ✅ `catalog/inventory/events/processing/PaymentsProcessingEventsListener.java:25-39` | ❌ `Enum.valueOf(reason)` (G-CI-04) | ❌ G-CI-03 |
 | 15 | `ReservationExpired → releaseStock` (`zfl:235-239`) | ⏸ deferred (G-CI-05) | — | — |
-| 16 | `StockReleased → cancelOrder` (`zfl:247`) | ✅ `orders/checkout/adapters/events/inventory/CatalogInventoryEventsListener.java:26` | ❌ `id = null` (G-OC-06) | ⚠️ G-OC-05 |
+| 16 | `StockReleased → cancelOrder` (`zfl:247`) | ✅ `orders/checkout/adapters/events/inventory/CatalogInventoryEventsListener.java:26` | ⚠️ `orderId` mapped; load is `Optional.empty()` (G-OC-07) | ⚠️ G-OC-05 |
 | 17 | `OrderCancelled → sendOrderCancelledNotification` (`zfl:257`) | ✅ `notifications/consumer/events/checkout/OrdersCheckoutEventsListener.java:32` | ⚠️ `reason` null upstream (G-OC-05) | ❌ G-NC-03 |
-| 18 | Customer reads the order (`getOrder`, `orders-checkout.zdl:109-110`; not a ZFL step) | ✅ `GET /api/orders/{id}` `OrdersCheckoutApiController.java:63` (404 when absent) | ✅ | ✅ `OrdersCheckoutServiceImpl.java:103` |
+| 18 | Customer reads the order (`getOrder`, `orders-checkout.zdl:109-110`; not a ZFL step) | ✅ `GET /api/orders/{id}` `OrdersCheckoutApiController.java:63` (404 when absent) | ✅ | ✅ `OrdersCheckoutServiceImpl.java:106` |
 
 **Data lineage summary (listener inputs).** Fully covered by the event: `OrderCreated →
 AuthorizePaymentInput`, `OrderConfirmed → ScheduleFulfillmentInput`, `PaymentCaptured →
 SendOrderConfirmationInput`, `StockUnavailable → SendStockUnavailableNotificationInput`,
 `OrderCancelled → SendOrderCancelledNotificationInput`, `PaymentFailed → RetryPaymentInput`,
-`FulfillmentScheduled → CapturePaymentInput`. Resolved by a lookup by `orderId` in the target
-context (decision): every `id`, and the payment fields of `PaymentRetried → AuthorizePaymentInput`.
+`FulfillmentScheduled → CapturePaymentInput`, `PaymentAuthorized → ConfirmOrderInput`,
+`StockReleased → CancelOrderInput` (`reason` via the enum's `name()`), `FulfillmentFailed` /
+`PaymentCaptureFailed → VoidPaymentInput`. Resolved by a lookup by `orderId` in the target
+context (decision): the aggregate of every `orderId`-keyed command (G-OC-07, G-PP-07), and the
+payment fields of `PaymentRetried → AuthorizePaymentInput`.
 Needs a constant: `ReleaseStockInput.reason` (one `StockReleaseReason` per source event).
 
 ### 2.1 orders-checkout (steps 1, 6, 16, 18)
@@ -123,12 +141,12 @@ Needs a constant: `ReleaseStockInput.reason` (one `StockReleaseReason` per sourc
 | Id | Sev | Where | Gap → expected behavior | Model ref |
 |---|---|---|---|---|
 | G-OC-01 | blocker | `orders/checkout/core/application/OrdersCheckoutServiceImpl.java:45-58` | Generated pattern: new empty `Order`, never saved, `orderId`/`totalAmount`/`createdAt` not set, `reserveStock` not called, **both** `OrderCreated` and `StockUnavailable` emitted. Expected: generate `orderId`, compute `totalAmount` = Σ quantity × unitPrice (prices as sent, decision Q-06), call `InventoryService.reserveStock({orderId, items})`. On `RESERVED`: save as `CREATED`, emit `OrderCreated`. On `UNAVAILABLE`: **don't save** (decision Q-05), emit `StockUnavailable`, and answer 409 with the unavailable items. Throwing to get the 409 rolls back the transaction, and with it the `StockUnavailable` publication, so use `@Transactional(noRollbackFor = …)` or return the outcome to the controller. | `orders-checkout.zdl:95-98`; `zfl:82-99` |
-| G-OC-02 | major | `OrdersCheckoutServiceImpl.java:60-80` | Guard, status and save are present. Missing: call `confirmStockReservation({orderId})` (`@calls`, TODO at `:61`) and set `confirmedAt`. | `orders-checkout.zdl:100-103`; `zfl:146-158` |
+| G-OC-02 | major | `OrdersCheckoutServiceImpl.java:60-82` | Guard, status and save are present (load: G-OC-07). Missing: call `confirmStockReservation({orderId})` (`@calls`, TODO at `:61`) and set `confirmedAt`. | `orders-checkout.zdl:100-103`; `zfl:146-158` |
 | G-OC-03 | blocker | `orders/checkout/core/application/mappers/EventsMapper.java:14` | `OrderCreated.amount` is unmapped, so `AuthorizePaymentInput.amount` is null and the `payment.amount NOT NULL` insert fails. Its source is not stated by the model: the matching name in `AuthorizePaymentInput.amount` and `Order.totalAmount` suggest the total. | `orders-checkout.zdl:111-120`; `payments-processing.zdl:55-62` |
 | G-OC-04 | major | `EventsMapper.java:20` | `StockUnavailable.unavailableItems` is unmapped. Its source is `ReserveStockResult.unavailable.unavailableItems`, not the `Order`, so the mapper needs a second source. | `orders-checkout.zdl:123-132`; `catalog-inventory.zdl:97-104` |
-| G-OC-05 | major | `OrdersCheckoutServiceImpl.java:82-100`; `EventsMapper.java:18`; `mappers/OrdersCheckoutServiceMapper.java:23-26` | `cancelledAt` isn't set; `CancelOrderInput.reason` isn't mapped to `Order.cancellationReason`; `OrderCancelled.reason` is unmapped. `StockReleased.reason` is a `StockReleaseReason` and `CancelOrderInput.reason` a `String`: map the enum name. Must be idempotent (X-01): a second `StockReleased` must not throw. | `orders-checkout.zdl:105-107`, `155-164`; `catalog-inventory.zdl:126-135` |
-| G-OC-06 | blocker | `orders/checkout/adapters/events/processing/PaymentsProcessingEventsListener.java:26`; `adapters/events/inventory/CatalogInventoryEventsListener.java:28` | `Long id = null` → `findById(null)` throws, and the event is resubmitted forever. Resolve the id with `findByOrderId(event.orderId)` (decision). | decision "Correlation by `orderId`" |
-| G-OC-07 | minor | `orders/checkout/core/outbound/jpa/OrderRepository.java:17` | No `findByOrderId` (natural key), needed by G-OC-06. | `orders-checkout.zdl:27` |
+| G-OC-05 | major | `OrdersCheckoutServiceImpl.java:84-104`; `EventsMapper.java:18`; `mappers/OrdersCheckoutServiceMapper.java:17-21` | `cancelledAt` isn't set; `CancelOrderInput.reason` isn't mapped to `Order.cancellationReason`; `OrderCancelled.reason` is unmapped. (`StockReleased.reason` → `CancelOrderInput.reason` is already mapped with the enum's `name()`.) Must be idempotent (X-01): a second `StockReleased` must not throw. | `orders-checkout.zdl:105-107`, `155-164`; `catalog-inventory.zdl:126-135` |
+| ~~G-OC-06~~ | resolved | — | **Resolved by the model change** (`166be74`): `confirmOrder(ConfirmOrderInput)` and `cancelOrder(CancelOrderInput)` take `orderId`; both listeners are fully generated (`PaymentsProcessingEventsListener.java:27`, `CatalogInventoryEventsListener.java:27`). The load moved into the service (G-OC-07). | `orders-checkout.zdl:82-90`, `103`, `107` |
+| G-OC-07 | blocker | `orders/checkout/core/outbound/jpa/OrderRepository.java:17`; `OrdersCheckoutServiceImpl.java:67-68`, `:88-89` | `confirmOrder` and `cancelOrder` load from `Optional.empty()` (`TODO CUSTOM_REQUIRED`) and then `orElseThrow()`, so every `PaymentAuthorized` / `StockReleased` throws and is resubmitted forever. Add `Optional<Order> findByOrderId(String)` (natural key) to the repository and to `OrderRepositoryInMemory`, and load with `findByOrderId(input.getOrderId())`. | `orders-checkout.zdl:27`, `82-90`; decision Q-01 |
 
 ### 2.2 catalog-inventory (steps 2, 7, 14, 15)
 
@@ -147,12 +165,12 @@ Needs a constant: `ReleaseStockInput.reason` (one `StockReleaseReason` per sourc
 | Id | Sev | Where | Gap → expected behavior | Model ref |
 |---|---|---|---|---|
 | G-PP-01 | major | `payments/processing/application/service/PaymentsProcessingServiceImpl.java:46-60` | Generated pattern: new empty payment, not saved, `attemptCount` not set, no provider call, all three outcomes emitted. Expected **get-or-create by `orderId`**: on `OrderCreated` create (`AUTHORIZATION_REQUESTED`, `attemptCount = 1`, `paymentMethodId` from the input). On `PaymentRetried` load the stored payment and ignore the null input fields, refusing payments already `AUTHORIZED`/`CAPTURED`/`VOIDED` (there is no `from` guard). Then call the provider (X-02) and set exactly one outcome: `AUTHORIZED` (+`providerReference`, `authorizedAt`) / `DECLINED` (+`declinedAt`, `failureReason`) / `FAILED` (+`failedAt`, `failureReason`). | `payments-processing.zdl:84-87`; `zfl:101-140` |
-| G-PP-02 | major | `PaymentsProcessingServiceImpl.java:62-82` | Emits both `PaymentRetried` and `PaymentRetryExhausted`; `attemptCount` untouched. Expected: under the limit (Q-07; suggested: 3 attempts), increment `attemptCount`, `AUTHORIZATION_REQUESTED`, emit `PaymentRetried`. At the limit: `RETRY_EXHAUSTED`, emit `PaymentRetryExhausted`. Don't reset `attemptCount` in G-PP-01. | `payments-processing.zdl:89-91`; `zfl:118-130` |
-| G-PP-03 | major | `PaymentsProcessingServiceImpl.java:84-104` | Sets `CAPTURED` unconditionally and emits both events. Expected: call provider capture. Success: `CAPTURED` + `capturedAt`, emit `PaymentCaptured`. Failure: **`CAPTURE_FAILED`** + `failureReason`, emit `PaymentCaptureFailed`. | `payments-processing.zdl:46-54`, `93-95`; `zfl:172-182` |
-| G-PP-04 | major | `PaymentsProcessingServiceImpl.java:106-124` | Guard (now incl. `CAPTURE_FAILED`), status and save are present. Missing: provider void (skip it when nothing was authorized: `AUTHORIZATION_REQUESTED`/`FAILED`), `voidedAt`, `input.reason → failureReason` (unmapped). | `payments-processing.zdl:97-100`; `zfl:204-214` |
-| G-PP-05 | blocker | `payments/processing/adapter/in/event/processing/PaymentsProcessingServiceEventsListener.java:34`, `:41`; `adapter/in/event/shipping/FulfillmentShippingEventsListener.java:29`, `:36` | Four listeners pass `Long id = null`, and `findById(null)` throws. Resolve with `findByOrderId(event.orderId)` (decision). | decision "Correlation by `orderId`" |
+| G-PP-02 | major | `PaymentsProcessingServiceImpl.java:62-83` | Load: G-PP-07. Emits both `PaymentRetried` and `PaymentRetryExhausted`; `attemptCount` untouched. Expected: under the limit (Q-07; suggested: 3 attempts), increment `attemptCount`, `AUTHORIZATION_REQUESTED`, emit `PaymentRetried`. At the limit: `RETRY_EXHAUSTED`, emit `PaymentRetryExhausted`. Don't reset `attemptCount` in G-PP-01. | `payments-processing.zdl:89-91`; `zfl:118-130` |
+| G-PP-03 | major | `PaymentsProcessingServiceImpl.java:85-106` | Load: G-PP-07. Sets `CAPTURED` unconditionally and emits both events. Expected: call provider capture. Success: `CAPTURED` + `capturedAt`, emit `PaymentCaptured`. Failure: **`CAPTURE_FAILED`** + `failureReason`, emit `PaymentCaptureFailed`. | `payments-processing.zdl:46-54`, `93-95`; `zfl:172-182` |
+| G-PP-04 | major | `PaymentsProcessingServiceImpl.java:108-127` | Guard (now incl. `CAPTURE_FAILED`), status and save are present (load: G-PP-07). Missing: provider void (skip it when nothing was authorized: `AUTHORIZATION_REQUESTED`/`FAILED`), `voidedAt`, `input.reason → failureReason` (unmapped). | `payments-processing.zdl:97-100`; `zfl:204-214` |
+| ~~G-PP-05~~ | resolved | — | **Resolved by the model change** (`166be74`): `retryPayment`, `capturePayment` and `voidPayment` take inputs with `orderId`; the four listeners are fully generated (`PaymentsProcessingServiceEventsListener.java:33`, `:38`; `FulfillmentShippingEventsListener.java:28`, `:33`). The load moved into the service (G-PP-07). | `payments-processing.zdl:65-79`, `91`, `95`, `100` |
 | G-PP-06 | minor | `payments/processing/application/service/mapper/EventsMapper.java:14-28` | Unmapped: `reason` on `PaymentDeclined`/`PaymentFailed`/`PaymentRetryExhausted`/`PaymentCaptureFailed`/`PaymentVoided` (from `failureReason`), `PaymentRetryExhausted.exhaustedAt`, `PaymentRetried.retriedAt`. | `payments-processing.zdl:102-178` |
-| G-PP-07 | minor | `payments/processing/application/port/out/jpa/PaymentRepository.java:17` | No `findByOrderId` (`orderId` is unique and is now the payment's only business key). | `payments-processing.zdl:27` |
+| G-PP-07 | blocker | `payments/processing/application/port/out/jpa/PaymentRepository.java:17`; `PaymentsProcessingServiceImpl.java:66-67`, `:89-90`, `:112-113` | `retryPayment`, `capturePayment` and `voidPayment` load from `Optional.empty()` (`TODO CUSTOM_REQUIRED`) and then `orElseThrow()`, so every `PaymentFailed`, `FulfillmentScheduled`, `FulfillmentFailed` and `PaymentCaptureFailed` throws and is resubmitted forever. Add `Optional<Payment> findByOrderId(String)` (`orderId` is unique, the payment's only business key) to the repository and `PaymentRepositoryInMemory`, and load with `findByOrderId(input.getOrderId())`; `authorizePayment` uses it too (get-or-create, G-PP-01). | `payments-processing.zdl:27`, `65-79`; decision Q-01 |
 
 ### 2.4 fulfillment-shipping (step 8)
 
@@ -203,7 +221,7 @@ Needs a constant: `ReleaseStockInput.reason` (one `StockReleaseReason` per sourc
 | X-05 | minor | `config/WebExceptionsTranslator.java` only handles bean validation. Map `NoSuchElementException` → 404, the per-module `InvalidStateTransitionException`s → 409, and stock-unavailable → 409 (G-OC-01). |
 | X-06 | minor | Event-driven inputs aren't validated. Note that `AuthorizePaymentInput` from `PaymentRetried` is partial by design: don't add `@Validated` there without a separate validation group. |
 | X-07 | minor | No business-id generation (`orderId`, `reservationId`, `fulfillmentId`, `notificationId`). Format: Q-12 (suggested: prefixed, as in the fixtures). |
-| X-08 | minor | `mvn compile` prints 56 MapStruct unmapped-target warnings (`target/compile.log`). The event-mapper and listener-mapper ones are the G-* mapping findings. Expected, so don't silence them: the 4 on `PaymentsProcessingServiceEventsListenerMapper` (`PaymentRetried`, Q-02) and the `id`/`version`/`status` ones on entity create mappers. |
+| X-08 | minor | `mvn compile` prints 58 MapStruct unmapped-target warnings (log outside `target/`, T-03). The event-mapper and listener-mapper ones are the G-* mapping findings. Expected, so don't silence them: the 4 on `PaymentsProcessingServiceEventsListenerMapper` (`PaymentRetried`, Q-02), the `id`/`version`/`status` ones on entity create mappers, and the generated `asOrder(<Input>)` / `update(Order, <Input>)` for transition inputs (`ConfirmOrderInput`, `CancelOrderInput`). |
 
 ## 5. Open questions (→ `/speckit-clarify`)
 
@@ -211,7 +229,7 @@ Needs a constant: `ReleaseStockInput.reason` (one `StockReleaseReason` per sourc
 
 | Id | Question | Answer | Affects |
 |---|---|---|---|
-| Q-01 | Five event-driven commands take a surrogate `(id)` (`confirmOrder`, `cancelOrder`, `retryPayment`, `capturePayment`, `voidPayment`), but their events carry only `orderId`. Change the models or look it up? | Look it up in code with `findByOrderId(event.orderId)` | G-OC-06, G-PP-05 |
+| Q-01 | Five event-driven commands took a surrogate `(id)` (`confirmOrder`, `cancelOrder`, `retryPayment`, `capturePayment`, `voidPayment`), but their events carry only `orderId`. Change the models or look it up? | First: look it up in code. **Revised 2026-10-14: change the models.** The five commands take an input with `orderId` (models `166be74`); the service loads the aggregate with `findByOrderId(input.orderId)` | G-OC-06, G-PP-05 (resolved); G-OC-07, G-PP-07 |
 | Q-02 | `PaymentRetried` lacks the payment data `AuthorizePaymentInput` requires (T-01). Add it to the event or load it? | Load the stored `Payment` by `orderId`; one `Payment` per order | G-PP-01 |
 | Q-03 | `@transition(to:)` holds one state; how are alternative outcomes represented? | `to` names the happy-path state; alternative outcomes set their lifecycle state in code | all `[A \| B]` commands |
 | Q-04 | Is reservation expiry in scope? | No, deferred | M-01, G-CI-05 |
@@ -235,8 +253,8 @@ Needs a constant: `ReleaseStockInput.reason` (one `StockReleaseReason` per sourc
 The verdict is READY, so `/speckit-plan` can follow; its `research.md` takes §2 of this report.
 
 - **Phase 1, catalog-inventory:** G-CI-01..04, G-CI-06..07, X-04 (G-CI-01 first: checkout calls it).
-- **Phase 2, orders-checkout:** G-OC-01..07.
-- **Phase 3, payments-processing:** G-PP-01..07, X-02.
+- **Phase 2, orders-checkout:** G-OC-01..05, G-OC-07 (G-OC-06 resolved).
+- **Phase 3, payments-processing:** G-PP-01..04, G-PP-06..07, X-02 (G-PP-05 resolved).
 - **Phase 4, fulfillment-shipping:** G-FS-01.
 - **Phase 5, notifications-consumer:** G-NC-01..04, X-03.
 - **Phase 6, cross-cutting and tests:** X-01, X-05..X-08, G-FT-01..06, G-TST-01 (fixtures first, with

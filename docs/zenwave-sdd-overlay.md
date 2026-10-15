@@ -103,9 +103,10 @@ bash .claude/skills/zenwave-test-data/scripts/export-ddl.sh    # -> target/ddl/s
 - ZDL/ZFL comments were LLM-generated and are not authoritative. Cite structure
   (fields, inputs, annotations, ZFL edges) as evidence, never a comment alone.
 - Decisions already taken (2026-10-14, open questions of the gap report):
-  - **Correlation by `orderId` (Q-01).** Event-driven commands that take an `(id)` parameter
-    (`confirmOrder`, `cancelOrder`, `retryPayment`, `capturePayment`, `voidPayment`)
-    resolve the aggregate in code with a `findByOrderId(event.orderId)` lookup.
+  - **Correlation by `orderId` (Q-01).** The event-driven commands `confirmOrder`, `cancelOrder`,
+    `retryPayment`, `capturePayment` and `voidPayment` are keyed by `orderId` in the models: each
+    takes an input carrying `orderId`, not an `(id)` (API repo `166be74`, revised 2026-10-14). The
+    service loads the aggregate with `findByOrderId(input.orderId)`.
   - **Payment retry data (Q-02).** On `PaymentRetried`, `authorizePayment`'s input carries no
     payment data (the 4 `zdl.data-lineage` lint warnings are accepted): the service loads the
     stored `Payment` by `orderId` (get-or-create). One `Payment` per order (`orderId unique`).

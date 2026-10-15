@@ -174,7 +174,7 @@ matches the latest outcome.
 **Cross-cutting**
 
 - **FR-015**: Every event-driven step MUST be safe to run more than once for the same order (no duplicate payment, capture, stock movement or notice). (X-01)
-- **FR-016**: Event-driven steps MUST find their order, payment or reservations by the order reference carried by the event. (G-OC-06, G-PP-05, G-OC-07, G-PP-07, G-CI-07)
+- **FR-016**: Event-driven steps MUST find their order, payment or reservations by the order reference carried by the event. (G-OC-07, G-PP-07, G-CI-07; G-OC-06 and G-PP-05 resolved in the models)
 - **FR-017**: Requests for unknown orders MUST be answered as not found, and disallowed state changes as conflicts. (X-05)
 - **FR-018**: Each terminal outcome of the ZFL `end` block (`completed`, `stockGone`, `orderCancelled` through each failure path) MUST be covered by an automated end-to-end check. (G-FT-01..06)
 
@@ -209,4 +209,4 @@ matches the latest outcome.
 - **Released confirmed stock** (Q-09): releasing a confirmed reservation returns its quantity from sold to available.
 - **Business references** (Q-12): order, reservation, fulfillment and notification references use the prefixed format already used in the fixtures (e.g. `ORD-…`).
 - **Stock setup**: inventory positions exist before a drop (backoffice; `000-catalog-inventory-baseline`).
-- **Readiness**: `docs/zenwave-gap-report.md` says READY for the models at API repo `9cca14e` and architecture repo `915d073`.
+- **Readiness**: `docs/zenwave-gap-report.md` says READY for the models at API repo `166be74` and architecture repo `915d073` (re-run after the five event-driven commands were keyed by `orderId`).
