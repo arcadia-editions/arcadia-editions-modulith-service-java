@@ -60,6 +60,7 @@ class FulfillmentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest
     @Test
     void updateTest() {
         var id = 1L;
+        var now = Instant.now();
         var fulfillment = fulfillmentRepository.findById(id).orElseThrow();
         fulfillment.setFulfillmentId("");
         fulfillment.setOrderId("");
@@ -69,9 +70,9 @@ class FulfillmentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest
         fulfillment.setItems(List.of(new FulfillmentItem()));
         fulfillment.setCarrierCode("");
         fulfillment.setTrackingNumber("");
-        fulfillment.setScheduledAt(Instant.now());
-        fulfillment.setReadyAt(Instant.now());
-        fulfillment.setFailedAt(Instant.now());
+        fulfillment.setScheduledAt(now);
+        fulfillment.setReadyAt(now);
+        fulfillment.setFailedAt(now);
         fulfillment.setFailureReason("");
 
         fulfillment = fulfillmentRepository.save(fulfillment);
@@ -79,13 +80,17 @@ class FulfillmentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest
         Assertions.assertEquals("", fulfillment.getOrderId());
         Assertions.assertEquals("", fulfillment.getCustomerId());
         Assertions.assertEquals(FulfillmentStatus.values()[0], fulfillment.getStatus());
-        Assertions.assertEquals(new ShippingAddress(), fulfillment.getShippingAddress());
-        Assertions.assertEquals(List.of(new FulfillmentItem()), fulfillment.getItems());
+        org.assertj.core.api.Assertions.assertThat(fulfillment.getShippingAddress())
+                .usingRecursiveComparison()
+                .isEqualTo(new ShippingAddress());
+        org.assertj.core.api.Assertions.assertThat(fulfillment.getItems())
+                .usingRecursiveComparison()
+                .isEqualTo(List.of(new FulfillmentItem()));
         Assertions.assertEquals("", fulfillment.getCarrierCode());
         Assertions.assertEquals("", fulfillment.getTrackingNumber());
-        Assertions.assertEquals(Instant.now(), fulfillment.getScheduledAt());
-        Assertions.assertEquals(Instant.now(), fulfillment.getReadyAt());
-        Assertions.assertEquals(Instant.now(), fulfillment.getFailedAt());
+        Assertions.assertEquals(now, fulfillment.getScheduledAt());
+        Assertions.assertEquals(now, fulfillment.getReadyAt());
+        Assertions.assertEquals(now, fulfillment.getFailedAt());
         Assertions.assertEquals("", fulfillment.getFailureReason());
     }
 

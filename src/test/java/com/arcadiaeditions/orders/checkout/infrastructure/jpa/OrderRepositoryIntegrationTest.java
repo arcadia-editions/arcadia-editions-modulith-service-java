@@ -63,6 +63,7 @@ class OrderRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void updateTest() {
         var id = 1L;
+        var now = Instant.now();
         var order = orderRepository.findById(id).orElseThrow();
         order.setOrderId("");
         order.setStatus(OrderStatus.values()[0]);
@@ -73,9 +74,9 @@ class OrderRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         order.setShippingAddress(new ShippingAddress());
         order.setTotalAmount(BigDecimal.valueOf(0));
         order.setCurrency("");
-        order.setCreatedAt(Instant.now());
-        order.setConfirmedAt(Instant.now());
-        order.setCancelledAt(Instant.now());
+        order.setCreatedAt(now);
+        order.setConfirmedAt(now);
+        order.setCancelledAt(now);
         order.setCancellationReason("");
 
         order = orderRepository.save(order);
@@ -84,13 +85,17 @@ class OrderRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         Assertions.assertEquals("", order.getCustomerId());
         Assertions.assertEquals("", order.getCustomerEmail());
         Assertions.assertEquals("", order.getPaymentMethodId());
-        Assertions.assertEquals(List.of(new OrderItem()), order.getItems());
-        Assertions.assertEquals(new ShippingAddress(), order.getShippingAddress());
+        org.assertj.core.api.Assertions.assertThat(order.getItems())
+                .usingRecursiveComparison()
+                .isEqualTo(List.of(new OrderItem()));
+        org.assertj.core.api.Assertions.assertThat(order.getShippingAddress())
+                .usingRecursiveComparison()
+                .isEqualTo(new ShippingAddress());
         Assertions.assertEquals(BigDecimal.valueOf(0), order.getTotalAmount());
         Assertions.assertEquals("", order.getCurrency());
-        Assertions.assertEquals(Instant.now(), order.getCreatedAt());
-        Assertions.assertEquals(Instant.now(), order.getConfirmedAt());
-        Assertions.assertEquals(Instant.now(), order.getCancelledAt());
+        Assertions.assertEquals(now, order.getCreatedAt());
+        Assertions.assertEquals(now, order.getConfirmedAt());
+        Assertions.assertEquals(now, order.getCancelledAt());
         Assertions.assertEquals("", order.getCancellationReason());
     }
 

@@ -62,6 +62,7 @@ class NotificationRepositoryIntegrationTest extends BaseRepositoryIntegrationTes
     @Test
     void updateTest() {
         var id = 1L;
+        var now = Instant.now();
         var notification = notificationRepository.findById(id).orElseThrow();
         notification.setNotificationId("");
         notification.setCustomerId("");
@@ -73,9 +74,9 @@ class NotificationRepositoryIntegrationTest extends BaseRepositoryIntegrationTes
         notification.setSubject("");
         notification.setBody("");
         notification.setRecipient("");
-        notification.setCreatedAt(Instant.now());
-        notification.setSentAt(Instant.now());
-        notification.setFailedAt(Instant.now());
+        notification.setCreatedAt(now);
+        notification.setSentAt(now);
+        notification.setFailedAt(now);
         notification.setFailureReason("");
 
         notification = notificationRepository.save(notification);
@@ -89,9 +90,9 @@ class NotificationRepositoryIntegrationTest extends BaseRepositoryIntegrationTes
         Assertions.assertEquals("", notification.getSubject());
         Assertions.assertEquals("", notification.getBody());
         Assertions.assertEquals("", notification.getRecipient());
-        Assertions.assertEquals(Instant.now(), notification.getCreatedAt());
-        Assertions.assertEquals(Instant.now(), notification.getSentAt());
-        Assertions.assertEquals(Instant.now(), notification.getFailedAt());
+        Assertions.assertEquals(now, notification.getCreatedAt());
+        Assertions.assertEquals(now, notification.getSentAt());
+        Assertions.assertEquals(now, notification.getFailedAt());
         Assertions.assertEquals("", notification.getFailureReason());
     }
 

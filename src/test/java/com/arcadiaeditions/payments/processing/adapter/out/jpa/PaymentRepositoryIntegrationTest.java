@@ -64,6 +64,7 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void updateTest() {
         var id = 1L;
+        var now = Instant.now();
         var payment = paymentRepository.findById(id).orElseThrow();
         payment.setOrderId("");
         payment.setCustomerId("");
@@ -74,11 +75,11 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         payment.setStatus(PaymentStatus.values()[0]);
         payment.setProviderReference("");
         payment.setAttemptCount(0);
-        payment.setAuthorizedAt(Instant.now());
-        payment.setDeclinedAt(Instant.now());
-        payment.setFailedAt(Instant.now());
-        payment.setCapturedAt(Instant.now());
-        payment.setVoidedAt(Instant.now());
+        payment.setAuthorizedAt(now);
+        payment.setDeclinedAt(now);
+        payment.setFailedAt(now);
+        payment.setCapturedAt(now);
+        payment.setVoidedAt(now);
         payment.setFailureReason("");
 
         payment = paymentRepository.save(payment);
@@ -91,11 +92,11 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         Assertions.assertEquals(PaymentStatus.values()[0], payment.getStatus());
         Assertions.assertEquals("", payment.getProviderReference());
         Assertions.assertEquals(0, payment.getAttemptCount());
-        Assertions.assertEquals(Instant.now(), payment.getAuthorizedAt());
-        Assertions.assertEquals(Instant.now(), payment.getDeclinedAt());
-        Assertions.assertEquals(Instant.now(), payment.getFailedAt());
-        Assertions.assertEquals(Instant.now(), payment.getCapturedAt());
-        Assertions.assertEquals(Instant.now(), payment.getVoidedAt());
+        Assertions.assertEquals(now, payment.getAuthorizedAt());
+        Assertions.assertEquals(now, payment.getDeclinedAt());
+        Assertions.assertEquals(now, payment.getFailedAt());
+        Assertions.assertEquals(now, payment.getCapturedAt());
+        Assertions.assertEquals(now, payment.getVoidedAt());
         Assertions.assertEquals("", payment.getFailureReason());
     }
 

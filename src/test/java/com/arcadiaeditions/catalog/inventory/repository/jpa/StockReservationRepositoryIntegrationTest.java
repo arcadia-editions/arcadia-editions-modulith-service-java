@@ -57,16 +57,17 @@ class StockReservationRepositoryIntegrationTest extends BaseRepositoryIntegratio
     @Test
     void updateTest() {
         var id = 1L;
+        var now = Instant.now();
         var stockReservation = stockReservationRepository.findById(id).orElseThrow();
         stockReservation.setReservationId("");
         stockReservation.setOrderId("");
         stockReservation.setSku("");
         stockReservation.setQuantity(0);
         stockReservation.setStatus(ReservationStatus.values()[0]);
-        stockReservation.setReservedAt(Instant.now());
-        stockReservation.setExpiresAt(Instant.now());
-        stockReservation.setConfirmedAt(Instant.now());
-        stockReservation.setReleasedAt(Instant.now());
+        stockReservation.setReservedAt(now);
+        stockReservation.setExpiresAt(now);
+        stockReservation.setConfirmedAt(now);
+        stockReservation.setReleasedAt(now);
         stockReservation.setReleaseReason(StockReleaseReason.values()[0]);
 
         stockReservation = stockReservationRepository.save(stockReservation);
@@ -75,10 +76,10 @@ class StockReservationRepositoryIntegrationTest extends BaseRepositoryIntegratio
         Assertions.assertEquals("", stockReservation.getSku());
         Assertions.assertEquals(0, stockReservation.getQuantity());
         Assertions.assertEquals(ReservationStatus.values()[0], stockReservation.getStatus());
-        Assertions.assertEquals(Instant.now(), stockReservation.getReservedAt());
-        Assertions.assertEquals(Instant.now(), stockReservation.getExpiresAt());
-        Assertions.assertEquals(Instant.now(), stockReservation.getConfirmedAt());
-        Assertions.assertEquals(Instant.now(), stockReservation.getReleasedAt());
+        Assertions.assertEquals(now, stockReservation.getReservedAt());
+        Assertions.assertEquals(now, stockReservation.getExpiresAt());
+        Assertions.assertEquals(now, stockReservation.getConfirmedAt());
+        Assertions.assertEquals(now, stockReservation.getReleasedAt());
         Assertions.assertEquals(StockReleaseReason.values()[0], stockReservation.getReleaseReason());
     }
 

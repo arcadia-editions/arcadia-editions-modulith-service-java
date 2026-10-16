@@ -57,6 +57,7 @@ class ProductRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void updateTest() {
         var id = 1L;
+        var now = Instant.now();
         var product = productRepository.findById(id).orElseThrow();
         product.setSku("");
         product.setName("");
@@ -65,7 +66,7 @@ class ProductRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         product.setCurrency("");
         product.setEditionSize(0);
         product.setTrackingMode(InventoryTrackingMode.values()[0]);
-        product.setLaunchAt(Instant.now());
+        product.setLaunchAt(now);
         product.setStatus(ProductStatus.values()[0]);
 
         product = productRepository.save(product);
@@ -76,7 +77,7 @@ class ProductRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         Assertions.assertEquals("", product.getCurrency());
         Assertions.assertEquals(0, product.getEditionSize());
         Assertions.assertEquals(InventoryTrackingMode.values()[0], product.getTrackingMode());
-        Assertions.assertEquals(Instant.now(), product.getLaunchAt());
+        Assertions.assertEquals(now, product.getLaunchAt());
         Assertions.assertEquals(ProductStatus.values()[0], product.getStatus());
     }
 
