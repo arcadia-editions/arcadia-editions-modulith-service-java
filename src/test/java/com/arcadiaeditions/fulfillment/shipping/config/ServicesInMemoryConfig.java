@@ -4,6 +4,9 @@ import com.arcadiaeditions.config.TestDataLoader;
 import com.arcadiaeditions.fulfillment.shipping.*;
 import com.arcadiaeditions.fulfillment.shipping.domain.*;
 import com.arcadiaeditions.fulfillment.shipping.domain.events.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,8 +20,11 @@ import org.springframework.context.annotation.Profile;
 public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
-    protected final FulfillmentShippingServiceImpl fulfillmentShippingService =
-            new FulfillmentShippingServiceImpl(fulfillmentRepository(), eventPublisher);
+    protected final FulfillmentShippingServiceImpl fulfillmentShippingService = new FulfillmentShippingServiceImpl(
+            fulfillmentRepository(),
+            eventPublisher,
+            new StandInFulfillmentDecision(),
+            Clock.fixed(Instant.parse("2026-10-14T10:00:00Z"), ZoneOffset.UTC));
 
     @Bean
     public <T extends FulfillmentShippingService> T fulfillmentShippingService() {
