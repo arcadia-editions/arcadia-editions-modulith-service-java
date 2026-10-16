@@ -1,0 +1,16 @@
+{
+    "id": 901,
+    "version": 0,
+    "orderId": "ORD-019",
+    "customerId": "CUST-019",
+    "paymentMethodId": "pm_ok",
+    "customerEmail": "customer019@example.com",
+    "amount": 59.9,
+    "currency": "EUR",
+    "status": "VOIDED",
+    "providerReference": "STANDIN-ORD-019",
+    "attemptCount": 1,
+    "authorizedAt": "2026-10-14T09:50:24Z",
+    "voidedAt": "2026-10-14T09:50:59Z",
+    "failureReason": "carrier_unavailable"
+}

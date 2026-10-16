@@ -1,0 +1,14 @@
+{
+    "id": 401,
+    "version": 0,
+    "orderId": "ORD-009",
+    "customerId": "CUST-009",
+    "paymentMethodId": "pm_fail_always",
+    "customerEmail": "customer009@example.com",
+    "amount": 59.9,
+    "currency": "EUR",
+    "status": "FAILED",
+    "attemptCount": 3,
+    "failedAt": "2026-10-14T09:50:14Z",
+    "failureReason": "processor_unavailable"
+}

@@ -6,8 +6,20 @@
     "customerId": "CUST-001",
     "customerEmail": "customer@example.com",
     "paymentMethodId": "PM-001",
-    "items": [{"sku": "SKU-001", "quantity": 1, "unitPrice": 49.99}],
-    "shippingAddress": {"name": "Arcadia Customer", "line1": "1 Book Lane", "city": "Madrid", "postalCode": "28001", "country": "ES"},
+    "items": [
+        {
+            "sku": "SKU-001",
+            "quantity": 1,
+            "unitPrice": 49.99
+        }
+    ],
+    "shippingAddress": {
+        "name": "Arcadia Customer",
+        "line1": "1 Book Lane",
+        "city": "Madrid",
+        "postalCode": "28001",
+        "country": "ES"
+    },
     "totalAmount": 49.99,
     "currency": "EUR",
     "createdAt": "2026-09-26T13:00:00Z",

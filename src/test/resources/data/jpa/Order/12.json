@@ -1,0 +1,27 @@
+{
+    "id": 551,
+    "version": 0,
+    "orderId": "ORD-012",
+    "status": "CONFIRMED",
+    "customerId": "CUST-012",
+    "customerEmail": "customer012@example.com",
+    "paymentMethodId": "pm_capture_fail",
+    "items": [
+        {
+            "sku": "SKU-002",
+            "quantity": 1,
+            "unitPrice": 59.9
+        }
+    ],
+    "shippingAddress": {
+        "name": "Arcadia Customer",
+        "line1": "1 Book Lane",
+        "city": "Madrid",
+        "postalCode": "28012",
+        "country": "ES"
+    },
+    "totalAmount": 59.9,
+    "currency": "EUR",
+    "createdAt": "2026-10-14T09:50:12Z",
+    "confirmedAt": "2026-10-14T09:50:22Z"
+}

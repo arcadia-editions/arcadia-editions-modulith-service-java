@@ -1,0 +1,16 @@
+{
+    "id": 601,
+    "version": 0,
+    "orderId": "ORD-013",
+    "customerId": "CUST-013",
+    "paymentMethodId": "pm_capture_fail",
+    "customerEmail": "customer013@example.com",
+    "amount": 59.9,
+    "currency": "EUR",
+    "status": "VOIDED",
+    "providerReference": "STANDIN-CAPFAIL-ORD-013",
+    "attemptCount": 1,
+    "authorizedAt": "2026-10-14T09:50:18Z",
+    "voidedAt": "2026-10-14T09:50:53Z",
+    "failureReason": "capture_rejected"
+}

@@ -1,0 +1,14 @@
+{
+    "id": 251,
+    "version": 0,
+    "orderId": "ORD-006",
+    "customerId": "CUST-006",
+    "paymentMethodId": "pm_capture_fail",
+    "customerEmail": "customer006@example.com",
+    "amount": 59.9,
+    "currency": "EUR",
+    "status": "AUTHORIZED",
+    "providerReference": "STANDIN-CAPFAIL-ORD-006",
+    "attemptCount": 1,
+    "authorizedAt": "2026-10-14T09:50:11Z"
+}

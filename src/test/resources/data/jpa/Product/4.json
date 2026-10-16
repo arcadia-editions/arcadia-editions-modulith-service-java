@@ -1,0 +1,13 @@
+{
+    "id": 151,
+    "version": 0,
+    "sku": "SKU-004",
+    "name": "Arcadia Sold-Out Edition",
+    "description": "Numbered edition",
+    "price": 79.0,
+    "currency": "EUR",
+    "editionSize": 5,
+    "trackingMode": "QUANTITY",
+    "launchAt": "2026-09-26T10:00:00Z",
+    "status": "PUBLISHED"
+}

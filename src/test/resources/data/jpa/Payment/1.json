@@ -7,8 +7,9 @@
     "customerEmail": "customer@example.com",
     "amount": 49.99,
     "currency": "EUR",
-    "status": "AUTHORIZED",
-    "providerReference": "PROV-001",
+    "status": "CAPTURED",
+    "providerReference": "STANDIN-ORD-001",
     "attemptCount": 1,
-    "authorizedAt": "2026-09-26T13:03:00Z"
+    "authorizedAt": "2026-09-26T13:03:00Z",
+    "capturedAt": "2026-09-26T13:06:30Z"
 }

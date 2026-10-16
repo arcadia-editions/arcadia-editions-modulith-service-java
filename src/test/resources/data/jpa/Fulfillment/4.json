@@ -1,0 +1,22 @@
+{
+    "id": 151,
+    "version": 0,
+    "fulfillmentId": "FUL-004",
+    "orderId": "ORD-012",
+    "customerId": "CUST-012",
+    "status": "SCHEDULED",
+    "shippingAddress": {
+        "name": "Arcadia Customer",
+        "line1": "1 Book Lane",
+        "city": "Madrid",
+        "postalCode": "28012",
+        "country": "ES"
+    },
+    "items": [
+        {
+            "sku": "SKU-002",
+            "quantity": 1
+        }
+    ],
+    "scheduledAt": "2026-10-14T09:50:32Z"
+}
