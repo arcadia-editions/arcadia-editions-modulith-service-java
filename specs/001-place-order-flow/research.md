@@ -94,7 +94,8 @@ Code paths are relative to `src/main/java/com/arcadiaeditions/`. ZDL references 
 
 - **Decision**: `arcadia.payments.max-attempts` (default 3) and `arcadia.payments.retry-delay` (default
   `200ms`, `0` in `application-test.yml`) in a `@ConfigurationProperties` record (`config/FlowProperties`).
-  `retryPayment`: `attemptCount < max` → `attemptCount + 1`, `AUTHORIZATION_REQUESTED`, emit
+  `retryPayment`: `attemptCount < max` → `attemptCount + 1`, status stays `FAILED` (the following
+  `authorizePayment` sets `AUTHORIZATION_REQUESTED`; committed model, API repo `085b930`), emit
   `PaymentRetried`; otherwise `RETRY_EXHAUSTED`, emit `PaymentRetryExhausted`. The delay is applied in the
   `PaymentRetried` listener before calling `authorizePayment`.
 - **Rationale**: matches the spec assumption (3 attempts, short delay, configurable). A short sleep on the
@@ -170,3 +171,26 @@ skip-overwrite setting. Adding finders and mappings there complies with principl
 - X-08: after the mapping tasks, the only remaining MapStruct warnings are the expected ones listed in the gap report.
 - `markReadyToShip` (G-FS-10) and baselines (G-CI-10..12, G-CP-*) are out of this feature. G-CI-10 is a
   precondition for creating inventory positions through the API; fixtures cover it for tests.
+- **Finding for the human (T003, `ModularityTest`)**: `ApplicationModules.of(Application.class).verify()` fails on
+  generated structure, so the test is `@Disabled("R-12: ...")`. Spring Modulith (2.0.0) treats the first-level
+  package as the module (`catalog`, `fulfillment`, `notifications`, `orders`, `payments`), not the
+  `<ctx>.<sub>` pairs listed in the overlay. Violations:
+  - Cycles between modules, all through the generated `@listener` adapters and mappers that take the other
+    context's domain events as parameters: `orders <-> payments` (`PaymentsProcessingEventsListener`,
+    `OrdersCheckoutEventsListener` in `payments.processing.adapter.in.event.checkout`), and the longer cycles
+    `orders -> catalog -> payments -> orders` and `orders -> fulfillment -> payments -> orders`
+    (`fulfillment.shipping.checkout.mappers.OrdersCheckoutEventsListenerMapperImpl`,
+    `payments.processing.adapter.in.event.shipping.FulfillmentShippingEventsListener`).
+  - Non-exposed internal types: `catalog.inventory.repository.jpa.*Repository`,
+    `notifications.consumer.repository.jpa.NotificationRepository` and both `DefaultEventPublisher`
+    classes (`catalog.inventory.events`, `notifications.consumer.events`) reference entities/events in
+    `*.domain` / `*.domain.events` sub-packages that are not module-API (not in the module base package).
+  - Options: (a) keep the test disabled for this feature; (b) human changes the generation layout/package
+    exposure (`@NamedInterface` `package-info.java` for the event packages, or regenerate with events in
+    the module base package) and accepts that event-driven choreography between orders and payments is
+    cyclic by design (ZFL), configuring `@ApplicationModule(allowedDependencies=...)`/open modules or
+    excluding the cycle check; (c) replace `verify()` with a narrower test (e.g. `verify()` on a
+    custom `ApplicationModules` filtered, or only `detectViolations()` assertions on non-cycle rules).
+  - Full output: `target/surefire-reports/com.arcadiaeditions.ModularityTest.txt` after re-enabling the test.
+  - **Decision (human, 2026-10-16):** option (a). The failure is a Spring Modulith bug, to be reported upstream;
+    `ModularityTest` stays `@Disabled` until it is fixed.
