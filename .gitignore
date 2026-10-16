@@ -28,3 +28,9 @@ build/
 !**/src/test/**/build/
 
 .vscode/
+
+*.class
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
