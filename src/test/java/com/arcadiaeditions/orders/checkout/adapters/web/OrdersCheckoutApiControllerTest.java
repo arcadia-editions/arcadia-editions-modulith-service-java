@@ -29,7 +29,19 @@ public class OrdersCheckoutApiControllerTest {
 
     @Test
     public void startOrderCheckoutTest() {
-        StartOrderCheckoutInputDTO reqBody = null;
+        var reqBody = new StartOrderCheckoutInputDTO()
+                .customerId("CUST-100")
+                .customerEmail("buyer@example.com")
+                .paymentMethodId("pm_ok")
+                .currency("EUR")
+                .items(List.of(
+                        new OrderItemInputDTO().sku("SKU-001").quantity(1).unitPrice(new BigDecimal("10.00"))))
+                .shippingAddress(new ShippingAddressInputDTO()
+                        .name("Ada")
+                        .line1("Calle 1")
+                        .city("Madrid")
+                        .postalCode("28001")
+                        .country("ES"));
         var response = controller.startOrderCheckout(reqBody);
         Assertions.assertEquals(201, response.getStatusCode().value());
     }
