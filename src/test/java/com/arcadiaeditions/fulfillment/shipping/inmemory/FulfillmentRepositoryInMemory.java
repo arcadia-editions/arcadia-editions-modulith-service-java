@@ -6,5 +6,10 @@ import java.math.*;
 import java.time.*;
 import java.util.*;
 
-public class FulfillmentRepositoryInMemory extends InMemoryJpaRepository<Fulfillment>
-        implements FulfillmentRepository {}
+public class FulfillmentRepositoryInMemory extends InMemoryJpaRepository<Fulfillment> implements FulfillmentRepository {
+
+    @Override
+    public Optional<Fulfillment> findByOrderId(String orderId) {
+        return Optional.ofNullable(findByUniqueField("orderId", orderId));
+    }
+}

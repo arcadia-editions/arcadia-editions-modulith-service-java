@@ -14,4 +14,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @org.jmolecules.ddd.annotation.Repository
 @org.jmolecules.architecture.layered.InfrastructureLayer
-public interface StockReservationRepository extends JpaRepository<StockReservation, Long> {}
+public interface StockReservationRepository extends JpaRepository<StockReservation, Long> {
+
+    List<StockReservation> findByOrderIdAndStatusIn(String orderId, Collection<ReservationStatus> statuses);
+}

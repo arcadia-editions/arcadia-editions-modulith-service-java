@@ -6,4 +6,10 @@ import java.math.*;
 import java.time.*;
 import java.util.*;
 
-public class PaymentRepositoryInMemory extends InMemoryJpaRepository<Payment> implements PaymentRepository {}
+public class PaymentRepositoryInMemory extends InMemoryJpaRepository<Payment> implements PaymentRepository {
+
+    @Override
+    public Optional<Payment> findByOrderId(String orderId) {
+        return Optional.ofNullable(findByUniqueField("orderId", orderId));
+    }
+}

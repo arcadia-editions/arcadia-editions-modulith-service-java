@@ -14,4 +14,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @org.jmolecules.ddd.annotation.Repository
 @org.jmolecules.architecture.layered.InfrastructureLayer
-public interface NotificationRepository extends JpaRepository<Notification, Long> {}
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
+
+    Optional<Notification> findByOrderIdAndType(String orderId, NotificationType type);
+}

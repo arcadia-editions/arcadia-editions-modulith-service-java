@@ -14,4 +14,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 @org.jmolecules.ddd.annotation.Repository
 @org.jmolecules.architecture.hexagonal.SecondaryPort
-public interface PaymentRepository extends JpaRepository<Payment, Long> {}
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+    /** One {@code Payment} per order ({@code orderId} is unique). */
+    Optional<Payment> findByOrderId(String orderId);
+}
