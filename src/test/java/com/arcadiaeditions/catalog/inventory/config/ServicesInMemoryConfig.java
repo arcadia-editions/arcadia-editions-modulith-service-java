@@ -6,6 +6,9 @@ import com.arcadiaeditions.catalog.inventory.events.*;
 import com.arcadiaeditions.catalog.inventory.service.*;
 import com.arcadiaeditions.catalog.inventory.service.impl.*;
 import com.arcadiaeditions.config.TestDataLoader;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,8 +22,11 @@ import org.springframework.context.annotation.Profile;
 public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
-    protected final InventoryServiceImpl inventoryService =
-            new InventoryServiceImpl(stockReservationRepository(), eventPublisher);
+    protected final InventoryServiceImpl inventoryService = new InventoryServiceImpl(
+            stockReservationRepository(),
+            inventoryPositionRepository(),
+            Clock.fixed(Instant.parse("2026-10-14T10:00:00Z"), ZoneOffset.UTC),
+            eventPublisher);
     protected final InventoryBackofficeServiceImpl inventoryBackofficeService =
             new InventoryBackofficeServiceImpl(inventoryPositionRepository(), eventPublisher);
 
