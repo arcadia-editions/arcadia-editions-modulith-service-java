@@ -1,11 +1,17 @@
 package com.arcadiaeditions.payments.processing.config;
 
+import com.arcadiaeditions.config.FlowProperties;
 import com.arcadiaeditions.config.TestDataLoader;
 import com.arcadiaeditions.payments.processing.adapter.out.event.*;
+import com.arcadiaeditions.payments.processing.adapter.out.provider.StandInPaymentProvider;
 import com.arcadiaeditions.payments.processing.application.port.in.*;
 import com.arcadiaeditions.payments.processing.application.service.*;
 import com.arcadiaeditions.payments.processing.domain.*;
 import com.arcadiaeditions.payments.processing.domain.event.*;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,8 +25,12 @@ import org.springframework.context.annotation.Profile;
 public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
-    protected final PaymentsProcessingServiceImpl paymentsProcessingService =
-            new PaymentsProcessingServiceImpl(paymentRepository(), eventPublisher);
+    protected final PaymentsProcessingServiceImpl paymentsProcessingService = new PaymentsProcessingServiceImpl(
+            paymentRepository(),
+            eventPublisher,
+            new StandInPaymentProvider(),
+            new FlowProperties(new FlowProperties.Payments(3, Duration.ZERO)),
+            Clock.fixed(Instant.parse("2026-10-14T10:00:00Z"), ZoneOffset.UTC));
 
     @Bean
     public <T extends PaymentsProcessingService> T paymentsProcessingService() {
