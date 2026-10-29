@@ -21,7 +21,8 @@ public final class FulfillmentTransitions {
                 entity.getClass().getSimpleName(), entity.getId(), null, command, current, Arrays.asList(allowed));
     }
 
-    public static class InvalidStateTransitionException extends IllegalStateException {
+    public static class InvalidStateTransitionException
+            extends com.arcadiaeditions.common.InvalidStateTransitionException {
 
         public InvalidStateTransitionException(
                 String entityType,

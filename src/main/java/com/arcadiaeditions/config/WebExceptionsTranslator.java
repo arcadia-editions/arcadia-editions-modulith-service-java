@@ -1,10 +1,7 @@
 package com.arcadiaeditions.config;
 
-import com.arcadiaeditions.catalog.inventory.domain.StockReservationTransitions;
-import com.arcadiaeditions.fulfillment.shipping.domain.FulfillmentTransitions;
-import com.arcadiaeditions.orders.checkout.core.domain.OrderTransitions;
+import com.arcadiaeditions.common.InvalidStateTransitionException;
 import com.arcadiaeditions.orders.checkout.core.inbound.StockUnavailableException;
-import com.arcadiaeditions.payments.processing.domain.PaymentTransitions;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
@@ -48,13 +45,8 @@ public class WebExceptionsTranslator extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.NOT_FOUND, "Not found", ex.getMessage());
     }
 
-    @ExceptionHandler({
-        OrderTransitions.InvalidStateTransitionException.class,
-        StockReservationTransitions.InvalidStateTransitionException.class,
-        PaymentTransitions.InvalidStateTransitionException.class,
-        FulfillmentTransitions.InvalidStateTransitionException.class
-    })
-    public ProblemDetail handleInvalidStateTransition(IllegalStateException ex) {
+    @ExceptionHandler(InvalidStateTransitionException.class)
+    public ProblemDetail handleInvalidStateTransition(InvalidStateTransitionException ex) {
         return problem(HttpStatus.CONFLICT, "Invalid state transition", ex.getMessage());
     }
 
