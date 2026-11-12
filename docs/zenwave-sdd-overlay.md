@@ -88,7 +88,7 @@ mvn -q verify
 # known failing at the baseline (generated stubs), each fixed by a board task:
 #   *RepositoryIntegrationTest.updateTest, OrdersCheckoutServiceTest/OrdersCheckoutApiControllerTest getOrderTest,
 #   ProductCatalogServiceTest.updateProductTest, OrdersCheckoutApiIntegrationTest.testGetOrder_200 -> T-01;
-#   ArchitectureTest (scans every module) -> T-02; OrdersCheckoutApiIntegrationTest.testGetOrder_400 -> T-04;
+#   OrdersCheckoutApiIntegrationTest.testGetOrder_400 -> T-04;
 #   OrdersCheckoutApiIntegrationTest.testStartOrderCheckout_201 -> T-06
 # lint the models
 bash .zenwave/bin/lint-zdl.sh --strict ../arcadia-editions-modulith-api

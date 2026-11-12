@@ -1,7 +1,7 @@
 # PlaceOrderFlow: tasks
 
 flow: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl
-baseline: baseline/place-order-flow-1
+baseline: baseline/place-order-flow-2
 branch: afk/place-order-flow
 
 ## S0 Baseline
@@ -10,8 +10,6 @@ review: [ ]
 - [ ] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
       test data: src/test/resources/data.sql, src/test/resources/data/jpa/Order/1.json, src/test/resources/data/jpa/Product/1.json
       tests: *RepositoryIntegrationTest, OrdersCheckoutServiceTest#getOrderTest, OrdersCheckoutApiControllerTest#getOrderTest, ProductCatalogServiceTest#updateProductTest, OrdersCheckoutApiIntegrationTest#testGetOrder_200
-- [ ] T-02 mechanical AFK ArchitectureTest checks the orders.checkout module only (its CleanHexagonal layout), not the other modules' listeners
-      tests: ArchitectureTest, JMoleculesArchitectureTest
 - [ ] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
       model: place-order-flow.zfl:118-130
       test data: src/test/resources/data.sql
@@ -233,4 +231,3 @@ review: [ ]
       blocked by: T-12, T-16, T-21
 - [ ] T-37 mechanical AFK ModularityTest: ApplicationModules.of(Application.class).verify() passes
       tests: ModularityTest
-      blocked by: T-02
