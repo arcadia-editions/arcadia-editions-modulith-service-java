@@ -10,7 +10,7 @@ review: [ ]
 - [ ] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
       test data: src/test/resources/data.sql, src/test/resources/data/jpa/Order/1.json, src/test/resources/data/jpa/Product/1.json
       tests: *RepositoryIntegrationTest, OrdersCheckoutServiceTest#getOrderTest, OrdersCheckoutApiControllerTest#getOrderTest, ProductCatalogServiceTest#updateProductTest, OrdersCheckoutApiIntegrationTest#testGetOrder_200
-- [ ] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
+- [/] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
       model: place-order-flow.zfl:118-130
       test data: src/test/resources/data.sql
       tests: InventoryServiceTest, OrdersCheckoutServiceTest, PaymentsProcessingServiceTest, FulfillmentShippingServiceTest, NotificationsConsumerServiceTest
