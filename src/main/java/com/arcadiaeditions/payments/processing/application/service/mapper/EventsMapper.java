@@ -26,5 +26,6 @@ public interface EventsMapper {
 
     com.arcadiaeditions.payments.processing.domain.event.PaymentVoided asPaymentVoided(Payment payment);
 
+    @org.mapstruct.Mapping(target = "reason", source = "failureReason")
     com.arcadiaeditions.payments.processing.domain.event.PaymentFailed asPaymentFailed(Payment payment);
 }

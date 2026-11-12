@@ -99,10 +99,14 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
                 payment = paymentRepository.save(payment);
                 eventPublisher.onPaymentDeclined(eventsMapper.asPaymentDeclined(payment));
             }
-            // TODO T-23: FAILED with failedAt, attemptCount and failureReason, emit PaymentFailed
-            case FAILED ->
-                throw new UnsupportedOperationException(
-                        "authorizePayment " + result.outcome() + " branch not implemented yet");
+            case FAILED -> {
+                // technical failure: eligible for retry (T-24)
+                payment.setStatus(PaymentStatus.FAILED);
+                payment.setFailedAt(Instant.now(clock));
+                payment.setFailureReason(result.reason());
+                payment = paymentRepository.save(payment);
+                eventPublisher.onPaymentFailed(eventsMapper.asPaymentFailed(payment));
+            }
         }
         return payment;
     }
