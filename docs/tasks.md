@@ -66,7 +66,8 @@ review: [ ]
       test data: data.sql ORD-004, ORD-001
       tests: PaymentsProcessingServiceTest
       blocked by: T-07
-- [/] T-12 advanced AFK sendOrderConfirmation: idempotent by orderId and type, NotificationSender port with the stand-in adapter (@fail.invalid fails), Notification SENT, emit OrderConfirmationSent
+- [x] T-12 advanced AFK sendOrderConfirmation: idempotent by orderId and type, NotificationSender port with the stand-in adapter (@fail.invalid fails), Notification SENT, emit OrderConfirmationSent
+      done: claude-opus opus
       model: place-order-flow.zfl:184-192, notifications-consumer-domain-model.zdl:26-42, notifications-consumer-domain-model.zdl:61-66, notifications-consumer-domain-model.zdl:88-90, notifications-consumer-domain-model.zdl:102-109
       test data: data.sql ORD-001
       tests: NotificationsConsumerServiceTest
