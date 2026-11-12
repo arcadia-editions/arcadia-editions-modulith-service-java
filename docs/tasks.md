@@ -7,7 +7,7 @@ branch: afk/place-order-flow
 ## S0 Baseline
 review: [ ]
 
-- [ ] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
+- [/] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
       test data: src/test/resources/data.sql, src/test/resources/data/jpa/Order/1.json, src/test/resources/data/jpa/Product/1.json
       tests: *RepositoryIntegrationTest, OrdersCheckoutServiceTest#getOrderTest, OrdersCheckoutApiControllerTest#getOrderTest, ProductCatalogServiceTest#updateProductTest, OrdersCheckoutApiIntegrationTest#testGetOrder_200
 - [x] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
@@ -52,7 +52,8 @@ review: [ ]
       test data: data.sql ORD-003
       tests: InventoryServiceTest
       blocked by: T-05
-- [/] T-09 bounded AFK confirmOrder: load by orderId, call confirmStockReservation, CREATED to CONFIRMED with confirmedAt, emit OrderConfirmed with items and shipping address
+- [x] T-09 bounded AFK confirmOrder: load by orderId, call confirmStockReservation, CREATED to CONFIRMED with confirmedAt, emit OrderConfirmed with items and shipping address
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:142-150, orders-checkout-domain-model.zdl:82-85, orders-checkout-domain-model.zdl:100-103, orders-checkout-domain-model.zdl:138-156
       test data: data.sql ORD-003
       tests: OrdersCheckoutServiceTest
@@ -120,7 +121,7 @@ review: [ ]
       test data: data.sql ORD-010
       tests: PaymentsProcessingServiceTest
       blocked by: T-07
-- [ ] T-19 bounded AFK releaseStock on PaymentDeclined: RESERVED or CONFIRMED reservations become RELEASED with releaseReason PAYMENT_DECLINED, counters back to available, idempotent, emit StockReleased
+- [/] T-19 bounded AFK releaseStock on PaymentDeclined: RESERVED or CONFIRMED reservations become RELEASED with releaseReason PAYMENT_DECLINED, counters back to available, idempotent, emit StockReleased
       model: place-order-flow.zfl:216-227, catalog-inventory-domain-model.zdl:66-70, catalog-inventory-domain-model.zdl:113-118, catalog-inventory-domain-model.zdl:126-135
       test data: data.sql ORD-010, ORD-018
       tests: InventoryServiceTest
@@ -146,7 +147,7 @@ path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[ret
       > PaymentAuthorized > ... > end completed
 review: [ ]
 
-- [ ] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
+- [/] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
       model: place-order-flow.zfl:108-116, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:124-130
       test data: data.sql ORD-008
       tests: PaymentsProcessingServiceTest
