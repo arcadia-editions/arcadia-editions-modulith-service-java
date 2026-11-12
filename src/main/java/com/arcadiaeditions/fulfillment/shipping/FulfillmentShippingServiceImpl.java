@@ -31,25 +31,59 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
     private final EventsMapper eventsMapper = EventsMapper.INSTANCE;
     private final EventPublisher eventPublisher;
 
+    private final FulfillmentDecision fulfillmentDecision;
+
+    private final Clock clock;
+
     /**
      * Constructor.
      */
-    public FulfillmentShippingServiceImpl(FulfillmentRepository fulfillmentRepository, EventPublisher eventPublisher) {
+    public FulfillmentShippingServiceImpl(
+            FulfillmentRepository fulfillmentRepository,
+            EventPublisher eventPublisher,
+            FulfillmentDecision fulfillmentDecision,
+            Clock clock) {
         this.fulfillmentRepository = fulfillmentRepository;
         this.eventPublisher = eventPublisher;
+        this.fulfillmentDecision = fulfillmentDecision;
+        this.clock = clock;
     }
 
     public Fulfillment scheduleFulfillment(ScheduleFulfillmentInput input) {
 
         log.debug("Request scheduleFulfillment: {}", input);
 
+        // one Fulfillment per order: OrderConfirmed redelivered changes nothing and emits nothing
+        var existing = fulfillmentRepository.findByOrderId(input.getOrderId());
+        if (existing.isPresent()) {
+            log.debug(
+                    "scheduleFulfillment: fulfillment of order {} already {}",
+                    input.getOrderId(),
+                    existing.get().getStatus());
+            return existing.get();
+        }
+
         var fulfillment = fulfillmentShippingServiceMapper.update(new Fulfillment(), input);
-        // TODO: implement this method
-        // emit events
-        var fulfillmentScheduled = eventsMapper.asFulfillmentScheduled(fulfillment);
-        eventPublisher.onFulfillmentScheduled(fulfillmentScheduled);
-        var fulfillmentFailed = eventsMapper.asFulfillmentFailed(fulfillment);
-        eventPublisher.onFulfillmentFailed(fulfillmentFailed);
+        fulfillment.setFulfillmentId(com.arcadiaeditions.common.BusinessIds.newId("FUL"));
+
+        var shippingAddress = input.getShippingAddress();
+        var result = fulfillmentDecision.decide(new FulfillmentDecision.DecisionRequest(
+                input.getOrderId(),
+                shippingAddress != null ? shippingAddress.getPostalCode() : null,
+                shippingAddress != null ? shippingAddress.getCountry() : null,
+                input.getItems().stream()
+                        .map(item -> new FulfillmentDecision.Item(item.getSku(), item.getQuantity()))
+                        .toList()));
+
+        if (!result.scheduled()) {
+            // TODO T-29: FAILED with failedAt and failureReason, emit FulfillmentFailed
+            throw new UnsupportedOperationException("scheduleFulfillment failed branch not implemented yet");
+        }
+
+        fulfillment.setStatus(FulfillmentStatus.SCHEDULED);
+        fulfillment.setScheduledAt(Instant.now(clock));
+        fulfillment = fulfillmentRepository.save(fulfillment);
+        eventPublisher.onFulfillmentScheduled(eventsMapper.asFulfillmentScheduled(fulfillment));
         return fulfillment;
     }
 
