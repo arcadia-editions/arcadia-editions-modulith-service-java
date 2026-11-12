@@ -102,13 +102,50 @@ public class NotificationsConsumerServiceImpl implements NotificationsConsumerSe
 
         log.debug("Request sendStockUnavailableNotification: {}", input);
 
+        // idempotent by orderId and type: a redelivered StockUnavailable changes nothing and emits nothing
+        var existing =
+                notificationRepository.findByOrderIdAndType(input.getOrderId(), NotificationType.STOCK_UNAVAILABLE);
+        if (existing.isPresent()) {
+            log.debug(
+                    "sendStockUnavailableNotification: order {} already has a notification ({})",
+                    input.getOrderId(),
+                    existing.get().getStatus());
+            return existing.get();
+        }
+
         var notification = notificationsConsumerServiceMapper.update(new Notification(), input);
-        // TODO: implement this method
-        // emit events
-        var stockUnavailableNotificationSent = eventsMapper.asStockUnavailableNotificationSent(notification);
-        eventPublisher.onStockUnavailableNotificationSent(stockUnavailableNotificationSent);
-        var notificationDeliveryFailed = eventsMapper.asNotificationDeliveryFailed(notification);
-        eventPublisher.onNotificationDeliveryFailed(notificationDeliveryFailed);
+        var skus = input.getUnavailableItems().stream()
+                .map(StockUnavailableItemInput::getSku)
+                .toList();
+        notification.setNotificationId(BusinessIds.newId("NOT"));
+        notification.setType(NotificationType.STOCK_UNAVAILABLE);
+        notification.setChannel(NotificationChannel.EMAIL);
+        notification.setRecipient(input.getCustomerEmail());
+        notification.setSkus(new ArrayList<>(skus));
+        notification.setSubject("Items unavailable");
+        notification.setBody(
+                "Your order " + input.getOrderId() + " could not be placed: " + String.join(", ", skus)
+                        + " out of stock.");
+        notification.setStatus(NotificationStatus.PENDING);
+        notification.setCreatedAt(Instant.now(clock));
+
+        var result = notificationSender.send(new NotificationSender.NotificationMessage(
+                notification.getNotificationId(),
+                notification.getType(),
+                notification.getChannel(),
+                notification.getRecipient(),
+                notification.getSubject(),
+                notification.getBody()));
+
+        if (!result.delivered()) {
+            // TODO T-36: FAILED with failedAt and failureReason, emit NotificationDeliveryFailed
+            throw new UnsupportedOperationException(
+                    "sendStockUnavailableNotification delivery failure branch not implemented yet");
+        }
+        notification.setStatus(NotificationStatus.SENT);
+        notification.setSentAt(Instant.now(clock));
+        notification = notificationRepository.save(notification);
+        eventPublisher.onStockUnavailableNotificationSent(eventsMapper.asStockUnavailableNotificationSent(notification));
         return notification;
     }
 
