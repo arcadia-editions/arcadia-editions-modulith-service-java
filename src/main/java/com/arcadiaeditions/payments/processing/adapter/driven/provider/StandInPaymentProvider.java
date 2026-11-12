@@ -19,7 +19,9 @@ public class StandInPaymentProvider implements PaymentProvider {
 
     @Override
     public AuthorizationResult authorize(AuthorizationRequest request) {
-        // TODO T-18: pm_decline -> declined "card_declined"
+        if (PM_DECLINE.equals(request.paymentMethodId())) {
+            return AuthorizationResult.declined("card_declined");
+        }
         // TODO T-23/T-24: pm_fail_once (first attempt), pm_fail_always -> failed "processor_unavailable"
         return AuthorizationResult.authorized(providerReference(request.orderId(), request.paymentMethodId()));
     }

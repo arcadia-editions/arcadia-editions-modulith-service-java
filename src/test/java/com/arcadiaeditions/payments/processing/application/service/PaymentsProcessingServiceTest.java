@@ -142,6 +142,45 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void authorizePaymentDeclinedTest() {
+        // pm_decline: processor rejects the card: DECLINED, no retry, exactly one PaymentDeclined
+        var payment = paymentsProcessingService.authorizePayment(authorizeInput("ORD-902", "CUST-902", "pm_decline", "59.90"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DECLINED);
+        assertThat(payment.getDeclinedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getFailureReason()).isEqualTo("card_declined");
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
+        assertThat(payment.getAuthorizedAt()).isNull();
+        assertThat(payment.getFailedAt()).isNull();
+        assertThat(paymentsOf("ORD-902")).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId("ORD-902").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.DECLINED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentDeclined.class);
+        var event = (PaymentDeclined) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-902");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-902");
+        assertThat(event.getAmount()).isEqualByComparingTo("59.90");
+        assertThat(event.getCurrency()).isEqualTo("EUR");
+        assertThat(event.getReason()).isEqualTo("card_declined");
+        assertThat(event.getDeclinedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void authorizePaymentRedeliveryAlreadyDeclinedTest() {
+        // ORD-010: already DECLINED; redelivery changes nothing, no retry, nothing emitted
+        var payment = paymentsProcessingService.authorizePayment(authorizeInput("ORD-010", "CUST-010", "pm_decline", "59.90"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DECLINED);
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
+        assertThat(payment.getDeclinedAt()).isEqualTo(Instant.parse("2026-10-14T09:50:15Z"));
+        assertThat(paymentsOf("ORD-010")).isEqualTo(1);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
     void retryPaymentTest() { // TODO: implement this test
     }
 

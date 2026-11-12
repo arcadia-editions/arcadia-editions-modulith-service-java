@@ -11,6 +11,7 @@ public interface EventsMapper {
 
     EventsMapper INSTANCE = Mappers.getMapper(EventsMapper.class);
 
+    @org.mapstruct.Mapping(target = "reason", source = "failureReason")
     com.arcadiaeditions.payments.processing.domain.event.PaymentDeclined asPaymentDeclined(Payment payment);
 
     com.arcadiaeditions.payments.processing.domain.event.PaymentRetryExhausted asPaymentRetryExhausted(Payment payment);
