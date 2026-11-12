@@ -55,7 +55,8 @@ review: [ ]
       test data: data.sql ORD-003
       tests: OrdersCheckoutServiceTest
       blocked by: T-06, T-08
-- [/] T-10 advanced AFK scheduleFulfillment scheduled branch: idempotent by orderId, FulfillmentDecision port with the stand-in adapter (postal 00000 fails), Fulfillment SCHEDULED with FUL id, emit FulfillmentScheduled
+- [x] T-10 advanced AFK scheduleFulfillment scheduled branch: idempotent by orderId, FulfillmentDecision port with the stand-in adapter (postal 00000 fails), Fulfillment SCHEDULED with FUL id, emit FulfillmentScheduled
+      done: claude-opus opus
       model: place-order-flow.zfl:160-170, fulfillment-shipping-domain-model.zdl:25-50, fulfillment-shipping-domain-model.zdl:57-90, fulfillment-shipping-domain-model.zdl:82-84, fulfillment-shipping-domain-model.zdl:91-96
       test data: data.sql ORD-004, ORD-001
       tests: FulfillmentShippingServiceTest
