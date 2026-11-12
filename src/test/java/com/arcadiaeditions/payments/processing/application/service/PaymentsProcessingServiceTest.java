@@ -146,7 +146,48 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
-    void capturePaymentTest() { // TODO: implement this test
+    void capturePaymentTest() {
+        // ORD-004: Payment AUTHORIZED -> CAPTURED through the provider, PaymentCaptured with customerEmail
+        var payment = paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-004"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        assertThat(payment.getCapturedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getProviderReference()).isEqualTo("STANDIN-ORD-004");
+        assertThat(paymentsOf("ORD-004")).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId("ORD-004").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.CAPTURED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentCaptured.class);
+        var event = (PaymentCaptured) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-004");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-004");
+        assertThat(event.getCustomerEmail()).isEqualTo("customer004@example.com");
+        assertThat(event.getAmount()).isEqualByComparingTo("99.40");
+        assertThat(event.getCurrency()).isEqualTo("EUR");
+        assertThat(event.getProviderReference()).isEqualTo("STANDIN-ORD-004");
+        assertThat(event.getCapturedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void capturePaymentAlreadyCapturedTest() {
+        // ORD-001: Payment already CAPTURED: invalid transition, nothing changes, nothing emitted
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-001")))
+                .isInstanceOf(PaymentTransitions.InvalidStateTransitionException.class);
+
+        assertThat(paymentRepository.findByOrderId("ORD-001").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.CAPTURED);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void capturePaymentNotFoundTest() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-999")))
+                .isInstanceOf(java.util.NoSuchElementException.class);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 
     @Test

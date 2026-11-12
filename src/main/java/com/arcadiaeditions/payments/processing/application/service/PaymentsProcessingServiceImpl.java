@@ -127,22 +127,25 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
 
         log.debug("Request capturePayment: {}", input);
 
-        // TODO CUSTOM_REQUIRED: load the Payment this transition applies to, e.g. by a correlation key in the input
-        Optional<Payment> foundPayment = Optional.empty();
-        var payment = foundPayment
-                .map(existingPayment -> {
-                    PaymentTransitions.ensureCanCapturePayment(existingPayment);
-                    paymentsProcessingServiceMapper.update(existingPayment, input);
-                    existingPayment.setStatus(PaymentStatus.CAPTURED);
-                    return existingPayment;
-                })
-                .map(paymentRepository::save)
-                .orElseThrow();
-        // emit events
-        var paymentCaptured = eventsMapper.asPaymentCaptured(payment);
-        eventPublisher.onPaymentCaptured(paymentCaptured);
-        var paymentCaptureFailed = eventsMapper.asPaymentCaptureFailed(payment);
-        eventPublisher.onPaymentCaptureFailed(paymentCaptureFailed);
+        // the payment is resolved by orderId (Payment.orderId is unique)
+        var payment = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
+        PaymentTransitions.ensureCanCapturePayment(payment);
+
+        var result = paymentProvider.capture(new PaymentProvider.CaptureRequest(
+                payment.getOrderId(),
+                payment.getPaymentMethodId(),
+                payment.getProviderReference(),
+                payment.getAmount(),
+                payment.getCurrency()));
+
+        if (!result.captured()) {
+            // TODO T-33: capture failure: CAPTURE_FAILED with failedAt and failureReason, emit PaymentCaptureFailed
+            throw new UnsupportedOperationException("capturePayment failure branch not implemented yet");
+        }
+        payment.setStatus(PaymentStatus.CAPTURED);
+        payment.setCapturedAt(Instant.now(clock));
+        payment = paymentRepository.save(payment);
+        eventPublisher.onPaymentCaptured(eventsMapper.asPaymentCaptured(payment));
         return payment;
     }
 

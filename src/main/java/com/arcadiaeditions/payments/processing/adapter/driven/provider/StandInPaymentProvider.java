@@ -26,7 +26,8 @@ public class StandInPaymentProvider implements PaymentProvider {
 
     @Override
     public CaptureResult capture(CaptureRequest request) {
-        throw new UnsupportedOperationException("capture not implemented yet (T-11, T-33)");
+        // TODO T-33: pm_capture_fail (providerReference STANDIN-CAPFAIL-<orderId>) -> not captured "capture_declined"
+        return new CaptureResult(true, null);
     }
 
     @Override
