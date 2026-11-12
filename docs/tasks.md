@@ -132,7 +132,7 @@ review: [ ]
       test data: data.sql ORD-018, ORD-017
       tests: OrdersCheckoutServiceTest
       blocked by: T-09
-- [ ] T-21 bounded AFK sendOrderCancelledNotification: type ORDER_CANCELLED with the reason, idempotent, emit OrderCancelledNotificationSent
+- [/] T-21 bounded AFK sendOrderCancelledNotification: type ORDER_CANCELLED with the reason, idempotent, emit OrderCancelledNotificationSent
       model: place-order-flow.zfl:252-260, notifications-consumer-domain-model.zdl:78-85, notifications-consumer-domain-model.zdl:96-98, notifications-consumer-domain-model.zdl:123-131
       test data: data.sql ORD-014
       tests: NotificationsConsumerServiceTest
@@ -148,12 +148,13 @@ path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[ret
       > PaymentAuthorized > ... > end completed
 review: [ ]
 
-- [/] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
+- [x] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:108-116, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:124-130
       test data: data.sql ORD-008
       tests: PaymentsProcessingServiceTest
       blocked by: T-07
-- [ ] T-24 bounded AFK retryPayment retried branch below the attempt limit, emit PaymentRetried; on PaymentRetried, authorizePayment reloads the stored Payment by orderId after retry-delay
+- [/] T-24 bounded AFK retryPayment retried branch below the attempt limit, emit PaymentRetried; on PaymentRetried, authorizePayment reloads the stored Payment by orderId after retry-delay
       model: place-order-flow.zfl:118-140, payments-processing-domain-model.zdl:65-70, payments-processing-domain-model.zdl:85, payments-processing-domain-model.zdl:89-91, payments-processing-domain-model.zdl:133-138
       test data: data.sql ORD-008
       tests: PaymentsProcessingServiceTest
