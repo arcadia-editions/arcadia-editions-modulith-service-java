@@ -21,7 +21,11 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
     protected final FulfillmentShippingServiceImpl fulfillmentShippingService =
-            new FulfillmentShippingServiceImpl(fulfillmentRepository(), eventPublisher);
+            new FulfillmentShippingServiceImpl(
+                    fulfillmentRepository(),
+                    eventPublisher,
+                    new com.arcadiaeditions.fulfillment.shipping.provider.StandInFulfillmentDecision(),
+                    clock);
 
     @Bean
     public <T extends FulfillmentShippingService> T fulfillmentShippingService() {

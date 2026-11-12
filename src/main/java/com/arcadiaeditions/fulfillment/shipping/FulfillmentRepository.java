@@ -13,4 +13,7 @@ import org.springframework.stereotype.Repository;
 @SuppressWarnings("unused")
 @Repository
 @org.jmolecules.ddd.annotation.Repository
-public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long> {}
+public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long> {
+
+    Optional<Fulfillment> findByOrderId(String orderId);
+}
