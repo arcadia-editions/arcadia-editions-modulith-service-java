@@ -14,4 +14,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @org.jmolecules.ddd.annotation.Repository
 @org.jmolecules.architecture.hexagonal.SecondaryPort
-public interface OrderRepository extends JpaRepository<Order, Long> {}
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    Optional<Order> findByOrderId(String orderId);
+}

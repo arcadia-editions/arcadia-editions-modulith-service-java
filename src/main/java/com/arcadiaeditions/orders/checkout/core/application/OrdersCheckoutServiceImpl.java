@@ -1,6 +1,7 @@
 package com.arcadiaeditions.orders.checkout.core.application;
 
 import com.arcadiaeditions.catalog.inventory.service.InventoryService;
+import com.arcadiaeditions.catalog.inventory.service.dtos.ConfirmStockReservationInput;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockInput;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockItemInput;
 import com.arcadiaeditions.catalog.inventory.domain.ReserveStockOutcome;
@@ -83,19 +84,17 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
     }
 
     public Order confirmOrder(ConfirmOrderInput input) {
-        // TODO: call CatalogInventoryZdl InventoryService.confirmStockReservation(ConfirmStockReservationInput) ->
-        // StockReservation
-        //       then emit one of: StockReservationConfirmed
 
         log.debug("Request confirmOrder: {}", input);
 
-        // TODO CUSTOM_REQUIRED: load the Order this transition applies to, e.g. by a correlation key in the input
-        Optional<Order> foundOrder = Optional.empty();
-        var order = foundOrder
+        var order = orderRepository
+                .findByOrderId(input.getOrderId())
                 .map(existingOrder -> {
                     OrderTransitions.ensureCanConfirmOrder(existingOrder);
-                    ordersCheckoutServiceMapper.update(existingOrder, input);
+                    inventoryService.confirmStockReservation(
+                            new ConfirmStockReservationInput().setOrderId(existingOrder.getOrderId()));
                     existingOrder.setStatus(OrderStatus.CONFIRMED);
+                    existingOrder.setConfirmedAt(clock.instant());
                     return existingOrder;
                 })
                 .map(orderRepository::save)

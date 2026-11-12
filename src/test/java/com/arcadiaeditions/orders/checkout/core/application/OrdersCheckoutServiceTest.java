@@ -75,7 +75,43 @@ class OrdersCheckoutServiceTest {
     }
 
     @Test
-    void confirmOrderTest() { // TODO: implement this test
+    void confirmOrderTest() {
+        var order = ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-003"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(context.clock.instant(), order.getConfirmedAt());
+
+        var reservations = context.inventoryContext.stockReservationRepository().findByOrderId("ORD-003");
+        org.junit.jupiter.api.Assertions.assertFalse(reservations.isEmpty());
+        reservations.forEach(r -> org.junit.jupiter.api.Assertions.assertEquals(
+                com.arcadiaeditions.catalog.inventory.domain.ReservationStatus.CONFIRMED, r.getStatus()));
+
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var confirmed = (com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmed) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-003", confirmed.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals("CUST-003", confirmed.getCustomerId());
+        org.junit.jupiter.api.Assertions.assertEquals(context.clock.instant(), confirmed.getConfirmedAt());
+        org.junit.jupiter.api.Assertions.assertEquals(1, confirmed.getItems().size());
+        org.junit.jupiter.api.Assertions.assertEquals("SKU-002", confirmed.getItems().get(0).getSku());
+        org.junit.jupiter.api.Assertions.assertEquals(1, confirmed.getItems().get(0).getQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals("1 Book Lane", confirmed.getShippingAddress().getLine1());
+        org.junit.jupiter.api.Assertions.assertEquals("28003", confirmed.getShippingAddress().getPostalCode());
+    }
+
+    @Test
+    void confirmOrderFromConfirmedIsInvalidTest() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                OrderTransitions.InvalidStateTransitionException.class,
+                () -> ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-004")));
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+    }
+
+    @Test
+    void confirmOrderNotFoundTest() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                java.util.NoSuchElementException.class,
+                () -> ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-999")));
     }
 
     @Test
