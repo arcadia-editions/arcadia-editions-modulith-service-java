@@ -22,7 +22,11 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
     protected final PaymentsProcessingServiceImpl paymentsProcessingService =
-            new PaymentsProcessingServiceImpl(paymentRepository(), eventPublisher);
+            new PaymentsProcessingServiceImpl(
+                    paymentRepository(),
+                    eventPublisher,
+                    new com.arcadiaeditions.payments.processing.adapter.driven.provider.StandInPaymentProvider(),
+                    clock);
 
     @Bean
     public <T extends PaymentsProcessingService> T paymentsProcessingService() {
