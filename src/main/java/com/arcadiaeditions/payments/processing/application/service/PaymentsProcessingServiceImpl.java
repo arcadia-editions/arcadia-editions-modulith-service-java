@@ -2,6 +2,7 @@ package com.arcadiaeditions.payments.processing.application.service;
 
 import com.arcadiaeditions.payments.processing.application.port.driven.event.*;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.*;
+import com.arcadiaeditions.payments.processing.application.port.driven.provider.PaymentProvider;
 import com.arcadiaeditions.payments.processing.application.port.driving.*;
 import com.arcadiaeditions.payments.processing.application.port.driving.dto.*;
 import com.arcadiaeditions.payments.processing.application.service.mapper.*;
@@ -35,27 +36,67 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
     private final EventsMapper eventsMapper = EventsMapper.INSTANCE;
     private final EventPublisher eventPublisher;
 
+    private final PaymentProvider paymentProvider;
+
+    private final Clock clock;
+
     /**
      * Constructor.
      */
-    public PaymentsProcessingServiceImpl(PaymentRepository paymentRepository, EventPublisher eventPublisher) {
+    public PaymentsProcessingServiceImpl(
+            PaymentRepository paymentRepository,
+            EventPublisher eventPublisher,
+            PaymentProvider paymentProvider,
+            Clock clock) {
         this.paymentRepository = paymentRepository;
         this.eventPublisher = eventPublisher;
+        this.paymentProvider = paymentProvider;
+        this.clock = clock;
     }
 
     public Payment authorizePayment(AuthorizePaymentInput input) {
 
         log.debug("Request authorizePayment: {}", input);
 
-        var payment = paymentsProcessingServiceMapper.update(new Payment(), input);
-        // TODO: implement this method
-        // emit events
-        var paymentAuthorized = eventsMapper.asPaymentAuthorized(payment);
-        eventPublisher.onPaymentAuthorized(paymentAuthorized);
-        var paymentDeclined = eventsMapper.asPaymentDeclined(payment);
-        eventPublisher.onPaymentDeclined(paymentDeclined);
-        var paymentFailed = eventsMapper.asPaymentFailed(payment);
-        eventPublisher.onPaymentFailed(paymentFailed);
+        // one Payment per order: get-or-create by orderId
+        var existing = paymentRepository.findByOrderId(input.getOrderId());
+        if (existing.isPresent() && existing.get().getStatus() != PaymentStatus.AUTHORIZATION_REQUESTED) {
+            // redelivery: the authorization is already resolved; nothing changes, nothing is emitted
+            // TODO T-24: on PaymentRetried a FAILED payment is authorized again
+            log.debug(
+                    "authorizePayment: payment of order {} already {}",
+                    input.getOrderId(),
+                    existing.get().getStatus());
+            return existing.get();
+        }
+        var payment = existing.orElseGet(() -> {
+            var created = paymentsProcessingServiceMapper.update(new Payment(), input);
+            created.setStatus(PaymentStatus.AUTHORIZATION_REQUESTED);
+            created.setAttemptCount(1);
+            return created;
+        });
+
+        var result = paymentProvider.authorize(new PaymentProvider.AuthorizationRequest(
+                payment.getOrderId(),
+                payment.getPaymentMethodId(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getAttemptCount()));
+
+        switch (result.outcome()) {
+            case AUTHORIZED -> {
+                payment.setStatus(PaymentStatus.AUTHORIZED);
+                payment.setProviderReference(result.providerReference());
+                payment.setAuthorizedAt(Instant.now(clock));
+                payment = paymentRepository.save(payment);
+                eventPublisher.onPaymentAuthorized(eventsMapper.asPaymentAuthorized(payment));
+            }
+            // TODO T-18: DECLINED with declinedAt and failureReason, emit PaymentDeclined
+            // TODO T-23: FAILED with failedAt, attemptCount and failureReason, emit PaymentFailed
+            case DECLINED, FAILED ->
+                throw new UnsupportedOperationException(
+                        "authorizePayment " + result.outcome() + " branch not implemented yet");
+        }
         return payment;
     }
 
