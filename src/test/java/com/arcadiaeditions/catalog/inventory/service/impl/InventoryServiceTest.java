@@ -70,6 +70,38 @@ class InventoryServiceTest {
         assertPosition("SKU-001", 9, 0);
     }
 
+    @Test
+    void reserveStockUnavailableReservesNothingTest() {
+        var input = new ReserveStockInput()
+                .setOrderId("ORD-NEW")
+                .setItems(java.util.List.of(
+                        new ReserveStockItemInput().setSku("SKU-002").setQuantity(2),
+                        new ReserveStockItemInput().setSku("SKU-003").setQuantity(3),
+                        new ReserveStockItemInput().setSku("SKU-004").setQuantity(1),
+                        new ReserveStockItemInput().setSku("SKU-UNKNOWN").setQuantity(1)));
+        var before = stockReservationRepository.findAll().size();
+
+        var result = inventoryService.reserveStock(input);
+
+        org.junit.jupiter.api.Assertions.assertEquals(ReserveStockOutcome.UNAVAILABLE, result.getOutcome());
+        org.junit.jupiter.api.Assertions.assertNull(result.getReserved());
+        var unavailable = result.getUnavailable();
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-NEW", unavailable.getOrderId());
+        var lines = unavailable.getUnavailableItems().stream()
+                .collect(java.util.stream.Collectors.toMap(StockUnavailableLine::getSku, l -> l));
+        org.junit.jupiter.api.Assertions.assertEquals(3, lines.size());
+        org.junit.jupiter.api.Assertions.assertEquals(3, lines.get("SKU-003").getRequestedQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(2, lines.get("SKU-003").getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(1, lines.get("SKU-004").getRequestedQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(0, lines.get("SKU-004").getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(0, lines.get("SKU-UNKNOWN").getAvailableQuantity());
+
+        org.junit.jupiter.api.Assertions.assertEquals(before, stockReservationRepository.findAll().size());
+        assertPosition("SKU-002", 20, 7);
+        assertPosition("SKU-003", 2, 1);
+        assertPosition("SKU-004", 0, 0);
+    }
+
     private void assertPosition(String sku, int available, int reservedQty) {
         var position = context.inventoryPositionRepository().findAll().stream()
                 .map(p -> (InventoryPosition) p)
