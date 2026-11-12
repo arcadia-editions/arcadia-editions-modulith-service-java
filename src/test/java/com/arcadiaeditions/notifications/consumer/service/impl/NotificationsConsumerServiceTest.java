@@ -134,8 +134,80 @@ class NotificationsConsumerServiceTest {
         assertThat(eventPublisher.getEvents().get(0)).isInstanceOf(OrderConfirmationSent.class);
     }
 
+    private SendStockUnavailableNotificationInput stockInput(String orderId, String customerId, String email) {
+        return new SendStockUnavailableNotificationInput()
+                .setOrderId(orderId)
+                .setCustomerId(customerId)
+                .setCustomerEmail(email)
+                .setUnavailableItems(List.of(
+                        new StockUnavailableItemInput()
+                                .setSku("SKU-004")
+                                .setRequestedQuantity(2)
+                                .setAvailableQuantity(0),
+                        new StockUnavailableItemInput()
+                                .setSku("SKU-003")
+                                .setRequestedQuantity(1)
+                                .setAvailableQuantity(0)));
+    }
+
+    /** StockUnavailable for an order with no notification yet (ORD-006) -> STOCK_UNAVAILABLE SENT with the skus. */
     @Test
-    void sendStockUnavailableNotificationTest() { // TODO T-16
+    void sendStockUnavailableNotificationTest() {
+        var notification = notificationsConsumerService.sendStockUnavailableNotification(
+                stockInput("ORD-006", "CUST-006", "customer006@example.com"));
+
+        assertThat(notification.getId()).isNotNull();
+        assertThat(notification.getNotificationId()).startsWith("NOT-");
+        assertThat(notification.getOrderId()).isEqualTo("ORD-006");
+        assertThat(notification.getCustomerId()).isEqualTo("CUST-006");
+        assertThat(notification.getType()).isEqualTo(NotificationType.STOCK_UNAVAILABLE);
+        assertThat(notification.getChannel()).isEqualTo(NotificationChannel.EMAIL);
+        assertThat(notification.getRecipient()).isEqualTo("customer006@example.com");
+        assertThat(notification.getSkus()).containsExactly("SKU-004", "SKU-003");
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(notification.getCreatedAt()).isEqualTo(TestClock.NOW);
+        assertThat(notification.getSentAt()).isEqualTo(TestClock.NOW);
+        assertThat(notificationsOf("ORD-006", NotificationType.STOCK_UNAVAILABLE))
+                .hasSize(1);
+
+        var events = eventPublisher.getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(StockUnavailableNotificationSent.class);
+        var event = (StockUnavailableNotificationSent) events.get(0);
+        assertThat(event.getNotificationId()).isEqualTo(notification.getNotificationId());
+        assertThat(event.getOrderId()).isEqualTo("ORD-006");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-006");
+        assertThat(event.getSkus()).containsExactly("SKU-004", "SKU-003");
+        assertThat(event.getChannel()).isEqualTo(NotificationChannel.EMAIL);
+        assertThat(event.getRecipient()).isEqualTo("customer006@example.com");
+        assertThat(event.getSentAt()).isEqualTo(TestClock.NOW);
+    }
+
+    /** Redelivery of StockUnavailable for ORD-020 (STOCK_UNAVAILABLE already SENT, NOT-006): no change, no event. */
+    @Test
+    void sendStockUnavailableNotificationRedeliveryTest() {
+        var notification = notificationsConsumerService.sendStockUnavailableNotification(
+                stockInput("ORD-020", "CUST-020", "customer020@example.com"));
+
+        assertThat(notification.getNotificationId()).isEqualTo("NOT-006");
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(notificationsOf("ORD-020", NotificationType.STOCK_UNAVAILABLE))
+                .hasSize(1);
+        assertThat(eventPublisher.getEvents()).isEmpty();
+    }
+
+    /** The same input twice: one Notification, one StockUnavailableNotificationSent. */
+    @Test
+    void sendStockUnavailableNotificationTwiceTest() {
+        var input = stockInput("ORD-006", "CUST-006", "customer006@example.com");
+
+        var first = notificationsConsumerService.sendStockUnavailableNotification(input);
+        var second = notificationsConsumerService.sendStockUnavailableNotification(input);
+
+        assertThat(second.getNotificationId()).isEqualTo(first.getNotificationId());
+        assertThat(notificationsOf("ORD-006", NotificationType.STOCK_UNAVAILABLE))
+                .hasSize(1);
+        assertThat(eventPublisher.getEvents()).hasSize(1);
     }
 
     @Test
