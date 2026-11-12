@@ -18,6 +18,8 @@ import org.springframework.context.annotation.Profile;
 @Profile("in-memory")
 public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
+    public final java.time.Clock clock = com.arcadiaeditions.config.TestClock.FIXED;
+
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
     protected final InventoryServiceImpl inventoryService =
             new InventoryServiceImpl(stockReservationRepository(), eventPublisher);
