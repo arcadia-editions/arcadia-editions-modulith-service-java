@@ -27,7 +27,8 @@ path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult
       > capturePayment[PaymentCaptured] > sendOrderConfirmation > end completed
 review: [ ]
 
-- [/] T-05 bounded AFK reserveStock: all lines available, one RESERVED reservation per line, available moves to reserved under a write lock, expiresAt = reservedAt + 10 min, StockReservedResult
+- [x] T-05 bounded AFK reserveStock: all lines available, one RESERVED reservation per line, available moves to reserved under a write lock, expiresAt = reservedAt + 10 min, StockReservedResult
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:89-99, catalog-inventory-domain-model.zdl:25-38, catalog-inventory-domain-model.zdl:52-60, catalog-inventory-domain-model.zdl:80-96, catalog-inventory-domain-model.zdl:107-111
       test data: data.sql SKU-001, SKU-002, SKU-003
       tests: InventoryServiceTest
