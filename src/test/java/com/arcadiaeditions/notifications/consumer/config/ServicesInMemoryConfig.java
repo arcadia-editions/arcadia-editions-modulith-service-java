@@ -22,7 +22,11 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
     protected final NotificationsConsumerServiceImpl notificationsConsumerService =
-            new NotificationsConsumerServiceImpl(notificationRepository(), eventPublisher);
+            new NotificationsConsumerServiceImpl(
+                    notificationRepository(),
+                    eventPublisher,
+                    new com.arcadiaeditions.notifications.consumer.sender.StandInNotificationSender(),
+                    clock);
 
     @Bean
     public <T extends NotificationsConsumerService> T notificationsConsumerService() {
