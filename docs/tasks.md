@@ -34,7 +34,8 @@ review: [ ]
       test data: data.sql SKU-001, SKU-002, SKU-003
       tests: InventoryServiceTest
       blocked by: T-03
-- [/] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
+- [x] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:72-87, orders-checkout-domain-model.zdl:26-54, orders-checkout-domain-model.zdl:61-81, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:114-123
       test data: data.sql SKU-001, src/test/resources/data/jpa/Order/1.json
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
@@ -51,7 +52,7 @@ review: [ ]
       test data: data.sql ORD-003
       tests: InventoryServiceTest
       blocked by: T-05
-- [ ] T-09 bounded AFK confirmOrder: load by orderId, call confirmStockReservation, CREATED to CONFIRMED with confirmedAt, emit OrderConfirmed with items and shipping address
+- [/] T-09 bounded AFK confirmOrder: load by orderId, call confirmStockReservation, CREATED to CONFIRMED with confirmedAt, emit OrderConfirmed with items and shipping address
       model: place-order-flow.zfl:142-150, orders-checkout-domain-model.zdl:82-85, orders-checkout-domain-model.zdl:100-103, orders-checkout-domain-model.zdl:138-156
       test data: data.sql ORD-003
       tests: OrdersCheckoutServiceTest
