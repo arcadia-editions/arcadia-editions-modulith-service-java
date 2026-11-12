@@ -61,14 +61,23 @@ public class InventoryServiceImpl implements InventoryService {
         var requested = new java.util.TreeMap<String, Integer>();
         input.getItems().forEach(item -> requested.merge(item.getSku(), item.getQuantity(), Integer::sum));
         var positions = new java.util.HashMap<String, InventoryPosition>();
+        var unavailable = new StockUnavailableResult().setOrderId(input.getOrderId());
         requested.forEach((sku, quantity) -> {
-            var position = inventoryPositionRepository
-                    .findBySkuForUpdate(sku)
-                    .filter(p -> p.getAvailableQuantity() >= quantity)
-                    .orElseThrow(() -> new UnsupportedOperationException(
-                            "StockUnavailableResult branch is task T-14 (sku " + sku + ")"));
-            positions.put(sku, position);
+            var position = inventoryPositionRepository.findBySkuForUpdate(sku);
+            int available = position.map(InventoryPosition::getAvailableQuantity).orElse(0);
+            if (available >= quantity) {
+                positions.put(sku, position.get());
+            } else {
+                unavailable.addUnavailableItems(new StockUnavailableLine()
+                        .setSku(sku)
+                        .setRequestedQuantity(quantity)
+                        .setAvailableQuantity(available));
+            }
         });
+        if (!unavailable.getUnavailableItems().isEmpty()) {
+            // all or nothing: no reservation, no counter change
+            return new ReserveStockResult().setOutcome(ReserveStockOutcome.UNAVAILABLE).setUnavailable(unavailable);
+        }
 
         var reservedAt = clock.instant();
         var expiresAt = reservedAt.plus(RESERVATION_TTL);
