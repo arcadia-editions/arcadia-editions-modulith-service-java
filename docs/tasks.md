@@ -15,7 +15,8 @@ review: [ ]
       model: place-order-flow.zfl:118-130
       test data: src/test/resources/data.sql
       tests: InventoryServiceTest, OrdersCheckoutServiceTest, PaymentsProcessingServiceTest, FulfillmentShippingServiceTest, NotificationsConsumerServiceTest
-- [/] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
+- [!] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
+      blocked: P-01
       model: orders-checkout-domain-model.zdl:92-111
       test data: data.sql ORD-001, ORD-013
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest#testGetOrder_400
@@ -33,7 +34,8 @@ review: [ ]
       test data: data.sql SKU-001, SKU-002, SKU-003
       tests: InventoryServiceTest
       blocked by: T-03
-- [ ] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
+- [!] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
+      blocked: P-01 (via T-04)
       model: place-order-flow.zfl:72-87, orders-checkout-domain-model.zdl:26-54, orders-checkout-domain-model.zdl:61-81, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:114-123
       test data: data.sql SKU-001, src/test/resources/data/jpa/Order/1.json
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
@@ -54,7 +56,7 @@ review: [ ]
       test data: data.sql ORD-003
       tests: OrdersCheckoutServiceTest
       blocked by: T-06, T-08
-- [ ] T-10 advanced AFK scheduleFulfillment scheduled branch: idempotent by orderId, FulfillmentDecision port with the stand-in adapter (postal 00000 fails), Fulfillment SCHEDULED with FUL id, emit FulfillmentScheduled
+- [/] T-10 advanced AFK scheduleFulfillment scheduled branch: idempotent by orderId, FulfillmentDecision port with the stand-in adapter (postal 00000 fails), Fulfillment SCHEDULED with FUL id, emit FulfillmentScheduled
       model: place-order-flow.zfl:160-170, fulfillment-shipping-domain-model.zdl:25-50, fulfillment-shipping-domain-model.zdl:57-90, fulfillment-shipping-domain-model.zdl:82-84, fulfillment-shipping-domain-model.zdl:91-96
       test data: data.sql ORD-004, ORD-001
       tests: FulfillmentShippingServiceTest
@@ -64,7 +66,7 @@ review: [ ]
       test data: data.sql ORD-004, ORD-001
       tests: PaymentsProcessingServiceTest
       blocked by: T-07
-- [ ] T-12 advanced AFK sendOrderConfirmation: idempotent by orderId and type, NotificationSender port with the stand-in adapter (@fail.invalid fails), Notification SENT, emit OrderConfirmationSent
+- [/] T-12 advanced AFK sendOrderConfirmation: idempotent by orderId and type, NotificationSender port with the stand-in adapter (@fail.invalid fails), Notification SENT, emit OrderConfirmationSent
       model: place-order-flow.zfl:184-192, notifications-consumer-domain-model.zdl:26-42, notifications-consumer-domain-model.zdl:61-66, notifications-consumer-domain-model.zdl:88-90, notifications-consumer-domain-model.zdl:102-109
       test data: data.sql ORD-001
       tests: NotificationsConsumerServiceTest
