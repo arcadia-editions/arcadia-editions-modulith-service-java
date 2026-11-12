@@ -34,3 +34,5 @@ build/
 *.swp
 .DS_Store
 Thumbs.db
+.zenwave/work/
+.zenwave/handoff/
