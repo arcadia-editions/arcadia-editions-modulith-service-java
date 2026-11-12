@@ -11,7 +11,8 @@ public interface PaymentsProcessingEventsListenerMapper {
 
     PaymentsProcessingEventsListenerMapper INSTANCE = Mappers.getMapper(PaymentsProcessingEventsListenerMapper.class);
 
-    /** Add {@code @Mapping} here when MapStruct cannot infer the conversion. */
+    /** The event reason is the gateway's decline code; the release reason is fixed by the event type. */
+    @org.mapstruct.Mapping(target = "reason", constant = "PAYMENT_DECLINED")
     com.arcadiaeditions.catalog.inventory.service.dtos.ReleaseStockInput asReleaseStockInput(
             com.arcadiaeditions.payments.processing.domain.event.PaymentDeclined event);
 

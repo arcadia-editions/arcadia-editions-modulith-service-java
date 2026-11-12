@@ -113,7 +113,70 @@ class InventoryServiceTest {
     }
 
     @Test
-    void releaseStockTest() { // TODO: implement this test
+    void releaseStockTest() {
+        var result = inventoryService.releaseStock(
+                new ReleaseStockInput().setOrderId("ORD-010").setReason(StockReleaseReason.PAYMENT_DECLINED));
+
+        var now = context.clock.instant();
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        var saved = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-010".equals(r.getOrderId()))
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(1, saved.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, saved.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_DECLINED, saved.get(0).getReleaseReason());
+        org.junit.jupiter.api.Assertions.assertEquals(now, saved.get(0).getReleasedAt());
+        // SKU-002 20/7 -> 21/6
+        assertPosition("SKU-002", 21, 6);
+
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var event = (com.arcadiaeditions.catalog.inventory.domain.events.StockReleased) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-010", event.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_DECLINED, event.getReason());
+        org.junit.jupiter.api.Assertions.assertEquals(now, event.getReleasedAt());
+        org.junit.jupiter.api.Assertions.assertEquals(1, event.getItems().size());
+        org.junit.jupiter.api.Assertions.assertEquals("RES-012", event.getItems().get(0).getReservationId());
+        org.junit.jupiter.api.Assertions.assertEquals("SKU-002", event.getItems().get(0).getSku());
+        org.junit.jupiter.api.Assertions.assertEquals(1, event.getItems().get(0).getQuantity());
+    }
+
+    @Test
+    void releaseStockConfirmedReturnsSoldTest() {
+        inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-003"));
+        context.eventPublisher().getEvents().clear();
+
+        var result = inventoryService.releaseStock(
+                new ReleaseStockInput().setOrderId("ORD-003").setReason(StockReleaseReason.PAYMENT_DECLINED));
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, result.get(0).getStatus());
+        // SKU-002 20/7/6 -> confirm 20/6/7 -> release 21/6/6
+        var position = context.inventoryPositionRepository().findAll().stream()
+                .map(p -> (InventoryPosition) p)
+                .filter(p -> "SKU-002".equals(p.getSku()))
+                .findFirst()
+                .orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(21, position.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(6, position.getReservedQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(6, position.getSoldQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(1, context.eventPublisher().getEvents().size());
+    }
+
+    @Test
+    void releaseStockRedeliveryEmitsNothingTest() {
+        var input = new ReleaseStockInput().setOrderId("ORD-018").setReason(StockReleaseReason.PAYMENT_DECLINED);
+        var before = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-018".equals(r.getOrderId()))
+                .findFirst()
+                .orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, before.getStatus());
+
+        var result = inventoryService.releaseStock(input);
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+        assertPosition("SKU-002", 20, 7);
     }
 
     @Test
