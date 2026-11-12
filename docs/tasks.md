@@ -97,7 +97,8 @@ review: [ ]
       test data: data.sql SKU-004
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
       blocked by: T-06, T-14
-- [/] T-16 bounded AFK sendStockUnavailableNotification: type STOCK_UNAVAILABLE with the skus, idempotent, emit StockUnavailableNotificationSent
+- [x] T-16 bounded AFK sendStockUnavailableNotification: type STOCK_UNAVAILABLE with the skus, idempotent, emit StockUnavailableNotificationSent
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:194-202, notifications-consumer-domain-model.zdl:67-77, notifications-consumer-domain-model.zdl:92-94, notifications-consumer-domain-model.zdl:112-120
       test data: data.sql ORD-020
       tests: NotificationsConsumerServiceTest
