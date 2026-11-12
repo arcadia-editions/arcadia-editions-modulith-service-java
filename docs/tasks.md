@@ -15,8 +15,7 @@ review: [ ]
       model: place-order-flow.zfl:118-130
       test data: src/test/resources/data.sql
       tests: InventoryServiceTest, OrdersCheckoutServiceTest, PaymentsProcessingServiceTest, FulfillmentShippingServiceTest, NotificationsConsumerServiceTest
-- [!] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
-      blocked: P-01
+- [/] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
       model: orders-checkout-domain-model.zdl:92-111
       test data: data.sql ORD-001, ORD-013
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest#testGetOrder_400
@@ -34,8 +33,7 @@ review: [ ]
       test data: data.sql SKU-001, SKU-002, SKU-003
       tests: InventoryServiceTest
       blocked by: T-03
-- [!] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
-      blocked: P-01 (via T-04)
+- [ ] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
       model: place-order-flow.zfl:72-87, orders-checkout-domain-model.zdl:26-54, orders-checkout-domain-model.zdl:61-81, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:114-123
       test data: data.sql SKU-001, src/test/resources/data/jpa/Order/1.json
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
@@ -46,7 +44,8 @@ review: [ ]
       test data: data.sql ORD-002, ORD-003
       tests: PaymentsProcessingServiceTest
       blocked by: T-03
-- [/] T-08 bounded AFK confirmStockReservation: the order's RESERVED reservations become CONFIRMED, reserved moves to sold, emit StockReservationConfirmed
+- [x] T-08 bounded AFK confirmStockReservation: the order's RESERVED reservations become CONFIRMED, reserved moves to sold, emit StockReservationConfirmed
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:152-158, catalog-inventory-domain-model.zdl:61-65, catalog-inventory-domain-model.zdl:120-122, catalog-inventory-domain-model.zdl:138-146
       test data: data.sql ORD-003
       tests: InventoryServiceTest
