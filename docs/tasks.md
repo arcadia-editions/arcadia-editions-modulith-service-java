@@ -1,0 +1,235 @@
+# PlaceOrderFlow: tasks
+
+flow: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl
+baseline:
+branch: afk/place-order-flow
+
+## S0 Baseline
+review: [ ]
+
+- [ ] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
+      test data: src/test/resources/data.sql, src/test/resources/data/jpa/Order/1.json, src/test/resources/data/jpa/Product/1.json
+      tests: *RepositoryIntegrationTest, OrdersCheckoutServiceTest#getOrderTest, OrdersCheckoutApiControllerTest#getOrderTest, ProductCatalogServiceTest#updateProductTest, OrdersCheckoutApiIntegrationTest#testGetOrder_200
+- [ ] T-02 mechanical AFK ArchitectureTest checks the orders.checkout module only (its CleanHexagonal layout), not the other modules' listeners
+      tests: ArchitectureTest, JMoleculesArchitectureTest
+- [ ] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
+      model: place-order-flow.zfl:118-130
+      test data: src/test/resources/data.sql
+      tests: InventoryServiceTest, OrdersCheckoutServiceTest, PaymentsProcessingServiceTest, FulfillmentShippingServiceTest, NotificationsConsumerServiceTest
+- [ ] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
+      model: orders-checkout-domain-model.zdl:92-111
+      tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest#testGetOrder_400
+      blocked by: T-03
+
+## S1 completed (tracer bullet)
+path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult] > OrderCreated > authorizePayment[authorized]
+      > PaymentAuthorized > confirmOrder > confirmStockReservation > OrderConfirmed > scheduleFulfillment[FulfillmentScheduled]
+      > capturePayment[PaymentCaptured] > sendOrderConfirmation > end completed
+review: [ ]
+
+- [ ] T-05 bounded AFK reserveStock: all lines available, one RESERVED reservation per line, available moves to reserved under a write lock, expiresAt = reservedAt + 10 min, StockReservedResult
+      model: place-order-flow.zfl:89-99, catalog-inventory-domain-model.zdl:25-38, catalog-inventory-domain-model.zdl:52-60, catalog-inventory-domain-model.zdl:80-96, catalog-inventory-domain-model.zdl:107-111
+      test data: data.sql SKU-001, SKU-002, SKU-003
+      tests: InventoryServiceTest
+      blocked by: T-03
+- [ ] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
+      model: place-order-flow.zfl:72-87, orders-checkout-domain-model.zdl:26-54, orders-checkout-domain-model.zdl:61-81, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:114-123
+      test data: data.sql SKU-001, src/test/resources/data/jpa/Order/1.json
+      tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
+      blocked by: T-04, T-05
+- [ ] T-07 advanced AFK authorizePayment authorized branch: get-or-create Payment by orderId, PaymentProvider port with the stand-in adapter of the data.sql assumptions (pm_* triggers), emit PaymentAuthorized
+      model: place-order-flow.zfl:101-116, payments-processing-domain-model.zdl:26-44, payments-processing-domain-model.zdl:56-64, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:104-111
+      test data: data.sql ORD-002, ORD-003
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-03
+- [ ] T-08 bounded AFK confirmStockReservation: the order's RESERVED reservations become CONFIRMED, reserved moves to sold, emit StockReservationConfirmed
+      model: place-order-flow.zfl:152-158, catalog-inventory-domain-model.zdl:61-65, catalog-inventory-domain-model.zdl:120-122, catalog-inventory-domain-model.zdl:138-146
+      test data: data.sql ORD-003
+      tests: InventoryServiceTest
+      blocked by: T-05
+- [ ] T-09 bounded AFK confirmOrder: load by orderId, call confirmStockReservation, CREATED to CONFIRMED with confirmedAt, emit OrderConfirmed with items and shipping address
+      model: place-order-flow.zfl:142-150, orders-checkout-domain-model.zdl:82-85, orders-checkout-domain-model.zdl:100-103, orders-checkout-domain-model.zdl:138-156
+      test data: data.sql ORD-003
+      tests: OrdersCheckoutServiceTest
+      blocked by: T-06, T-08
+- [ ] T-10 advanced AFK scheduleFulfillment scheduled branch: idempotent by orderId, FulfillmentDecision port with the stand-in adapter (postal 00000 fails), Fulfillment SCHEDULED with FUL id, emit FulfillmentScheduled
+      model: place-order-flow.zfl:160-170, fulfillment-shipping-domain-model.zdl:25-50, fulfillment-shipping-domain-model.zdl:57-90, fulfillment-shipping-domain-model.zdl:82-84, fulfillment-shipping-domain-model.zdl:91-96
+      test data: data.sql ORD-004, ORD-001
+      tests: FulfillmentShippingServiceTest
+      blocked by: T-03
+- [ ] T-11 bounded AFK capturePayment success branch: load by orderId, AUTHORIZED to CAPTURED through the provider port, emit PaymentCaptured with customerEmail
+      model: place-order-flow.zfl:172-182, payments-processing-domain-model.zdl:71-75, payments-processing-domain-model.zdl:93-95, payments-processing-domain-model.zdl:150-158
+      test data: data.sql ORD-004, ORD-001
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-07
+- [ ] T-12 advanced AFK sendOrderConfirmation: idempotent by orderId and type, NotificationSender port with the stand-in adapter (@fail.invalid fails), Notification SENT, emit OrderConfirmationSent
+      model: place-order-flow.zfl:184-192, notifications-consumer-domain-model.zdl:26-42, notifications-consumer-domain-model.zdl:61-66, notifications-consumer-domain-model.zdl:88-90, notifications-consumer-domain-model.zdl:102-109
+      test data: data.sql ORD-001
+      tests: NotificationsConsumerServiceTest
+      blocked by: T-03
+- [ ] T-13 advanced AFK Flow test completed: POST start-checkout to OrderConfirmationSent, Spring Modulith Scenario on PostgreSQL
+      model: place-order-flow.zfl:65-192, place-order-flow.zfl:262-266
+      test data: data.sql SKU-001
+      tests: PlaceOrderFlowTest
+      blocked by: T-06, T-07, T-09, T-10, T-11, T-12
+
+## S2 stockGone
+path: StartOrderCheckout > startOrderCheckout > reserveStock[StockUnavailableResult] > StockUnavailable
+      > sendStockUnavailableNotification > end stockGone
+review: [ ]
+
+- [ ] T-14 bounded AFK reserveStock unavailable branch: no reservation when any line is short, StockUnavailableResult with requested and available per sku
+      model: place-order-flow.zfl:89-99, catalog-inventory-domain-model.zdl:97-106, catalog-inventory-domain-model.zdl:110-111
+      test data: data.sql SKU-003, SKU-004
+      tests: InventoryServiceTest
+      blocked by: T-05
+- [ ] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
+      model: place-order-flow.zfl:82-87, place-order-flow.zfl:194-197, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:126-135
+      test data: data.sql SKU-004
+      tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
+      blocked by: T-06, T-14
+- [ ] T-16 bounded AFK sendStockUnavailableNotification: type STOCK_UNAVAILABLE with the skus, idempotent, emit StockUnavailableNotificationSent
+      model: place-order-flow.zfl:194-202, notifications-consumer-domain-model.zdl:67-77, notifications-consumer-domain-model.zdl:92-94, notifications-consumer-domain-model.zdl:112-120
+      test data: data.sql ORD-020
+      tests: NotificationsConsumerServiceTest
+      blocked by: T-12
+- [ ] T-17 bounded AFK Flow test stockGone: 409 and StockUnavailableNotificationSent, no order stored
+      model: place-order-flow.zfl:82-87, place-order-flow.zfl:199-202, place-order-flow.zfl:262-266
+      test data: data.sql SKU-004
+      tests: PlaceOrderFlowTest
+      blocked by: T-13, T-15, T-16
+
+## S3 orderCancelled by payment declined
+path: OrderCreated > authorizePayment[declined] > PaymentDeclined > releaseStock > StockReleased > cancelOrder > OrderCancelled
+      > sendOrderCancelledNotification > end orderCancelled
+review: [ ]
+
+- [ ] T-18 bounded AFK authorizePayment declined branch: DECLINED with declinedAt and reason, emit PaymentDeclined, no retry
+      model: place-order-flow.zfl:101-116, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:114-121
+      test data: data.sql ORD-010
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-07
+- [ ] T-19 bounded AFK releaseStock on PaymentDeclined: RESERVED or CONFIRMED reservations become RELEASED with releaseReason PAYMENT_DECLINED, counters back to available, idempotent, emit StockReleased
+      model: place-order-flow.zfl:216-227, catalog-inventory-domain-model.zdl:66-70, catalog-inventory-domain-model.zdl:113-118, catalog-inventory-domain-model.zdl:126-135
+      test data: data.sql ORD-010, ORD-018
+      tests: InventoryServiceTest
+      blocked by: T-08
+- [ ] T-20 bounded AFK cancelOrder: load by orderId, CREATED or CONFIRMED to CANCELLED with cancellationReason and cancelledAt, idempotent, emit OrderCancelled
+      model: place-order-flow.zfl:241-250, orders-checkout-domain-model.zdl:86-91, orders-checkout-domain-model.zdl:105-107, orders-checkout-domain-model.zdl:159-167
+      test data: data.sql ORD-018, ORD-017
+      tests: OrdersCheckoutServiceTest
+      blocked by: T-09
+- [ ] T-21 bounded AFK sendOrderCancelledNotification: type ORDER_CANCELLED with the reason, idempotent, emit OrderCancelledNotificationSent
+      model: place-order-flow.zfl:252-260, notifications-consumer-domain-model.zdl:78-85, notifications-consumer-domain-model.zdl:96-98, notifications-consumer-domain-model.zdl:123-131
+      test data: data.sql ORD-014
+      tests: NotificationsConsumerServiceTest
+      blocked by: T-12
+- [ ] T-22 bounded AFK Flow test orderCancelled by decline (pm_decline): stock back, order CANCELLED, OrderCancelledNotificationSent
+      model: place-order-flow.zfl:108-116, place-order-flow.zfl:223-260, place-order-flow.zfl:262-266
+      test data: data.sql SKU-002
+      tests: PlaceOrderFlowTest
+      blocked by: T-17, T-18, T-19, T-20, T-21
+
+## S4 payment retried, then completed
+path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[retried] > PaymentRetried > authorizePayment[authorized]
+      > PaymentAuthorized > ... > end completed
+review: [ ]
+
+- [ ] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
+      model: place-order-flow.zfl:108-116, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:124-130
+      test data: data.sql ORD-008
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-07
+- [ ] T-24 bounded AFK retryPayment retried branch below the attempt limit, emit PaymentRetried; on PaymentRetried, authorizePayment reloads the stored Payment by orderId after retry-delay
+      model: place-order-flow.zfl:118-140, payments-processing-domain-model.zdl:65-70, payments-processing-domain-model.zdl:85, payments-processing-domain-model.zdl:89-91, payments-processing-domain-model.zdl:133-138
+      test data: data.sql ORD-008
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-23
+- [ ] T-25 bounded AFK Flow test retry then completed (pm_fail_once)
+      model: place-order-flow.zfl:118-140, place-order-flow.zfl:262-266
+      test data: data.sql SKU-002
+      tests: PlaceOrderFlowTest
+      blocked by: T-22, T-24
+
+## S5 orderCancelled by retries exhausted
+path: PaymentFailed > retryPayment[retry-exhausted] > PaymentRetryExhausted > releaseStock > StockReleased > cancelOrder
+      > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
+review: [ ]
+
+- [ ] T-26 bounded AFK retryPayment retry-exhausted branch at the attempt limit: RETRY_EXHAUSTED, emit PaymentRetryExhausted
+      model: place-order-flow.zfl:124-130, payments-processing-domain-model.zdl:89-91, payments-processing-domain-model.zdl:141-147
+      test data: data.sql ORD-009
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-24
+- [ ] T-27 mechanical AFK releaseStock on PaymentRetryExhausted: releaseReason PAYMENT_RETRY_EXHAUSTED
+      model: place-order-flow.zfl:223-227, catalog-inventory-domain-model.zdl:114-118
+      test data: data.sql ORD-011
+      tests: InventoryServiceTest
+      blocked by: T-19
+- [ ] T-28 bounded AFK Flow test orderCancelled by retries exhausted (pm_fail_always)
+      model: place-order-flow.zfl:124-130, place-order-flow.zfl:223-260, place-order-flow.zfl:262-266
+      test data: data.sql SKU-002
+      tests: PlaceOrderFlowTest
+      blocked by: T-25, T-26, T-27
+
+## S6 orderCancelled by fulfillment failed
+path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment > PaymentVoided > releaseStock > StockReleased
+      > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
+review: [ ]
+
+- [ ] T-29 bounded AFK scheduleFulfillment failed branch: Fulfillment FAILED with failureReason, emit FulfillmentFailed
+      model: place-order-flow.zfl:160-170, fulfillment-shipping-domain-model.zdl:82-84, fulfillment-shipping-domain-model.zdl:99-105
+      test data: data.sql ORD-005, ORD-007
+      tests: FulfillmentShippingServiceTest
+      blocked by: T-10
+- [ ] T-30 bounded AFK voidPayment on FulfillmentFailed: load by orderId, AUTHORIZED to VOIDED through the provider port, idempotent, emit PaymentVoided
+      model: place-order-flow.zfl:204-214, payments-processing-domain-model.zdl:76-80, payments-processing-domain-model.zdl:97-100, payments-processing-domain-model.zdl:169-175
+      test data: data.sql ORD-007, ORD-016
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-11
+- [ ] T-31 mechanical AFK releaseStock on PaymentVoided: CONFIRMED reservations released with PAYMENT_VOIDED, sold back to available
+      model: place-order-flow.zfl:223-227, catalog-inventory-domain-model.zdl:115-118
+      test data: data.sql ORD-016
+      tests: InventoryServiceTest
+      blocked by: T-19
+- [ ] T-32 bounded AFK Flow test orderCancelled by fulfillment failure (postal 00000)
+      model: place-order-flow.zfl:160-170, place-order-flow.zfl:204-260, place-order-flow.zfl:262-266
+      test data: data.sql SKU-002
+      tests: PlaceOrderFlowTest
+      blocked by: T-28, T-29, T-30, T-31
+
+## S7 orderCancelled by capture failed
+path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment > PaymentVoided > releaseStock > StockReleased
+      > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
+review: [ ]
+
+- [ ] T-33 bounded AFK capturePayment failure branch: CAPTURE_FAILED with failureReason, emit PaymentCaptureFailed; voidPayment from CAPTURE_FAILED
+      model: place-order-flow.zfl:172-182, place-order-flow.zfl:210-214, payments-processing-domain-model.zdl:93-100, payments-processing-domain-model.zdl:161-166
+      test data: data.sql ORD-006, ORD-012
+      tests: PaymentsProcessingServiceTest
+      blocked by: T-30
+- [ ] T-34 bounded AFK Flow test orderCancelled by capture failure (pm_capture_fail)
+      model: place-order-flow.zfl:172-182, place-order-flow.zfl:204-260, place-order-flow.zfl:262-266
+      test data: data.sql SKU-002
+      tests: PlaceOrderFlowTest
+      blocked by: T-32, T-33
+
+## S8 orderCancelled by reservation expired
+path: ReservationExpired > releaseStock > StockReleased > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
+review: [ ]
+
+- [!] T-35 advanced HITL ReservationExpired timer: a scheduler on StockReservation.expiresAt with the injected Clock
+      model: place-order-flow.zfl:229-239, catalog-inventory-domain-model.zdl:116-118
+      blocked: out of scope for this iteration (overlay decision "Reservation expiry"); a person reopens it
+
+## S9 Polish
+review: [ ]
+
+- [ ] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
+      model: notifications-consumer-domain-model.zdl:88-98, notifications-consumer-domain-model.zdl:134-144
+      test data: data.sql ORD-015
+      tests: NotificationsConsumerServiceTest
+      blocked by: T-12, T-16, T-21
+- [ ] T-37 mechanical AFK ModularityTest: ApplicationModules.of(Application.class).verify() passes
+      tests: ModularityTest
+      blocked by: T-02
