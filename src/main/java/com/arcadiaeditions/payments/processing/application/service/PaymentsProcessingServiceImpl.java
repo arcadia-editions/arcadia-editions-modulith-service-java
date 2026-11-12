@@ -91,9 +91,16 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
                 payment = paymentRepository.save(payment);
                 eventPublisher.onPaymentAuthorized(eventsMapper.asPaymentAuthorized(payment));
             }
-            // TODO T-18: DECLINED with declinedAt and failureReason, emit PaymentDeclined
+            case DECLINED -> {
+                // no retry: the customer needs to act
+                payment.setStatus(PaymentStatus.DECLINED);
+                payment.setDeclinedAt(Instant.now(clock));
+                payment.setFailureReason(result.reason());
+                payment = paymentRepository.save(payment);
+                eventPublisher.onPaymentDeclined(eventsMapper.asPaymentDeclined(payment));
+            }
             // TODO T-23: FAILED with failedAt, attemptCount and failureReason, emit PaymentFailed
-            case DECLINED, FAILED ->
+            case FAILED ->
                 throw new UnsupportedOperationException(
                         "authorizePayment " + result.outcome() + " branch not implemented yet");
         }
