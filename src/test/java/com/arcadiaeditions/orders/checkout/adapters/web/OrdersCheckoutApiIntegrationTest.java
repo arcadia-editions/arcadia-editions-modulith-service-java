@@ -166,7 +166,7 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
     */
     @Test
     public void testGetOrder_400() {
-        var id = "";
+        var id = "abc";
 
         webTestClient.method(GET).uri("/api/orders/{id}", id)
             .accept(MediaType.APPLICATION_JSON)
