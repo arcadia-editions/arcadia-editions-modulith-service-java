@@ -22,7 +22,7 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
     protected final InventoryServiceImpl inventoryService =
-            new InventoryServiceImpl(stockReservationRepository(), eventPublisher);
+            new InventoryServiceImpl(stockReservationRepository(), inventoryPositionRepository(), eventPublisher, clock);
     protected final InventoryBackofficeServiceImpl inventoryBackofficeService =
             new InventoryBackofficeServiceImpl(inventoryPositionRepository(), eventPublisher);
 
