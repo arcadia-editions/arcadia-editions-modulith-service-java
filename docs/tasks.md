@@ -38,7 +38,8 @@ review: [ ]
       test data: data.sql SKU-001, src/test/resources/data/jpa/Order/1.json
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
       blocked by: T-04, T-05
-- [/] T-07 advanced AFK authorizePayment authorized branch: get-or-create Payment by orderId, PaymentProvider port with the stand-in adapter of the data.sql assumptions (pm_* triggers), emit PaymentAuthorized
+- [x] T-07 advanced AFK authorizePayment authorized branch: get-or-create Payment by orderId, PaymentProvider port with the stand-in adapter of the data.sql assumptions (pm_* triggers), emit PaymentAuthorized
+      done: claude-opus opus
       model: place-order-flow.zfl:101-116, payments-processing-domain-model.zdl:26-44, payments-processing-domain-model.zdl:56-64, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:104-111
       test data: data.sql ORD-002, ORD-003
       tests: PaymentsProcessingServiceTest
