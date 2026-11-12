@@ -22,7 +22,10 @@ public class StandInPaymentProvider implements PaymentProvider {
         if (PM_DECLINE.equals(request.paymentMethodId())) {
             return AuthorizationResult.declined("card_declined");
         }
-        // TODO T-23/T-24: pm_fail_once (first attempt), pm_fail_always -> failed "processor_unavailable"
+        if (PM_FAIL_ALWAYS.equals(request.paymentMethodId())
+                || (PM_FAIL_ONCE.equals(request.paymentMethodId()) && request.attempt() <= 1)) {
+            return AuthorizationResult.failed("processor_unavailable");
+        }
         return AuthorizationResult.authorized(providerReference(request.orderId(), request.paymentMethodId()));
     }
 

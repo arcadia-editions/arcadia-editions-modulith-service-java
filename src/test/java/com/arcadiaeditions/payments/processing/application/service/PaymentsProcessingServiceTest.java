@@ -181,6 +181,53 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void authorizePaymentFailedTest() {
+        // pm_fail_once on attempt 1: technical failure: FAILED, attemptCount 1, exactly one PaymentFailed
+        assertFailedFirstAttempt("ORD-903", "CUST-903", "pm_fail_once");
+    }
+
+    @Test
+    void authorizePaymentFailedAlwaysTest() {
+        assertFailedFirstAttempt("ORD-904", "CUST-904", "pm_fail_always");
+    }
+
+    private void assertFailedFirstAttempt(String orderId, String customerId, String pm) {
+        var payment = paymentsProcessingService.authorizePayment(authorizeInput(orderId, customerId, pm, "59.90"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
+        assertThat(payment.getFailureReason()).isEqualTo("processor_unavailable");
+        assertThat(payment.getFailedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getAuthorizedAt()).isNull();
+        assertThat(payment.getDeclinedAt()).isNull();
+        assertThat(paymentsOf(orderId)).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId(orderId).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.FAILED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentFailed.class);
+        var event = (PaymentFailed) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo(orderId);
+        assertThat(event.getCustomerId()).isEqualTo(customerId);
+        assertThat(event.getAttemptCount()).isEqualTo(1);
+        assertThat(event.getReason()).isEqualTo("processor_unavailable");
+        assertThat(event.getFailedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void authorizePaymentRedeliveryAlreadyFailedTest() {
+        // ORD-008: already FAILED (a1); redelivery of OrderCreated changes nothing, emits nothing (retry is T-24)
+        var payment = paymentsProcessingService.authorizePayment(authorizeInput("ORD-008", "CUST-008", "pm_fail_once", "59.90"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
+        assertThat(payment.getFailedAt()).isEqualTo(Instant.parse("2026-10-14T09:50:13Z"));
+        assertThat(paymentsOf("ORD-008")).isEqualTo(1);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
     void retryPaymentTest() { // TODO: implement this test
     }
 
