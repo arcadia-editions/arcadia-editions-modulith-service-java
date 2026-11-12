@@ -20,9 +20,12 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     public final java.time.Clock clock = com.arcadiaeditions.config.TestClock.FIXED;
 
+    public final com.arcadiaeditions.catalog.inventory.config.ServicesInMemoryConfig inventoryContext =
+            new com.arcadiaeditions.catalog.inventory.config.ServicesInMemoryConfig();
+
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
-    protected final OrdersCheckoutServiceImpl ordersCheckoutService =
-            new OrdersCheckoutServiceImpl(orderRepository(), eventPublisher);
+    protected final OrdersCheckoutServiceImpl ordersCheckoutService = new OrdersCheckoutServiceImpl(
+            orderRepository(), eventPublisher, inventoryContext.inventoryService(), clock);
 
     @Bean
     public <T extends OrdersCheckoutService> T ordersCheckoutService() {
@@ -38,6 +41,7 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
         orderRepository().deleteAll();
         orderRepository().saveAll(orders);
         eventPublisher.getEvents().clear();
+        inventoryContext.reloadTestData();
     }
 
     @Bean

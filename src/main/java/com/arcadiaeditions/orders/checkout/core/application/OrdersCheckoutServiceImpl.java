@@ -1,5 +1,10 @@
 package com.arcadiaeditions.orders.checkout.core.application;
 
+import com.arcadiaeditions.catalog.inventory.service.InventoryService;
+import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockInput;
+import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockItemInput;
+import com.arcadiaeditions.catalog.inventory.domain.ReserveStockOutcome;
+import com.arcadiaeditions.common.BusinessIds;
 import com.arcadiaeditions.orders.checkout.core.application.mappers.*;
 import com.arcadiaeditions.orders.checkout.core.domain.*;
 import com.arcadiaeditions.orders.checkout.core.domain.events.*;
@@ -33,27 +38,47 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
 
     private final EventsMapper eventsMapper = EventsMapper.INSTANCE;
     private final EventPublisher eventPublisher;
+    private final InventoryService inventoryService;
+    private final Clock clock;
 
     /**
      * Constructor.
      */
-    public OrdersCheckoutServiceImpl(OrderRepository orderRepository, EventPublisher eventPublisher) {
+    public OrdersCheckoutServiceImpl(
+            OrderRepository orderRepository,
+            EventPublisher eventPublisher,
+            InventoryService inventoryService,
+            Clock clock) {
         this.orderRepository = orderRepository;
         this.eventPublisher = eventPublisher;
+        this.inventoryService = inventoryService;
+        this.clock = clock;
     }
 
     public Order startOrderCheckout(StartOrderCheckoutInput input) {
-        // TODO: call CatalogInventoryZdl InventoryService.reserveStock(ReserveStockInput) -> ReserveStockResult
-
         log.debug("Request startOrderCheckout: {}", input);
 
+        var orderId = BusinessIds.newId("ORD");
+        var reserveStockInput = new ReserveStockInput().setOrderId(orderId);
+        input.getItems()
+                .forEach(item -> reserveStockInput.addItems(
+                        new ReserveStockItemInput().setSku(item.getSku()).setQuantity(item.getQuantity())));
+        var reservation = inventoryService.reserveStock(reserveStockInput);
+        if (reservation.getOutcome() != ReserveStockOutcome.RESERVED) {
+            throw new UnsupportedOperationException("StockUnavailableResult branch is task T-15");
+        }
+
         var order = ordersCheckoutServiceMapper.update(new Order(), input);
-        // TODO: implement this method
+        order.setOrderId(orderId);
+        order.setStatus(OrderStatus.CREATED);
+        order.setCreatedAt(clock.instant());
+        order.setTotalAmount(input.getItems().stream()
+                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        order = orderRepository.save(order);
         // emit events
         var orderCreated = eventsMapper.asOrderCreated(order);
         eventPublisher.onOrderCreated(orderCreated);
-        var stockUnavailable = eventsMapper.asStockUnavailable(order);
-        eventPublisher.onStockUnavailable(stockUnavailable);
         return order;
     }
 

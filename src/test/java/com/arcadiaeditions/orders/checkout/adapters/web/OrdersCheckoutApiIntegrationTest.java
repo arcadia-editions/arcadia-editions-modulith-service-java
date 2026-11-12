@@ -30,10 +30,10 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
               "customerId" : "customerId-wjx0krzw",
               "customerEmail" : "lorilee.kerluke@hotmail.co",
               "paymentMethodId" : "paymentMethodId-89296ckjsv",
-              "currency" : "currency-zx1piy7n1d",
+              "currency" : "EUR",
               "items" : [ {
-                "sku" : "sku-r1wcttf5hxooddv068m2",
-                "quantity" : 59,
+                "sku" : "SKU-001",
+                "quantity" : 1,
                 "unitPrice" : 69
               } ],
               "shippingAddress" : {
@@ -79,9 +79,9 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
             .jsonPath("$.totalAmount").isNotEmpty()
             .jsonPath("$.currency").isNotEmpty()
             .jsonPath("$.createdAt").isNotEmpty()
-            .jsonPath("$.confirmedAt").isNotEmpty()
-            .jsonPath("$.cancelledAt").isNotEmpty()
-            .jsonPath("$.cancellationReason").isNotEmpty();
+            .jsonPath("$.status").isEqualTo("CREATED")
+            .jsonPath("$.orderId").value(org.hamcrest.Matchers.startsWith("ORD-"))
+            .jsonPath("$.totalAmount").isEqualTo(69);
     }
 
     /**
