@@ -112,21 +112,56 @@ public class InventoryServiceImpl implements InventoryService {
 
         log.debug("Request releaseStock: {}", input);
 
-        // TODO CUSTOM_REQUIRED: load the StockReservation(s) this transition applies to, e.g. by a correlation key in
-        // the input
-        List<StockReservation> stockReservations = List.of();
-        stockReservations.forEach(existingStockReservation -> {
-            StockReservationTransitions.ensureCanReleaseStock(existingStockReservation);
-            inventoryServiceMapper.update(existingStockReservation, input);
-            existingStockReservation.setStatus(ReservationStatus.RELEASED);
+        // only RESERVED or CONFIRMED reservations of the order; already released ones (redelivery) are left alone
+        var releasable = stockReservationRepository.findByOrderId(input.getOrderId()).stream()
+                .filter(r -> r.getStatus() == ReservationStatus.RESERVED || r.getStatus() == ReservationStatus.CONFIRMED)
+                .toList();
+        if (releasable.isEmpty()) {
+            return List.of();
+        }
+
+        var releasedAt = clock.instant();
+        // back to available: RESERVED leaves reserved, CONFIRMED leaves sold
+        var reservedBack = new java.util.TreeMap<String, Integer>();
+        var soldBack = new java.util.TreeMap<String, Integer>();
+        releasable.forEach(reservation -> {
+            StockReservationTransitions.ensureCanReleaseStock(reservation);
+            var counter = reservation.getStatus() == ReservationStatus.CONFIRMED ? soldBack : reservedBack;
+            counter.merge(reservation.getSku(), reservation.getQuantity(), Integer::sum);
+            reservation
+                    .setStatus(ReservationStatus.RELEASED)
+                    .setReleasedAt(releasedAt)
+                    .setReleaseReason(input.getReason());
         });
-        stockReservations = stockReservationRepository.saveAll(stockReservations);
-        // emit events
-        stockReservations.forEach(eventSource -> {
-            var stockReleased = eventsMapper.asStockReleased(eventSource);
-            eventPublisher.onStockReleased(stockReleased);
+        var skus = new java.util.TreeSet<String>();
+        skus.addAll(reservedBack.keySet());
+        skus.addAll(soldBack.keySet());
+        skus.forEach(sku -> {
+            var position = inventoryPositionRepository
+                    .findBySkuForUpdate(sku)
+                    .orElseThrow(() -> new IllegalStateException("No inventory position for sku " + sku));
+            int fromReserved = reservedBack.getOrDefault(sku, 0);
+            int fromSold = soldBack.getOrDefault(sku, 0);
+            position.setAvailableQuantity(position.getAvailableQuantity() + fromReserved + fromSold);
+            position.setReservedQuantity(position.getReservedQuantity() - fromReserved);
+            position.setSoldQuantity(position.getSoldQuantity() - fromSold);
+            inventoryPositionRepository.save(position);
         });
-        return stockReservations;
+
+        var saved = stockReservationRepository.saveAll(releasable);
+
+        var event = new StockReleased()
+                .setOrderId(input.getOrderId())
+                .setReason(input.getReason())
+                .setReleasedAt(releasedAt)
+                .setItems(saved.stream()
+                        .map(r -> new StockReleasedItem()
+                                .setReservationId(r.getReservationId())
+                                .setSku(r.getSku())
+                                .setQuantity(r.getQuantity()))
+                        .toList());
+        eventPublisher.onStockReleased(event);
+        return saved;
     }
 
     public List<StockReservation> confirmStockReservation(ConfirmStockReservationInput input) {
