@@ -85,6 +85,50 @@ class InventoryServiceTest {
     }
 
     @Test
-    void confirmStockReservationTest() { // TODO: implement this test
+    void confirmStockReservationTest() {
+        var result = inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-003"));
+
+        var now = context.clock.instant();
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.CONFIRMED, result.get(0).getStatus());
+        var saved = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-003".equals(r.getOrderId()))
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(1, saved.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.CONFIRMED, saved.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(now, saved.get(0).getConfirmedAt());
+
+        // SKU-002 20/7/6 -> 20/6/7
+        var position = context.inventoryPositionRepository().findAll().stream()
+                .map(p -> (InventoryPosition) p)
+                .filter(p -> "SKU-002".equals(p.getSku()))
+                .findFirst()
+                .orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(20, position.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(6, position.getReservedQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(7, position.getSoldQuantity());
+
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var event = (com.arcadiaeditions.catalog.inventory.domain.events.StockReservationConfirmed) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-003", event.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(now, event.getConfirmedAt());
+        org.junit.jupiter.api.Assertions.assertEquals(1, event.getItems().size());
+        org.junit.jupiter.api.Assertions.assertEquals("RES-004", event.getItems().get(0).getReservationId());
+        org.junit.jupiter.api.Assertions.assertEquals("SKU-002", event.getItems().get(0).getSku());
+        org.junit.jupiter.api.Assertions.assertEquals(1, event.getItems().get(0).getQuantity());
+    }
+
+    @Test
+    void confirmStockReservationRedeliveryEmitsNothingTest() {
+        var input = new ConfirmStockReservationInput().setOrderId("ORD-003");
+        inventoryService.confirmStockReservation(input);
+        context.eventPublisher().getEvents().clear();
+
+        var result = inventoryService.confirmStockReservation(input);
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+        assertPosition("SKU-002", 20, 6);
     }
 }
