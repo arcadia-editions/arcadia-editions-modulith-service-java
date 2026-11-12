@@ -14,4 +14,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 @org.jmolecules.ddd.annotation.Repository
 @org.jmolecules.architecture.layered.InfrastructureLayer
-public interface InventoryPositionRepository extends JpaRepository<InventoryPosition, Long> {}
+public interface InventoryPositionRepository extends JpaRepository<InventoryPosition, Long> {
+
+    /** Loads the position of the sku under a write lock (reserveStock moves available to reserved). */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from InventoryPosition p where p.sku = :sku")
+    Optional<InventoryPosition> findBySkuForUpdate(@org.springframework.data.repository.query.Param("sku") String sku);
+}

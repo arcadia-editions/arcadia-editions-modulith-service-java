@@ -25,11 +25,16 @@ import org.springframework.transaction.annotation.Transactional;
 @org.jmolecules.architecture.layered.ApplicationLayer
 public class InventoryServiceImpl implements InventoryService {
 
+    private static final Duration RESERVATION_TTL = Duration.ofMinutes(10);
+
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private final InventoryServiceMapper inventoryServiceMapper = InventoryServiceMapper.INSTANCE;
 
     private final StockReservationRepository stockReservationRepository;
+
+    private final InventoryPositionRepository inventoryPositionRepository;
+    private final Clock clock;
 
     private final EventsMapper eventsMapper = EventsMapper.INSTANCE;
     private final EventPublisher eventPublisher;
@@ -37,18 +42,61 @@ public class InventoryServiceImpl implements InventoryService {
     /**
      * Constructor.
      */
-    public InventoryServiceImpl(StockReservationRepository stockReservationRepository, EventPublisher eventPublisher) {
+    public InventoryServiceImpl(
+            StockReservationRepository stockReservationRepository,
+            InventoryPositionRepository inventoryPositionRepository,
+            EventPublisher eventPublisher,
+            Clock clock) {
         this.stockReservationRepository = stockReservationRepository;
+        this.inventoryPositionRepository = inventoryPositionRepository;
         this.eventPublisher = eventPublisher;
+        this.clock = clock;
     }
 
     public ReserveStockResult reserveStock(ReserveStockInput input) {
 
         log.debug("Request reserveStock: {}", input);
 
-        var stockReservation = inventoryServiceMapper.update(new StockReservation(), input);
-        // TODO: implement this method
-        return inventoryServiceMapper.asReserveStockResult(stockReservation);
+        // lock one position per sku, in sku order (stable lock order), summing repeated skus
+        var requested = new java.util.TreeMap<String, Integer>();
+        input.getItems().forEach(item -> requested.merge(item.getSku(), item.getQuantity(), Integer::sum));
+        var positions = new java.util.HashMap<String, InventoryPosition>();
+        requested.forEach((sku, quantity) -> {
+            var position = inventoryPositionRepository
+                    .findBySkuForUpdate(sku)
+                    .filter(p -> p.getAvailableQuantity() >= quantity)
+                    .orElseThrow(() -> new UnsupportedOperationException(
+                            "StockUnavailableResult branch is task T-14 (sku " + sku + ")"));
+            positions.put(sku, position);
+        });
+
+        var reservedAt = clock.instant();
+        var expiresAt = reservedAt.plus(RESERVATION_TTL);
+        var reservations = input.getItems().stream()
+                .map(item -> new StockReservation()
+                        .setReservationId(com.arcadiaeditions.common.BusinessIds.newId("RES"))
+                        .setOrderId(input.getOrderId())
+                        .setSku(item.getSku())
+                        .setQuantity(item.getQuantity())
+                        .setStatus(ReservationStatus.RESERVED)
+                        .setReservedAt(reservedAt)
+                        .setExpiresAt(expiresAt))
+                .toList();
+        requested.forEach((sku, quantity) -> {
+            var position = positions.get(sku);
+            position.setAvailableQuantity(position.getAvailableQuantity() - quantity);
+            position.setReservedQuantity(position.getReservedQuantity() + quantity);
+            inventoryPositionRepository.save(position);
+        });
+        var saved = stockReservationRepository.saveAll(reservations);
+
+        var reserved = new StockReservedResult().setOrderId(input.getOrderId()).setExpiresAt(expiresAt);
+        saved.forEach(r -> reserved.addReservations(new StockReservedLine()
+                .setReservationId(r.getReservationId())
+                .setSku(r.getSku())
+                .setQuantity(r.getQuantity())
+                .setReservedAt(r.getReservedAt())));
+        return new ReserveStockResult().setOutcome(ReserveStockOutcome.RESERVED).setReserved(reserved);
     }
 
     public List<StockReservation> releaseStock(ReleaseStockInput input) {
