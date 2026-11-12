@@ -7,4 +7,10 @@ import java.time.*;
 import java.util.*;
 
 public class StockReservationRepositoryInMemory extends InMemoryJpaRepository<StockReservation>
-        implements StockReservationRepository {}
+        implements StockReservationRepository {
+
+    @Override
+    public List<StockReservation> findByOrderId(String orderId) {
+        return findByField("orderId", orderId);
+    }
+}
