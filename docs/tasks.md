@@ -114,7 +114,8 @@ path: OrderCreated > authorizePayment[declined] > PaymentDeclined > releaseStock
       > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [/] T-18 bounded AFK authorizePayment declined branch: DECLINED with declinedAt and reason, emit PaymentDeclined, no retry
+- [x] T-18 bounded AFK authorizePayment declined branch: DECLINED with declinedAt and reason, emit PaymentDeclined, no retry
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:101-116, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:114-121
       test data: data.sql ORD-010
       tests: PaymentsProcessingServiceTest
