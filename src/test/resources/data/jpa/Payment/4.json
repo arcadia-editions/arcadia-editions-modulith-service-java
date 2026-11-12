@@ -1,0 +1,14 @@
+{
+    "id": 151,
+    "version": 0,
+    "orderId": "ORD-004",
+    "customerId": "CUST-004",
+    "paymentMethodId": "pm_ok",
+    "customerEmail": "customer004@example.com",
+    "amount": 99.4,
+    "currency": "EUR",
+    "status": "AUTHORIZED",
+    "providerReference": "STANDIN-ORD-004",
+    "attemptCount": 1,
+    "authorizedAt": "2026-10-14T09:50:09Z"
+}

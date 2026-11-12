@@ -1,0 +1,12 @@
+{
+    "id": 51,
+    "version": 0,
+    "orderId": "ORD-002",
+    "customerId": "CUST-002",
+    "paymentMethodId": "pm_ok",
+    "customerEmail": "customer002@example.com",
+    "amount": 159.3,
+    "currency": "EUR",
+    "status": "AUTHORIZATION_REQUESTED",
+    "attemptCount": 1
+}

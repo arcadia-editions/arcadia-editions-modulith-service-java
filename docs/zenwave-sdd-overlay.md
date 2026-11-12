@@ -21,7 +21,7 @@ this one: `../arcadia-editions-architecture` (flows) and `../arcadia-editions-mo
 | Domain summary | `docs/domain.md` |
 | Board of the flow in progress | `docs/tasks.md` (archived boards in `docs/tasks/`) |
 | Model gap proposals | `docs/proposals/` |
-| Test data and scenario matrix | `<after test data: src/test/resources/data.sql, and what its header holds: the chains, the fixed test "now" and how tests read it (a Clock)>` |
+| Test data and scenario matrix | `src/test/resources/data.sql` (header: scenario and coverage matrices, chains `ORD-001`..`ORD-020` with stock `SKU-001`..`SKU-004`, assumptions incl. the stand-in trigger values `pm_*` / postal `00000` / `@fail.invalid`, the fixed test "now" `2026-10-14T10:00:00Z` read by tests through a fixed `Clock`) and `src/test/resources/data/jpa/<Entity>/<n>.json` |
 | Generation script | `zenwave-scripts.zw` |
 
 **`zenwave-scripts.zw` reads the models from a packaged artifact** (`@import(...)` and `classpath:/...`):
@@ -82,8 +82,14 @@ mkdir -p target && mvn -q -DskipTests clean compile 2>&1 | tee target/compile.lo
 # focused tests of a task (the implementer runs only these)
 mvn -q test -Dtest='<TestClass>'
 # full suite with integration tests and containers (once per slice review)
-# <after generation: full suite takes about N minutes, needs Docker / Testcontainers / ...>
+# about 2.5 minutes (136 s, 2026-11-12); needs Docker (Testcontainers starts the docker-compose PostgreSQL).
+# Surefire failures stop the build before the integration tests: add -Dmaven.test.failure.ignore=true to see both.
 mvn -q verify
+# known failing at the baseline (generated stubs), each fixed by a board task:
+#   *RepositoryIntegrationTest.updateTest, OrdersCheckoutServiceTest/OrdersCheckoutApiControllerTest getOrderTest,
+#   ProductCatalogServiceTest.updateProductTest, OrdersCheckoutApiIntegrationTest.testGetOrder_200 -> T-01;
+#   ArchitectureTest (scans every module) -> T-02; OrdersCheckoutApiIntegrationTest.testGetOrder_400 -> T-04;
+#   OrdersCheckoutApiIntegrationTest.testStartOrderCheckout_201 -> T-06
 # lint the models
 bash .zenwave/bin/lint-zdl.sh --strict ../arcadia-editions-modulith-api
 # export the Hibernate DDL (JPA)

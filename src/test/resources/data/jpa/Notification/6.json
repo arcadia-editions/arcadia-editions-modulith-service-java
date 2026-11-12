@@ -1,0 +1,18 @@
+{
+    "id": 251,
+    "version": 0,
+    "notificationId": "NOT-006",
+    "customerId": "CUST-020",
+    "orderId": "ORD-020",
+    "skus": [
+        "SKU-004"
+    ],
+    "type": "STOCK_UNAVAILABLE",
+    "channel": "EMAIL",
+    "status": "SENT",
+    "subject": "Items unavailable",
+    "body": "Your order ORD-020 could not be placed: SKU-004 is out of stock.",
+    "recipient": "customer020@example.com",
+    "createdAt": "2026-10-14T09:55:00Z",
+    "sentAt": "2026-10-14T09:55:10Z"
+}

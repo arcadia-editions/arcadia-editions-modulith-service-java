@@ -1,0 +1,19 @@
+{
+    "id": 151,
+    "version": 0,
+    "notificationId": "NOT-004",
+    "customerId": "CUST-015",
+    "orderId": "ORD-015",
+    "skus": [
+        "SKU-002"
+    ],
+    "type": "ORDER_CANCELLED",
+    "channel": "EMAIL",
+    "status": "FAILED",
+    "subject": "Order cancelled",
+    "body": "Your order ORD-015 was cancelled: PAYMENT_RETRY_EXHAUSTED.",
+    "recipient": "customer015@fail.invalid",
+    "createdAt": "2026-10-14T09:51:15Z",
+    "failedAt": "2026-10-14T09:51:25Z",
+    "failureReason": "mailbox_unavailable"
+}

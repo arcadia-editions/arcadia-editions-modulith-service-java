@@ -1,0 +1,14 @@
+{
+    "id": 451,
+    "version": 0,
+    "orderId": "ORD-010",
+    "customerId": "CUST-010",
+    "paymentMethodId": "pm_decline",
+    "customerEmail": "customer010@example.com",
+    "amount": 59.9,
+    "currency": "EUR",
+    "status": "DECLINED",
+    "attemptCount": 1,
+    "declinedAt": "2026-10-14T09:50:15Z",
+    "failureReason": "card_declined"
+}

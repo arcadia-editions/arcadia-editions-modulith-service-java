@@ -1,0 +1,18 @@
+{
+    "id": 201,
+    "version": 0,
+    "notificationId": "NOT-005",
+    "customerId": "CUST-019",
+    "orderId": "ORD-019",
+    "skus": [
+        "SKU-002"
+    ],
+    "type": "ORDER_CANCELLED",
+    "channel": "EMAIL",
+    "status": "SENT",
+    "subject": "Order cancelled",
+    "body": "Your order ORD-019 was cancelled: PAYMENT_VOIDED.",
+    "recipient": "customer019@example.com",
+    "createdAt": "2026-10-14T09:51:19Z",
+    "sentAt": "2026-10-14T09:51:29Z"
+}

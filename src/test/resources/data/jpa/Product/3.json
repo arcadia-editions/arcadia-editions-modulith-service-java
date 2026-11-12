@@ -1,0 +1,13 @@
+{
+    "id": 101,
+    "version": 0,
+    "sku": "SKU-003",
+    "name": "Arcadia Collector Edition",
+    "description": "Numbered edition",
+    "price": 39.5,
+    "currency": "EUR",
+    "editionSize": 20,
+    "trackingMode": "QUANTITY",
+    "launchAt": "2026-09-26T10:00:00Z",
+    "status": "PUBLISHED"
+}
