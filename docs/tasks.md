@@ -62,7 +62,8 @@ review: [ ]
       test data: data.sql ORD-004, ORD-001
       tests: FulfillmentShippingServiceTest
       blocked by: T-03
-- [/] T-11 bounded AFK capturePayment success branch: load by orderId, AUTHORIZED to CAPTURED through the provider port, emit PaymentCaptured with customerEmail
+- [x] T-11 bounded AFK capturePayment success branch: load by orderId, AUTHORIZED to CAPTURED through the provider port, emit PaymentCaptured with customerEmail
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:172-182, payments-processing-domain-model.zdl:71-75, payments-processing-domain-model.zdl:93-95, payments-processing-domain-model.zdl:150-158
       test data: data.sql ORD-004, ORD-001
       tests: PaymentsProcessingServiceTest
@@ -95,7 +96,7 @@ review: [ ]
       test data: data.sql SKU-004
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
       blocked by: T-06, T-14
-- [ ] T-16 bounded AFK sendStockUnavailableNotification: type STOCK_UNAVAILABLE with the skus, idempotent, emit StockUnavailableNotificationSent
+- [/] T-16 bounded AFK sendStockUnavailableNotification: type STOCK_UNAVAILABLE with the skus, idempotent, emit StockUnavailableNotificationSent
       model: place-order-flow.zfl:194-202, notifications-consumer-domain-model.zdl:67-77, notifications-consumer-domain-model.zdl:92-94, notifications-consumer-domain-model.zdl:112-120
       test data: data.sql ORD-020
       tests: NotificationsConsumerServiceTest
@@ -111,7 +112,7 @@ path: OrderCreated > authorizePayment[declined] > PaymentDeclined > releaseStock
       > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-18 bounded AFK authorizePayment declined branch: DECLINED with declinedAt and reason, emit PaymentDeclined, no retry
+- [/] T-18 bounded AFK authorizePayment declined branch: DECLINED with declinedAt and reason, emit PaymentDeclined, no retry
       model: place-order-flow.zfl:101-116, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:114-121
       test data: data.sql ORD-010
       tests: PaymentsProcessingServiceTest
