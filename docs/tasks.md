@@ -84,7 +84,8 @@ path: StartOrderCheckout > startOrderCheckout > reserveStock[StockUnavailableRes
       > sendStockUnavailableNotification > end stockGone
 review: [ ]
 
-- [/] T-14 bounded AFK reserveStock unavailable branch: no reservation when any line is short, StockUnavailableResult with requested and available per sku
+- [x] T-14 bounded AFK reserveStock unavailable branch: no reservation when any line is short, StockUnavailableResult with requested and available per sku
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:89-99, catalog-inventory-domain-model.zdl:97-106, catalog-inventory-domain-model.zdl:110-111
       test data: data.sql SKU-003, SKU-004
       tests: InventoryServiceTest
