@@ -10,11 +10,12 @@ review: [ ]
 - [ ] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
       test data: src/test/resources/data.sql, src/test/resources/data/jpa/Order/1.json, src/test/resources/data/jpa/Product/1.json
       tests: *RepositoryIntegrationTest, OrdersCheckoutServiceTest#getOrderTest, OrdersCheckoutApiControllerTest#getOrderTest, ProductCatalogServiceTest#updateProductTest, OrdersCheckoutApiIntegrationTest#testGetOrder_200
-- [/] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
+- [x] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:118-130
       test data: src/test/resources/data.sql
       tests: InventoryServiceTest, OrdersCheckoutServiceTest, PaymentsProcessingServiceTest, FulfillmentShippingServiceTest, NotificationsConsumerServiceTest
-- [ ] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
+- [/] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
       model: orders-checkout-domain-model.zdl:92-111
       test data: data.sql ORD-001, ORD-013
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest#testGetOrder_400
@@ -26,7 +27,7 @@ path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult
       > capturePayment[PaymentCaptured] > sendOrderConfirmation > end completed
 review: [ ]
 
-- [ ] T-05 bounded AFK reserveStock: all lines available, one RESERVED reservation per line, available moves to reserved under a write lock, expiresAt = reservedAt + 10 min, StockReservedResult
+- [/] T-05 bounded AFK reserveStock: all lines available, one RESERVED reservation per line, available moves to reserved under a write lock, expiresAt = reservedAt + 10 min, StockReservedResult
       model: place-order-flow.zfl:89-99, catalog-inventory-domain-model.zdl:25-38, catalog-inventory-domain-model.zdl:52-60, catalog-inventory-domain-model.zdl:80-96, catalog-inventory-domain-model.zdl:107-111
       test data: data.sql SKU-001, SKU-002, SKU-003
       tests: InventoryServiceTest
@@ -36,7 +37,7 @@ review: [ ]
       test data: data.sql SKU-001, src/test/resources/data/jpa/Order/1.json
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
       blocked by: T-04, T-05
-- [ ] T-07 advanced AFK authorizePayment authorized branch: get-or-create Payment by orderId, PaymentProvider port with the stand-in adapter of the data.sql assumptions (pm_* triggers), emit PaymentAuthorized
+- [/] T-07 advanced AFK authorizePayment authorized branch: get-or-create Payment by orderId, PaymentProvider port with the stand-in adapter of the data.sql assumptions (pm_* triggers), emit PaymentAuthorized
       model: place-order-flow.zfl:101-116, payments-processing-domain-model.zdl:26-44, payments-processing-domain-model.zdl:56-64, payments-processing-domain-model.zdl:84-87, payments-processing-domain-model.zdl:104-111
       test data: data.sql ORD-002, ORD-003
       tests: PaymentsProcessingServiceTest
