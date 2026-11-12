@@ -1,0 +1,59 @@
+@import("com.arcadiaeditions.modulith.application.arcadia-editions-modulith:service-all:0.9.0")
+config {
+
+    basePackage "com.arcadiaeditions"
+    layout.commonPackage "{{basePackage}}.common"
+    layout.entitiesCommonPackage "{{commonPackage}}.domain"
+    layout.domainEventsCommonPackage "{{commonPackage}}.domain.events"
+    layout.coreImplementationCommonPackage "{{commonPackage}}"
+    layout.coreImplementationMappersCommonPackage "{{commonPackage}}.mappers"
+    layout.infrastructureRepositoryCommonPackage "{{commonPackage}}"
+    layout.infrastructureEventsCommonPackage "{{commonPackage}}"
+    layout.adaptersWebCommonPackage "{{commonPackage}}"
+    layout.adaptersWebMappersCommonPackage "{{commonPackage}}.mappers"
+    layout.adaptersCommandsCommonPackage "{{commonPackage}}.commands"
+    layout.adaptersCommandsMappersCommonPackage "{{commonPackage}}.commands.mappers"
+    layout.adaptersEventsCommonPackage "{{commonPackage}}.events"
+    layout.adaptersEventsMappersCommonPackage "{{commonPackage}}.events.mappers"
+
+    useJSpecify true
+    useJMolecules true
+    useSpringModulith true
+    implementEventListeners true
+    includeEmitEventsImplementation true
+
+
+    plugins {
+        /** Generates a Backend Application from the ZDL model. (Headless Core) */
+        BackendApplicationDefaultPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/catalog-inventory-domain-model.zdl"
+        }
+        BackendApplicationDefaultPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/catalog-products-domain-model.zdl"
+        }
+        BackendApplicationDefaultPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/fulfillment-shipping-domain-model.zdl"
+        }
+        BackendApplicationDefaultPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/notifications-consumer-domain-model.zdl"
+        }
+        BackendApplicationDefaultPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/orders-checkout-domain-model.zdl"
+        }
+        BackendApplicationDefaultPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/payments-processing-domain-model.zdl"
+        }
+
+        /** Generates Spring MVC controllers from the OpenAPI specification (Web Adapters). */
+        OpenAPIControllersPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/orders-checkout-domain-model.zdl"
+            openapiFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/orders-checkout-openapi.yml"
+            openApiModelNameSuffix DTO
+        }
+        SpringWebTestClientPlugin {
+            zdlFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/orders-checkout-domain-model.zdl"
+            openapiFile "classpath:/com/arcadiaeditions/modulith/application/arcadia-editions-modulith/orders-checkout-openapi.yml"
+            openApiModelNameSuffix DTO
+        }
+    }
+}
