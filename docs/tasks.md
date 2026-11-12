@@ -1,7 +1,7 @@
 # PlaceOrderFlow: tasks
 
 flow: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl
-baseline: baseline/place-order-flow-2
+baseline: baseline/place-order-flow-1
 branch: afk/place-order-flow
 
 ## S0 Baseline
