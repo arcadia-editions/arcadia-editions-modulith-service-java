@@ -121,7 +121,8 @@ review: [ ]
       test data: data.sql ORD-010
       tests: PaymentsProcessingServiceTest
       blocked by: T-07
-- [/] T-19 bounded AFK releaseStock on PaymentDeclined: RESERVED or CONFIRMED reservations become RELEASED with releaseReason PAYMENT_DECLINED, counters back to available, idempotent, emit StockReleased
+- [x] T-19 bounded AFK releaseStock on PaymentDeclined: RESERVED or CONFIRMED reservations become RELEASED with releaseReason PAYMENT_DECLINED, counters back to available, idempotent, emit StockReleased
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:216-227, catalog-inventory-domain-model.zdl:66-70, catalog-inventory-domain-model.zdl:113-118, catalog-inventory-domain-model.zdl:126-135
       test data: data.sql ORD-010, ORD-018
       tests: InventoryServiceTest
