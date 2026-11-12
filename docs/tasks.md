@@ -15,7 +15,8 @@ review: [ ]
       model: place-order-flow.zfl:118-130
       test data: src/test/resources/data.sql
       tests: InventoryServiceTest, OrdersCheckoutServiceTest, PaymentsProcessingServiceTest, FulfillmentShippingServiceTest, NotificationsConsumerServiceTest
-- [/] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
+- [x] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
+      done: claude-sonnet sonnet (2 attempts, P-01 A)
       model: orders-checkout-domain-model.zdl:92-111
       test data: data.sql ORD-001, ORD-013
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest#testGetOrder_400
@@ -33,7 +34,7 @@ review: [ ]
       test data: data.sql SKU-001, SKU-002, SKU-003
       tests: InventoryServiceTest
       blocked by: T-03
-- [ ] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
+- [/] T-06 bounded AFK startOrderCheckout reserved branch: call reserveStock, create the Order CREATED with ORD id and totalAmount, emit OrderCreated (amount = totalAmount)
       model: place-order-flow.zfl:72-87, orders-checkout-domain-model.zdl:26-54, orders-checkout-domain-model.zdl:61-81, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:114-123
       test data: data.sql SKU-001, src/test/resources/data/jpa/Order/1.json
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
@@ -61,7 +62,7 @@ review: [ ]
       test data: data.sql ORD-004, ORD-001
       tests: FulfillmentShippingServiceTest
       blocked by: T-03
-- [ ] T-11 bounded AFK capturePayment success branch: load by orderId, AUTHORIZED to CAPTURED through the provider port, emit PaymentCaptured with customerEmail
+- [/] T-11 bounded AFK capturePayment success branch: load by orderId, AUTHORIZED to CAPTURED through the provider port, emit PaymentCaptured with customerEmail
       model: place-order-flow.zfl:172-182, payments-processing-domain-model.zdl:71-75, payments-processing-domain-model.zdl:93-95, payments-processing-domain-model.zdl:150-158
       test data: data.sql ORD-004, ORD-001
       tests: PaymentsProcessingServiceTest
@@ -83,7 +84,7 @@ path: StartOrderCheckout > startOrderCheckout > reserveStock[StockUnavailableRes
       > sendStockUnavailableNotification > end stockGone
 review: [ ]
 
-- [ ] T-14 bounded AFK reserveStock unavailable branch: no reservation when any line is short, StockUnavailableResult with requested and available per sku
+- [/] T-14 bounded AFK reserveStock unavailable branch: no reservation when any line is short, StockUnavailableResult with requested and available per sku
       model: place-order-flow.zfl:89-99, catalog-inventory-domain-model.zdl:97-106, catalog-inventory-domain-model.zdl:110-111
       test data: data.sql SKU-003, SKU-004
       tests: InventoryServiceTest
