@@ -1,7 +1,7 @@
 # PlaceOrderFlow: tasks
 
 flow: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl
-baseline:
+baseline: baseline/place-order-flow-1
 branch: afk/place-order-flow
 
 ## S0 Baseline
@@ -18,6 +18,7 @@ review: [ ]
       tests: InventoryServiceTest, OrdersCheckoutServiceTest, PaymentsProcessingServiceTest, FulfillmentShippingServiceTest, NotificationsConsumerServiceTest
 - [ ] T-04 mechanical AFK Problem details: NoSuchElementException 404, invalid state transition 409
       model: orders-checkout-domain-model.zdl:92-111
+      test data: data.sql ORD-001, ORD-013
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest#testGetOrder_400
       blocked by: T-03
 
