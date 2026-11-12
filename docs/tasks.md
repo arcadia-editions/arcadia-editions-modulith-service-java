@@ -43,7 +43,7 @@ review: [ ]
       test data: data.sql ORD-002, ORD-003
       tests: PaymentsProcessingServiceTest
       blocked by: T-03
-- [ ] T-08 bounded AFK confirmStockReservation: the order's RESERVED reservations become CONFIRMED, reserved moves to sold, emit StockReservationConfirmed
+- [/] T-08 bounded AFK confirmStockReservation: the order's RESERVED reservations become CONFIRMED, reserved moves to sold, emit StockReservationConfirmed
       model: place-order-flow.zfl:152-158, catalog-inventory-domain-model.zdl:61-65, catalog-inventory-domain-model.zdl:120-122, catalog-inventory-domain-model.zdl:138-146
       test data: data.sql ORD-003
       tests: InventoryServiceTest
