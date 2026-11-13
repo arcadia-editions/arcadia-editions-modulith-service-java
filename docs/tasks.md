@@ -214,12 +214,12 @@ review: [ ]
       test data: data.sql ORD-005, ORD-007
       tests: FulfillmentShippingServiceTest
       blocked by: T-10
-- [ ] T-30 bounded AFK voidPayment on FulfillmentFailed: load by orderId, AUTHORIZED to VOIDED through the provider port, idempotent, emit PaymentVoided
+- [/] T-30 bounded AFK voidPayment on FulfillmentFailed: load by orderId, AUTHORIZED to VOIDED through the provider port, idempotent, emit PaymentVoided
       model: place-order-flow.zfl:204-214, payments-processing-domain-model.zdl:76-80, payments-processing-domain-model.zdl:97-100, payments-processing-domain-model.zdl:169-175
       test data: data.sql ORD-007, ORD-016
       tests: PaymentsProcessingServiceTest
       blocked by: T-11
-- [ ] T-31 mechanical AFK releaseStock on PaymentVoided: CONFIRMED reservations released with PAYMENT_VOIDED, sold back to available
+- [/] T-31 mechanical AFK releaseStock on PaymentVoided: CONFIRMED reservations released with PAYMENT_VOIDED, sold back to available
       model: place-order-flow.zfl:223-227, catalog-inventory-domain-model.zdl:115-118
       test data: data.sql ORD-016
       tests: InventoryServiceTest
@@ -257,7 +257,7 @@ review: [ ]
 ## S9 Polish
 review: [ ]
 
-- [ ] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
+- [/] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
       model: notifications-consumer-domain-model.zdl:88-98, notifications-consumer-domain-model.zdl:134-144
       test data: data.sql ORD-015
       tests: NotificationsConsumerServiceTest
