@@ -5,7 +5,7 @@ baseline: baseline/place-order-flow-2
 branch: afk/place-order-flow
 
 ## S0 Baseline
-review: [ ]
+review: [/] claude-opus
 
 - [x] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
       done: claude-sonnet sonnet
