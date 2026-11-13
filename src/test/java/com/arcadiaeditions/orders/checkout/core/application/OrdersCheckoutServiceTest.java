@@ -115,7 +115,56 @@ class OrdersCheckoutServiceTest {
     }
 
     @Test
-    void cancelOrderTest() { // TODO: implement this test
+    void cancelOrderFromCreatedTest() { // ORD-018
+        var order = ordersCheckoutService.cancelOrder(
+                new CancelOrderInput().setOrderId("ORD-018").setReason("PAYMENT_DECLINED"));
+
+        assertCancelled(order, "ORD-018", "CUST-018", "PAYMENT_DECLINED");
+    }
+
+    @Test
+    void cancelOrderFromConfirmedTest() { // ORD-017
+        var order = ordersCheckoutService.cancelOrder(
+                new CancelOrderInput().setOrderId("ORD-017").setReason("PAYMENT_VOIDED"));
+
+        assertCancelled(order, "ORD-017", "CUST-017", "PAYMENT_VOIDED");
+    }
+
+    private void assertCancelled(Order order, String orderId, String customerId, String reason) {
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CANCELLED, order.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(reason, order.getCancellationReason());
+        org.junit.jupiter.api.Assertions.assertEquals(context.clock.instant(), order.getCancelledAt());
+        var saved = orderRepository.findByOrderId(orderId).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CANCELLED, saved.getStatus());
+
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var cancelled = (com.arcadiaeditions.orders.checkout.core.domain.events.OrderCancelled) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals(orderId, cancelled.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(customerId, cancelled.getCustomerId());
+        org.junit.jupiter.api.Assertions.assertEquals(customerId.toLowerCase().replace("cust-", "customer") + "@example.com", cancelled.getCustomerEmail());
+        org.junit.jupiter.api.Assertions.assertEquals(reason, cancelled.getReason());
+        org.junit.jupiter.api.Assertions.assertEquals(context.clock.instant(), cancelled.getCancelledAt());
+    }
+
+    @Test
+    void cancelOrderAlreadyCancelledIsNoOpTest() {
+        var input = new CancelOrderInput().setOrderId("ORD-018").setReason("PAYMENT_DECLINED");
+        ordersCheckoutService.cancelOrder(input);
+        context.eventPublisher().getEvents().clear();
+
+        var order = ordersCheckoutService.cancelOrder(input);
+
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CANCELLED, order.getStatus());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+    }
+
+    @Test
+    void cancelOrderNotFoundTest() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                java.util.NoSuchElementException.class,
+                () -> ordersCheckoutService.cancelOrder(
+                        new CancelOrderInput().setOrderId("ORD-999").setReason("PAYMENT_DECLINED")));
     }
 
     @Test
