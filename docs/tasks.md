@@ -220,7 +220,8 @@ review: [ ]
       test data: data.sql ORD-005, ORD-007
       tests: FulfillmentShippingServiceTest
       blocked by: T-10
-- [/] T-30 bounded AFK voidPayment on FulfillmentFailed: load by orderId, AUTHORIZED to VOIDED through the provider port, idempotent, emit PaymentVoided
+- [x] T-30 bounded AFK voidPayment on FulfillmentFailed: load by orderId, AUTHORIZED to VOIDED through the provider port, idempotent, emit PaymentVoided
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:204-214, payments-processing-domain-model.zdl:76-80, payments-processing-domain-model.zdl:97-100, payments-processing-domain-model.zdl:169-175
       test data: data.sql ORD-007, ORD-016
       tests: PaymentsProcessingServiceTest
@@ -241,7 +242,7 @@ path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment 
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-33 bounded AFK capturePayment failure branch: CAPTURE_FAILED with failureReason, emit PaymentCaptureFailed; voidPayment from CAPTURE_FAILED
+- [ ] T-33 bounded AFK capturePayment failure branch: CAPTURE_FAILED with failureReason (capture_rejected per data.sql), emit PaymentCaptureFailed; voidPayment from CAPTURE_FAILED, AUTHORIZATION_REQUESTED and FAILED (the other from-states of payments-processing-domain-model.zdl:99)
       model: place-order-flow.zfl:172-182, place-order-flow.zfl:210-214, payments-processing-domain-model.zdl:93-100, payments-processing-domain-model.zdl:161-166
       test data: data.sql ORD-006, ORD-012
       tests: PaymentsProcessingServiceTest
