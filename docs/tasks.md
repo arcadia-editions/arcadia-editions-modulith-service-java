@@ -168,7 +168,7 @@ review: [x] claude-opus PASS (reports/review-S3.md)
 ## S4 payment retried, then completed
 path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[retried] > PaymentRetried > authorizePayment[authorized]
       > PaymentAuthorized > ... > end completed
-review: [/] round 2, claude-opus fresh context (round 1: reports/review-S4.md)
+review: [x] claude-opus PASS round 2 for scope (reports/review-S4-2.md; round 1 reports/review-S4.md); suite flake -> T-47
 
 - [x] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
       done: claude-sonnet sonnet
@@ -223,7 +223,7 @@ review: [x] claude-opus PASS (reports/review-S5.md)
 ## S6 orderCancelled by fulfillment failed
 path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment > PaymentVoided > releaseStock > StockReleased
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
-review: [ ]
+review: [/] claude-opus fresh context
 
 - [x] T-29 bounded AFK scheduleFulfillment failed branch: Fulfillment FAILED with failureReason, emit FulfillmentFailed
       done: claude-sonnet sonnet
@@ -243,7 +243,8 @@ review: [ ]
       test data: data.sql ORD-016
       tests: InventoryServiceTest
       blocked by: T-19
-- [/] T-32 bounded AFK Flow test orderCancelled by fulfillment failure (postal 00000)
+- [x] T-32 bounded AFK Flow test orderCancelled by fulfillment failure (postal 00000)
+      done: claude-opus opus
       model: place-order-flow.zfl:160-170, place-order-flow.zfl:204-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -260,7 +261,7 @@ review: [ ]
       test data: data.sql ORD-006, ORD-012
       tests: PaymentsProcessingServiceTest
       blocked by: T-30
-- [ ] T-34 bounded AFK Flow test orderCancelled by capture failure (pm_capture_fail)
+- [/] T-34 bounded AFK Flow test orderCancelled by capture failure (pm_capture_fail)
       model: place-order-flow.zfl:172-182, place-order-flow.zfl:204-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -314,3 +315,7 @@ review: [x] claude-opus PASS round 2 (reports/review-S9-2.md; round 1 reports/re
       done: claude-sonnet sonnet
       tests: ModularityTest
       fixes: review-S9 SHOULD FIX 3 (ModularityTest.java:35)
+- [ ] T-47 mechanical AFK PlaceOrderFlowTest reads repository state only after the commit: every flow test's state asserts wait (Awaitility untilAsserted) instead of reading once when the terminal event arrives; the class is green 5 runs in a row
+      tests: PlaceOrderFlowTest
+      fixes: review-S4-2 SUITE SHOULD FIX (flaky PlaceOrderFlowTest.java:367-368, same pattern :452)
+      blocked by: T-34
