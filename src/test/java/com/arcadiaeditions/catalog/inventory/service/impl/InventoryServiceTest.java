@@ -142,6 +142,31 @@ class InventoryServiceTest {
     }
 
     @Test
+    void releaseStockOnPaymentRetryExhaustedTest() {
+        var retryExhausted = new com.arcadiaeditions.payments.processing.domain.event.PaymentRetryExhausted()
+                .setOrderId("ORD-011")
+                .setReason("processor_unavailable");
+        var input = com.arcadiaeditions.catalog.inventory.events.processing.mappers.PaymentsProcessingEventsListenerMapper.INSTANCE
+                .asReleaseStockInput(retryExhausted);
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_RETRY_EXHAUSTED, input.getReason());
+
+        var result = inventoryService.releaseStock(input);
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        var saved = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-011".equals(r.getOrderId()))
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, saved.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                StockReleaseReason.PAYMENT_RETRY_EXHAUSTED, saved.get(0).getReleaseReason());
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var event = (com.arcadiaeditions.catalog.inventory.domain.events.StockReleased) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-011", event.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_RETRY_EXHAUSTED, event.getReason());
+    }
+
+    @Test
     void releaseStockConfirmedReturnsSoldTest() {
         inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-003"));
         context.eventPublisher().getEvents().clear();
