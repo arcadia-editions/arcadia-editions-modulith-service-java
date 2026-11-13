@@ -158,7 +158,7 @@ review: [ ]
       test data: data.sql ORD-014
       tests: NotificationsConsumerServiceTest
       blocked by: T-12
-- [ ] T-22 bounded AFK Flow test orderCancelled by decline (pm_decline): stock back, order CANCELLED, OrderCancelledNotificationSent
+- [/] T-22 bounded AFK Flow test orderCancelled by decline (pm_decline): stock back, order CANCELLED, OrderCancelledNotificationSent
       model: place-order-flow.zfl:108-116, place-order-flow.zfl:223-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
