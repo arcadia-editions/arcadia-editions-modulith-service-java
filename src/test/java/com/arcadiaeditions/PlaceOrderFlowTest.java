@@ -212,27 +212,29 @@ class PlaceOrderFlowTest {
                     assertThat(event.getRecipient()).isEqualTo("flow.customer@example.com");
                     assertThat(event.getSentAt()).isNotNull();
 
-                    assertThat(orderRepository.findByOrderId(orderId))
-                            .hasValueSatisfying(order -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED));
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(orderRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(order -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED));
 
-                    List<StockReservation> reservations = stockReservationRepository.findByOrderId(orderId);
-                    assertThat(reservations).hasSize(1);
-                    assertThat(reservations)
-                            .allSatisfy(r -> assertThat(r.getStatus()).isEqualTo(ReservationStatus.CONFIRMED));
+                        List<StockReservation> reservations = stockReservationRepository.findByOrderId(orderId);
+                        assertThat(reservations).hasSize(1);
+                        assertThat(reservations)
+                                .allSatisfy(r -> assertThat(r.getStatus()).isEqualTo(ReservationStatus.CONFIRMED));
 
-                    assertThat(paymentRepository.findByOrderId(orderId))
-                            .hasValueSatisfying(
-                                    payment -> assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED));
+                        assertThat(paymentRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(
+                                        payment -> assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED));
 
-                    assertThat(fulfillmentRepository.findByOrderId(orderId))
-                            .hasValueSatisfying(fulfillment ->
-                                    assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
+                        assertThat(fulfillmentRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(fulfillment ->
+                                        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
 
-                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
-                            .hasValueSatisfying(notification -> {
-                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
-                            });
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                });
+                    });
                 });
     }
 
@@ -292,22 +294,24 @@ class PlaceOrderFlowTest {
                     assertThat(event.getRecipient()).isEqualTo("flow.stockgone@example.com");
                     assertThat(event.getSentAt()).isNotNull();
 
-                    assertThat(orderRepository.findByOrderId(orderId)).isEmpty();
-                    assertThat(stockReservationRepository.findByOrderId(orderId)).isEmpty();
-                    assertThat(paymentRepository.findByOrderId(orderId)).isEmpty();
-                    assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(orderRepository.findByOrderId(orderId)).isEmpty();
+                        assertThat(stockReservationRepository.findByOrderId(orderId)).isEmpty();
+                        assertThat(paymentRepository.findByOrderId(orderId)).isEmpty();
+                        assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
 
-                    InventoryPosition after = sku004Position();
-                    assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
-                    assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
-                    assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+                        InventoryPosition after = sku004Position();
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                        assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
 
-                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.STOCK_UNAVAILABLE))
-                            .hasValueSatisfying(notification -> {
-                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
-                                assertThat(notification.getSkus()).containsExactly("SKU-004");
-                            });
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.STOCK_UNAVAILABLE))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                    assertThat(notification.getSkus()).containsExactly("SKU-004");
+                                });
+                    });
                 });
     }
 
@@ -357,39 +361,41 @@ class PlaceOrderFlowTest {
                     assertThat(event.getRecipient()).isEqualTo("flow.declined@example.com");
                     assertThat(event.getSentAt()).isNotNull();
 
-                    assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
-                        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DECLINED);
-                        assertThat(payment.getFailureReason()).isEqualTo("card_declined");
-                        assertThat(payment.getDeclinedAt()).isNotNull();
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DECLINED);
+                            assertThat(payment.getFailureReason()).isEqualTo("card_declined");
+                            assertThat(payment.getDeclinedAt()).isNotNull();
+                        });
+
+                        List<StockReservation> reservations = stockReservationRepository.findByOrderId(orderId);
+                        assertThat(reservations).singleElement().satisfies(r -> {
+                            assertThat(r.getSku()).isEqualTo("SKU-002");
+                            assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                            assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_DECLINED);
+                            assertThat(r.getReleasedAt()).isNotNull();
+                        });
+
+                        InventoryPosition after = position("SKU-002");
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                        assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                        assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                            assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_DECLINED");
+                            assertThat(order.getCancelledAt()).isNotNull();
+                        });
+
+                        assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
+
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                    assertThat(notification.getRecipient()).isEqualTo("flow.declined@example.com");
+                                });
                     });
-
-                    List<StockReservation> reservations = stockReservationRepository.findByOrderId(orderId);
-                    assertThat(reservations).singleElement().satisfies(r -> {
-                        assertThat(r.getSku()).isEqualTo("SKU-002");
-                        assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
-                        assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_DECLINED);
-                        assertThat(r.getReleasedAt()).isNotNull();
-                    });
-
-                    InventoryPosition after = position("SKU-002");
-                    assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
-                    assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
-                    assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
-
-                    assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
-                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-                        assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_DECLINED");
-                        assertThat(order.getCancelledAt()).isNotNull();
-                    });
-
-                    assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
-
-                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
-                            .hasValueSatisfying(notification -> {
-                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
-                                assertThat(notification.getRecipient()).isEqualTo("flow.declined@example.com");
-                            });
                 });
     }
 
@@ -448,33 +454,35 @@ class PlaceOrderFlowTest {
                             .singleElement()
                             .satisfies(e -> assertThat(e.getAttemptCount()).isEqualTo(2));
 
-                    assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
-                        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
-                        assertThat(payment.getAttemptCount()).isEqualTo(2);
-                        assertThat(payment.getAuthorizedAt()).isNotNull();
-                        assertThat(payment.getCapturedAt()).isNotNull();
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+                            assertThat(payment.getAttemptCount()).isEqualTo(2);
+                            assertThat(payment.getAuthorizedAt()).isNotNull();
+                            assertThat(payment.getCapturedAt()).isNotNull();
+                        });
+
+                        assertThat(orderRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(order -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED));
+
+                        assertThat(stockReservationRepository.findByOrderId(orderId))
+                                .singleElement()
+                                .satisfies(r -> {
+                                    assertThat(r.getSku()).isEqualTo("SKU-002");
+                                    assertThat(r.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+                                });
+
+                        assertThat(fulfillmentRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(fulfillment ->
+                                        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
+
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                    assertThat(notification.getRecipient()).isEqualTo("flow.retry@example.com");
+                                });
                     });
-
-                    assertThat(orderRepository.findByOrderId(orderId))
-                            .hasValueSatisfying(order -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED));
-
-                    assertThat(stockReservationRepository.findByOrderId(orderId))
-                            .singleElement()
-                            .satisfies(r -> {
-                                assertThat(r.getSku()).isEqualTo("SKU-002");
-                                assertThat(r.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
-                            });
-
-                    assertThat(fulfillmentRepository.findByOrderId(orderId))
-                            .hasValueSatisfying(fulfillment ->
-                                    assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
-
-                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
-                            .hasValueSatisfying(notification -> {
-                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
-                                assertThat(notification.getRecipient()).isEqualTo("flow.retry@example.com");
-                            });
                 });
     }
 
@@ -542,41 +550,43 @@ class PlaceOrderFlowTest {
                                 assertThat(e.getExhaustedAt()).isNotNull();
                             });
 
-                    assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
-                        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.RETRY_EXHAUSTED);
-                        assertThat(payment.getAttemptCount()).isEqualTo(3);
-                        assertThat(payment.getFailureReason()).isEqualTo("processor_unavailable");
-                        assertThat(payment.getAuthorizedAt()).isNull();
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.RETRY_EXHAUSTED);
+                            assertThat(payment.getAttemptCount()).isEqualTo(3);
+                            assertThat(payment.getFailureReason()).isEqualTo("processor_unavailable");
+                            assertThat(payment.getAuthorizedAt()).isNull();
+                        });
+
+                        assertThat(stockReservationRepository.findByOrderId(orderId))
+                                .singleElement()
+                                .satisfies(r -> {
+                                    assertThat(r.getSku()).isEqualTo("SKU-002");
+                                    assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                                    assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_RETRY_EXHAUSTED);
+                                    assertThat(r.getReleasedAt()).isNotNull();
+                                });
+
+                        InventoryPosition after = position("SKU-002");
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                        assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                        assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                            assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_RETRY_EXHAUSTED");
+                            assertThat(order.getCancelledAt()).isNotNull();
+                        });
+
+                        assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
+
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                    assertThat(notification.getRecipient()).isEqualTo("flow.exhausted@example.com");
+                                });
                     });
-
-                    assertThat(stockReservationRepository.findByOrderId(orderId))
-                            .singleElement()
-                            .satisfies(r -> {
-                                assertThat(r.getSku()).isEqualTo("SKU-002");
-                                assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
-                                assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_RETRY_EXHAUSTED);
-                                assertThat(r.getReleasedAt()).isNotNull();
-                            });
-
-                    InventoryPosition after = position("SKU-002");
-                    assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
-                    assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
-                    assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
-
-                    assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
-                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-                        assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_RETRY_EXHAUSTED");
-                        assertThat(order.getCancelledAt()).isNotNull();
-                    });
-
-                    assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
-
-                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
-                            .hasValueSatisfying(notification -> {
-                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
-                                assertThat(notification.getRecipient()).isEqualTo("flow.exhausted@example.com");
-                            });
                 });
     }
 
@@ -626,52 +636,54 @@ class PlaceOrderFlowTest {
                     assertThat(event.getRecipient()).isEqualTo("flow.fulfillment@example.com");
                     assertThat(event.getSentAt()).isNotNull();
 
-                    assertThat(fulfillmentRepository.findByOrderId(orderId)).hasValueSatisfying(fulfillment -> {
-                        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.FAILED);
-                        assertThat(fulfillment.getFailureReason()).isEqualTo("carrier_unavailable");
-                        assertThat(fulfillment.getFailedAt()).isNotNull();
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(fulfillmentRepository.findByOrderId(orderId)).hasValueSatisfying(fulfillment -> {
+                            assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.FAILED);
+                            assertThat(fulfillment.getFailureReason()).isEqualTo("carrier_unavailable");
+                            assertThat(fulfillment.getFailedAt()).isNotNull();
+                        });
+
+                        // authorized, then voided instead of captured
+                        assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+                            assertThat(payment.getAuthorizedAt()).isNotNull();
+                            assertThat(payment.getVoidedAt()).isNotNull();
+                            assertThat(payment.getCapturedAt()).isNull();
+                        });
+
+                        // the reservation was CONFIRMED (sold) at OrderConfirmed; releasing it moves sold back to available
+                        assertThat(stockReservationRepository.findByOrderId(orderId))
+                                .singleElement()
+                                .satisfies(r -> {
+                                    assertThat(r.getSku()).isEqualTo("SKU-002");
+                                    assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                                    assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_VOIDED);
+                                    assertThat(r.getConfirmedAt()).isNotNull();
+                                    assertThat(r.getReleasedAt()).isNotNull();
+                                });
+
+                        InventoryPosition after = position("SKU-002");
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                        assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                        // cancelled from CONFIRMED
+                        assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                            assertThat(order.getConfirmedAt()).isNotNull();
+                            assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
+                            assertThat(order.getCancelledAt()).isNotNull();
+                        });
+
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                    assertThat(notification.getRecipient()).isEqualTo("flow.fulfillment@example.com");
+                                });
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                                .isEmpty();
                     });
-
-                    // authorized, then voided instead of captured
-                    assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
-                        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
-                        assertThat(payment.getAuthorizedAt()).isNotNull();
-                        assertThat(payment.getVoidedAt()).isNotNull();
-                        assertThat(payment.getCapturedAt()).isNull();
-                    });
-
-                    // the reservation was CONFIRMED (sold) at OrderConfirmed; releasing it moves sold back to available
-                    assertThat(stockReservationRepository.findByOrderId(orderId))
-                            .singleElement()
-                            .satisfies(r -> {
-                                assertThat(r.getSku()).isEqualTo("SKU-002");
-                                assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
-                                assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_VOIDED);
-                                assertThat(r.getConfirmedAt()).isNotNull();
-                                assertThat(r.getReleasedAt()).isNotNull();
-                            });
-
-                    InventoryPosition after = position("SKU-002");
-                    assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
-                    assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
-                    assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
-
-                    // cancelled from CONFIRMED
-                    assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
-                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-                        assertThat(order.getConfirmedAt()).isNotNull();
-                        assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
-                        assertThat(order.getCancelledAt()).isNotNull();
-                    });
-
-                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
-                            .hasValueSatisfying(notification -> {
-                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
-                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
-                                assertThat(notification.getRecipient()).isEqualTo("flow.fulfillment@example.com");
-                            });
-                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
-                            .isEmpty();
                 });
     }
 
