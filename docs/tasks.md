@@ -139,7 +139,7 @@ review: [ ]
       test data: data.sql ORD-010, ORD-018
       tests: InventoryServiceTest
       blocked by: T-08
-- [ ] T-20 bounded AFK cancelOrder: load by orderId, CREATED or CONFIRMED to CANCELLED with cancellationReason and cancelledAt, idempotent, emit OrderCancelled
+- [/] T-20 bounded AFK cancelOrder: load by orderId, CREATED or CONFIRMED to CANCELLED with cancellationReason and cancelledAt, idempotent, emit OrderCancelled
       model: place-order-flow.zfl:241-250, orders-checkout-domain-model.zdl:86-91, orders-checkout-domain-model.zdl:105-107, orders-checkout-domain-model.zdl:159-167
       test data: data.sql ORD-018, ORD-017
       tests: OrdersCheckoutServiceTest
