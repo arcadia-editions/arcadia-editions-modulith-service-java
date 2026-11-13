@@ -83,7 +83,8 @@ review: [ ]
       tests: PlaceOrderFlowTest
       blocked by: T-06, T-07, T-09, T-10, T-11, T-12
 
-- [/] T-38 mechanical AFK OrdersCheckoutApiControllerTest#startOrderCheckoutTest sends a valid StartOrderCheckoutInput (SKU-001) and asserts 201 with an ORD id; it passes null since T-06
+- [x] T-38 mechanical AFK OrdersCheckoutApiControllerTest#startOrderCheckoutTest sends a valid StartOrderCheckoutInput (SKU-001) and asserts 201 with an ORD id; it passes null since T-06
+      done: claude-sonnet sonnet
       model: orders-checkout-domain-model.zdl:61-81
       test data: data.sql SKU-001
       tests: OrdersCheckoutApiControllerTest
