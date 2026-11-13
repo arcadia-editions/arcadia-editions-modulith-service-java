@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpMethod.POST;
 
 import com.arcadiaeditions.catalog.inventory.domain.InventoryPosition;
+import com.arcadiaeditions.catalog.inventory.domain.StockReleaseReason;
 import com.arcadiaeditions.catalog.inventory.domain.ReservationStatus;
 import com.arcadiaeditions.catalog.inventory.domain.StockReservation;
 import com.arcadiaeditions.catalog.inventory.repository.jpa.InventoryPositionRepository;
@@ -12,6 +13,7 @@ import com.arcadiaeditions.fulfillment.shipping.FulfillmentRepository;
 import com.arcadiaeditions.fulfillment.shipping.domain.FulfillmentStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationType;
+import com.arcadiaeditions.notifications.consumer.domain.events.OrderCancelledNotificationSent;
 import com.arcadiaeditions.notifications.consumer.domain.events.OrderConfirmationSent;
 import com.arcadiaeditions.notifications.consumer.domain.events.StockUnavailableNotificationSent;
 import com.arcadiaeditions.notifications.consumer.repository.jpa.NotificationRepository;
@@ -48,6 +50,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * place-order-flow.zfl:65-192, 262-266. End "stockGone": StockUnavailable to StockUnavailableNotificationSent,
  * place-order-flow.zfl:82-87, 199-202, 262-266. Not @Transactional: the module listeners run after commit.
  * StockUnavailable is published in the request (test) thread, so {@link ApplicationEvents} records it.
+ * End "orderCancelled" by decline: OrderCreated, PaymentDeclined, StockReleased, OrderCancelled to
+ * OrderCancelledNotificationSent, place-order-flow.zfl:108-116, 223-260, 262-266.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
@@ -248,9 +252,95 @@ class PlaceOrderFlowTest {
                 });
     }
 
+    @Test
+    void orderCancelled_paymentDeclinedToOrderCancelledNotificationSent(Scenario scenario) {
+        // data.sql SKU-002: plenty (avail 20); pm_decline is the stand-in provider's decline trigger
+        InventoryPosition before = position("SKU-002");
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-002",
+              "customerEmail": "flow.declined@example.com",
+              "paymentMethodId": "pm_decline",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-002", "quantity": 1, "unitPrice": 59.90 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(OrderCancelledNotificationSent.class)
+                .matchingMappedValue(OrderCancelledNotificationSent::getCustomerId, "CUS-FLOW-002")
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getReason()).isEqualTo("PAYMENT_DECLINED");
+                    assertThat(event.getRecipient()).isEqualTo("flow.declined@example.com");
+                    assertThat(event.getSentAt()).isNotNull();
+
+                    assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DECLINED);
+                        assertThat(payment.getFailureReason()).isEqualTo("card_declined");
+                        assertThat(payment.getDeclinedAt()).isNotNull();
+                    });
+
+                    List<StockReservation> reservations = stockReservationRepository.findByOrderId(orderId);
+                    assertThat(reservations).singleElement().satisfies(r -> {
+                        assertThat(r.getSku()).isEqualTo("SKU-002");
+                        assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                        assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_DECLINED);
+                        assertThat(r.getReleasedAt()).isNotNull();
+                    });
+
+                    InventoryPosition after = position("SKU-002");
+                    assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                    assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                    assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                    assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                        assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_DECLINED");
+                        assertThat(order.getCancelledAt()).isNotNull();
+                    });
+
+                    assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
+
+                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
+                            .hasValueSatisfying(notification -> {
+                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                assertThat(notification.getRecipient()).isEqualTo("flow.declined@example.com");
+                            });
+                });
+    }
+
     private InventoryPosition sku004Position() {
+        return position("SKU-004");
+    }
+
+    private InventoryPosition position(String sku) {
         return inventoryPositionRepository.findAll().stream()
-                .filter(p -> "SKU-004".equals(p.getSku()))
+                .filter(p -> sku.equals(p.getSku()))
                 .findFirst()
                 .orElseThrow();
     }
