@@ -107,7 +107,7 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
                 eventPublisher.onPaymentDeclined(eventsMapper.asPaymentDeclined(payment));
             }
             case FAILED -> {
-                // technical failure: eligible for retry (T-24)
+                // technical failure: eligible for retry
                 payment.setStatus(PaymentStatus.FAILED);
                 payment.setFailedAt(Instant.now(clock));
                 payment.setFailureReason(result.reason());
@@ -123,6 +123,11 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         log.debug("Request retryPayment: {}", input);
 
         var payment = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
+        if (payment.getStatus() != PaymentStatus.FAILED) {
+            // redelivery: the payment already moved on; no attempt, no event
+            log.debug("retryPayment redelivery, payment already {}: {}", payment.getStatus(), input.getOrderId());
+            return payment;
+        }
         PaymentTransitions.ensureCanRetryPayment(payment);
 
         if (payment.getAttemptCount() >= flowProperties.getPayments().getMaxAttempts()) {

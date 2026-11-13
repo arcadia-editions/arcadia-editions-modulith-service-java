@@ -272,10 +272,21 @@ class PaymentsProcessingServiceTest {
 
     @Test
     void retryPaymentNotFailedTest() {
-        // ORD-003 is AUTHORIZED: retry is not allowed from there
-        org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-003")))
-                .isInstanceOf(PaymentTransitions.InvalidStateTransitionException.class);
+        // ORD-003 is AUTHORIZED: a redelivered PaymentFailed is a no-op, payment unchanged, no event
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-003"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
+        assertThat(paymentRepository.findByOrderId("ORD-003").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.AUTHORIZED);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void retryPaymentRetryExhaustedRedeliveryTest() {
+        // ORD-011 is RETRY_EXHAUSTED: redelivery is a no-op, no second PaymentRetryExhausted
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-011"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.RETRY_EXHAUSTED);
         assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 
