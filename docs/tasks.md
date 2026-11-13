@@ -122,7 +122,8 @@ review: [ ]
       test data: data.sql ORD-020
       tests: NotificationsConsumerServiceTest
       blocked by: T-12
-- [/] T-17 bounded AFK Flow test stockGone: 409 and StockUnavailableNotificationSent, no order stored
+- [x] T-17 bounded AFK Flow test stockGone: 409 and StockUnavailableNotificationSent, no order stored
+      done: claude-opus opus
       model: place-order-flow.zfl:82-87, place-order-flow.zfl:199-202, place-order-flow.zfl:262-266
       test data: data.sql SKU-004
       tests: PlaceOrderFlowTest
@@ -279,7 +280,8 @@ review: [ ]
       test data: data.sql ORD-015
       tests: NotificationsConsumerServiceTest
       blocked by: T-12, T-16, T-21
-- [/] T-37 mechanical AFK ModularityTest: module boundaries verified with cycle detection disabled (cycles come from the generated event listener topology; upstream will not change, person 2026-11-13); jMolecules layering stays out (as JMoleculesArchitectureTest)
+- [x] T-37 mechanical AFK ModularityTest: module boundaries verified with cycle detection disabled (cycles come from the generated event listener topology; upstream will not change, person 2026-11-13); jMolecules layering stays out (as JMoleculesArchitectureTest)
+      done: claude-opus opus
       tests: ModularityTest
 - [x] T-39 mechanical AFK Integration tests start their own PostgreSQL: DockerComposeInitializer uses local compose (withLocalCompose(true)) and BaseWebTestClientTest enables it, so mvn verify is self-contained from any clone
       done: claude-sonnet sonnet
