@@ -102,7 +102,7 @@ review: [x] claude-opus PASS round 2 (reports/review-S1-2.md; round 1 reports/re
 ## S2 stockGone
 path: StartOrderCheckout > startOrderCheckout > reserveStock[StockUnavailableResult] > StockUnavailable
       > sendStockUnavailableNotification > end stockGone
-review: [ ]
+review: [/] claude-opus fresh context
 
 - [x] T-14 bounded AFK reserveStock unavailable branch: no reservation when any line is short, StockUnavailableResult with requested and available per sku
       done: claude-sonnet sonnet
@@ -272,7 +272,7 @@ review: [ ]
       blocked: out of scope for this iteration (overlay decision "Reservation expiry"); a person reopens it
 
 ## S9 Polish
-review: [ ]
+review: [/] claude-opus fresh context
 
 - [x] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
       done: claude-sonnet sonnet
