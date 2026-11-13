@@ -27,7 +27,7 @@ review: [x] claude-opus PASS (reports/review-S0.md)
 path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult] > OrderCreated > authorizePayment[authorized]
       > PaymentAuthorized > confirmOrder > confirmStockReservation > OrderConfirmed > scheduleFulfillment[FulfillmentScheduled]
       > capturePayment[PaymentCaptured] > sendOrderConfirmation > end completed
-review: [/] claude-opus (fresh context)
+review: [ ] (round 1 PASS with SHOULD FIX, reports/review-S1.md; fix T-41, then re-review)
 
 - [x] T-05 bounded AFK reserveStock: all lines available, one RESERVED reservation per line, available moves to reserved under a write lock, expiresAt = reservedAt + 10 min, StockReservedResult
       done: claude-sonnet sonnet
@@ -91,6 +91,12 @@ review: [/] claude-opus (fresh context)
       tests: OrdersCheckoutApiControllerTest
       fixes: regression of T-06 found by the orchestrator while checking T-01 (NPE on null input)
       blocked by: T-06
+
+- [ ] T-41 bounded AFK Redelivery is a no-op: confirmOrder on an order already CONFIRMED and capturePayment on a payment already CAPTURED return it unchanged and emit nothing (as the other S1 steps)
+      model: place-order-flow.zfl:142-150, place-order-flow.zfl:172-182
+      test data: data.sql ORD-001, ORD-003
+      tests: OrdersCheckoutServiceTest, PaymentsProcessingServiceTest
+      fixes: review-S1 SHOULD FIX 1 (OrdersCheckoutServiceImpl.java:90-93, PaymentsProcessingServiceImpl.java:145-146)
 
 ## S2 stockGone
 path: StartOrderCheckout > startOrderCheckout > reserveStock[StockUnavailableResult] > StockUnavailable
