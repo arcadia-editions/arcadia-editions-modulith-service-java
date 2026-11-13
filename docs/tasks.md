@@ -184,12 +184,13 @@ path: PaymentFailed > retryPayment[retry-exhausted] > PaymentRetryExhausted > re
       > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [/] T-26 bounded AFK retryPayment retry-exhausted branch at the attempt limit: RETRY_EXHAUSTED, emit PaymentRetryExhausted
+- [x] T-26 bounded AFK retryPayment retry-exhausted branch at the attempt limit: RETRY_EXHAUSTED, emit PaymentRetryExhausted
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:124-130, payments-processing-domain-model.zdl:89-91, payments-processing-domain-model.zdl:141-147
       test data: data.sql ORD-009
       tests: PaymentsProcessingServiceTest
       blocked by: T-24
-- [ ] T-27 mechanical AFK releaseStock on PaymentRetryExhausted: releaseReason PAYMENT_RETRY_EXHAUSTED
+- [/] T-27 mechanical AFK releaseStock on PaymentRetryExhausted: releaseReason PAYMENT_RETRY_EXHAUSTED
       model: place-order-flow.zfl:223-227, catalog-inventory-domain-model.zdl:114-118
       test data: data.sql ORD-011
       tests: InventoryServiceTest
