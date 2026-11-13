@@ -132,7 +132,7 @@ review: [x] claude-opus PASS (reports/review-S2.md)
 ## S3 orderCancelled by payment declined
 path: OrderCreated > authorizePayment[declined] > PaymentDeclined > releaseStock > StockReleased > cancelOrder > OrderCancelled
       > sendOrderCancelledNotification > end orderCancelled
-review: [ ]
+review: [/] claude-opus fresh context
 
 - [x] T-18 bounded AFK authorizePayment declined branch: DECLINED with declinedAt and reason, emit PaymentDeclined, no retry
       done: claude-sonnet sonnet
@@ -158,7 +158,8 @@ review: [ ]
       test data: data.sql ORD-014
       tests: NotificationsConsumerServiceTest
       blocked by: T-12
-- [/] T-22 bounded AFK Flow test orderCancelled by decline (pm_decline): stock back, order CANCELLED, OrderCancelledNotificationSent
+- [x] T-22 bounded AFK Flow test orderCancelled by decline (pm_decline): stock back, order CANCELLED, OrderCancelledNotificationSent
+      done: claude-opus opus
       model: place-order-flow.zfl:108-116, place-order-flow.zfl:223-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -181,7 +182,7 @@ review: [ ]
       test data: data.sql ORD-008
       tests: PaymentsProcessingServiceTest
       blocked by: T-23
-- [ ] T-25 bounded AFK Flow test retry then completed (pm_fail_once)
+- [/] T-25 bounded AFK Flow test retry then completed (pm_fail_once)
       model: place-order-flow.zfl:118-140, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
