@@ -63,19 +63,22 @@ class OrderRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void updateTest() {
         var id = 1L;
+        var items = List.of(new OrderItem());
+        var address = new ShippingAddress();
+        var now = Instant.parse("2026-10-14T10:00:00Z");
         var order = orderRepository.findById(id).orElseThrow();
         order.setOrderId("");
         order.setStatus(OrderStatus.values()[0]);
         order.setCustomerId("");
         order.setCustomerEmail("");
         order.setPaymentMethodId("");
-        order.setItems(List.of(new OrderItem()));
-        order.setShippingAddress(new ShippingAddress());
+        order.setItems(items);
+        order.setShippingAddress(address);
         order.setTotalAmount(BigDecimal.valueOf(0));
         order.setCurrency("");
-        order.setCreatedAt(Instant.now());
-        order.setConfirmedAt(Instant.now());
-        order.setCancelledAt(Instant.now());
+        order.setCreatedAt(now);
+        order.setConfirmedAt(now);
+        order.setCancelledAt(now);
         order.setCancellationReason("");
 
         order = orderRepository.save(order);
@@ -84,13 +87,13 @@ class OrderRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         Assertions.assertEquals("", order.getCustomerId());
         Assertions.assertEquals("", order.getCustomerEmail());
         Assertions.assertEquals("", order.getPaymentMethodId());
-        Assertions.assertEquals(List.of(new OrderItem()), order.getItems());
-        Assertions.assertEquals(new ShippingAddress(), order.getShippingAddress());
+        Assertions.assertEquals(items, order.getItems());
+        Assertions.assertEquals(address, order.getShippingAddress());
         Assertions.assertEquals(BigDecimal.valueOf(0), order.getTotalAmount());
         Assertions.assertEquals("", order.getCurrency());
-        Assertions.assertEquals(Instant.now(), order.getCreatedAt());
-        Assertions.assertEquals(Instant.now(), order.getConfirmedAt());
-        Assertions.assertEquals(Instant.now(), order.getCancelledAt());
+        Assertions.assertEquals(now, order.getCreatedAt());
+        Assertions.assertEquals(now, order.getConfirmedAt());
+        Assertions.assertEquals(now, order.getCancelledAt());
         Assertions.assertEquals("", order.getCancellationReason());
     }
 
