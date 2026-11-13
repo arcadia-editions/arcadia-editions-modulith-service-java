@@ -226,7 +226,8 @@ review: [ ]
       test data: data.sql ORD-007, ORD-016
       tests: PaymentsProcessingServiceTest
       blocked by: T-11
-- [/] T-31 mechanical AFK releaseStock on PaymentVoided: CONFIRMED reservations released with PAYMENT_VOIDED, sold back to available
+- [x] T-31 mechanical AFK releaseStock on PaymentVoided: CONFIRMED reservations released with PAYMENT_VOIDED, sold back to available
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:223-227, catalog-inventory-domain-model.zdl:115-118
       test data: data.sql ORD-016
       tests: InventoryServiceTest
@@ -277,7 +278,7 @@ review: [ ]
       done: claude-sonnet sonnet
       tests: OrdersCheckoutApiIntegrationTest, OrderRepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (BaseWebTestClientTest.java:3,14, DockerComposeInitializer.java:44)
-- [ ] T-40 mechanical AFK Repository updateTest asserts what was persisted (flush, clear, findById) and uses TestClock.NOW instead of the hard-coded instant
+- [/] T-40 mechanical AFK Repository updateTest asserts what was persisted (flush, clear, findById) and uses TestClock.NOW instead of the hard-coded instant
       tests: *RepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (TestClock duplication) and NOTE (updateTest asserts the saved instance)
       blocked by: T-39
