@@ -149,6 +149,10 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
 
         // the payment is resolved by orderId (Payment.orderId is unique)
         var payment = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
+        if (payment.getStatus() == PaymentStatus.CAPTURED) {
+            log.debug("capturePayment redelivery, payment already CAPTURED: {}", input.getOrderId());
+            return payment;
+        }
         PaymentTransitions.ensureCanCapturePayment(payment);
 
         var result = paymentProvider.capture(new PaymentProvider.CaptureRequest(
