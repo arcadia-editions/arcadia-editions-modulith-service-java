@@ -1,0 +1,160 @@
+package com.arcadiaeditions;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpMethod.POST;
+
+import com.arcadiaeditions.catalog.inventory.domain.ReservationStatus;
+import com.arcadiaeditions.catalog.inventory.domain.StockReservation;
+import com.arcadiaeditions.catalog.inventory.repository.jpa.StockReservationRepository;
+import com.arcadiaeditions.fulfillment.shipping.FulfillmentRepository;
+import com.arcadiaeditions.fulfillment.shipping.domain.FulfillmentStatus;
+import com.arcadiaeditions.notifications.consumer.domain.NotificationStatus;
+import com.arcadiaeditions.notifications.consumer.domain.NotificationType;
+import com.arcadiaeditions.notifications.consumer.domain.events.OrderConfirmationSent;
+import com.arcadiaeditions.notifications.consumer.repository.jpa.NotificationRepository;
+import com.arcadiaeditions.orders.checkout.core.domain.OrderStatus;
+import com.arcadiaeditions.orders.checkout.core.outbound.jpa.OrderRepository;
+import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
+import com.arcadiaeditions.payments.processing.domain.PaymentStatus;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.modulith.test.EnableScenarios;
+import org.springframework.modulith.test.Scenario;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.test.web.servlet.client.MockMvcWebTestClient;
+import org.springframework.web.context.WebApplicationContext;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+
+/**
+ * PlaceOrderFlow, end "completed": POST start-checkout follows the in-process events
+ * (OrderCreated, PaymentAuthorized, OrderConfirmed, FulfillmentScheduled, PaymentCaptured) to OrderConfirmationSent.
+ * place-order-flow.zfl:65-192, 262-266. Not @Transactional: the module listeners run after commit.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@ActiveProfiles("test")
+@EnableScenarios
+@TestPropertySource(properties = "arcadia.payments.retry-delay=0")
+class PlaceOrderFlowTest {
+
+    /** Own PostgreSQL on a random port: the project docker-compose binds fixed ports shared with other runs. */
+    static final GenericContainer<?> postgres = new GenericContainer<>("postgres:16.3")
+            .withEnv("POSTGRES_DB", "app")
+            .withEnv("POSTGRES_USER", "postgres")
+            .withEnv("POSTGRES_PASSWORD", "admin123")
+            .withExposedPorts(5432)
+            .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\s", 2));
+
+    static {
+        postgres.start();
+    }
+
+    @DynamicPropertySource
+    static void datasource(DynamicPropertyRegistry registry) {
+        registry.add(
+                "DATASOURCE_URL",
+                () -> "jdbc:postgresql://%s:%d/app".formatted(postgres.getHost(), postgres.getMappedPort(5432)));
+    }
+
+    @Autowired
+    WebApplicationContext context;
+
+    @Autowired
+    OrderRepository orderRepository;
+
+    @Autowired
+    StockReservationRepository stockReservationRepository;
+
+    @Autowired
+    PaymentRepository paymentRepository;
+
+    @Autowired
+    FulfillmentRepository fulfillmentRepository;
+
+    @Autowired
+    NotificationRepository notificationRepository;
+
+    WebTestClient webTestClient;
+
+    @BeforeEach
+    void setup() {
+        webTestClient = MockMvcWebTestClient.bindToApplicationContext(context).build();
+    }
+
+    @Test
+    void completed_startCheckoutToOrderConfirmationSent(Scenario scenario) {
+        // data.sql SKU-001: plenty (avail 9); pm_ok, postal 28099 and example.com are non-trigger stand-in values
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-001",
+              "customerEmail": "flow.customer@example.com",
+              "paymentMethodId": "pm_ok",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-001", "quantity": 1, "unitPrice": 49.99 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(OrderConfirmationSent.class)
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getRecipient()).isEqualTo("flow.customer@example.com");
+                    assertThat(event.getSentAt()).isNotNull();
+
+                    assertThat(orderRepository.findByOrderId(orderId))
+                            .hasValueSatisfying(order -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED));
+
+                    List<StockReservation> reservations = stockReservationRepository.findByOrderId(orderId);
+                    assertThat(reservations).hasSize(1);
+                    assertThat(reservations)
+                            .allSatisfy(r -> assertThat(r.getStatus()).isEqualTo(ReservationStatus.CONFIRMED));
+
+                    assertThat(paymentRepository.findByOrderId(orderId))
+                            .hasValueSatisfying(
+                                    payment -> assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED));
+
+                    assertThat(fulfillmentRepository.findByOrderId(orderId))
+                            .hasValueSatisfying(fulfillment ->
+                                    assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
+
+                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                            .hasValueSatisfying(notification -> {
+                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                            });
+                });
+    }
+}
