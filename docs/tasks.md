@@ -102,7 +102,7 @@ review: [x] claude-opus PASS round 2 (reports/review-S1-2.md; round 1 reports/re
 ## S2 stockGone
 path: StartOrderCheckout > startOrderCheckout > reserveStock[StockUnavailableResult] > StockUnavailable
       > sendStockUnavailableNotification > end stockGone
-review: [/] claude-opus fresh context
+review: [x] claude-opus PASS (reports/review-S2.md)
 
 - [x] T-14 bounded AFK reserveStock unavailable branch: no reservation when any line is short, StockUnavailableResult with requested and available per sku
       done: claude-sonnet sonnet
