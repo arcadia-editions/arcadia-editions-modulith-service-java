@@ -65,6 +65,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * End "orderCancelled" by retries exhausted: PaymentFailed and PaymentRetried until max-attempts (3), then
  * PaymentRetryExhausted, StockReleased, OrderCancelled to OrderCancelledNotificationSent,
  * place-order-flow.zfl:124-130, 223-260, 262-266.
+ * End "orderCancelled" by fulfillment failure: OrderConfirmed, FulfillmentFailed, PaymentVoided, StockReleased,
+ * OrderCancelled to OrderCancelledNotificationSent, place-order-flow.zfl:160-170, 204-260, 262-266.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
@@ -557,6 +559,101 @@ class PlaceOrderFlowTest {
                                 assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
                                 assertThat(notification.getRecipient()).isEqualTo("flow.exhausted@example.com");
                             });
+                });
+    }
+
+    @Test
+    void orderCancelled_fulfillmentFailedToOrderCancelledNotificationSent(Scenario scenario) {
+        // data.sql SKU-002: plenty (avail 20); postal 00000 is the stand-in fulfillment decision's carrier_unavailable trigger
+        InventoryPosition before = position("SKU-002");
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-FULFILLMENT",
+              "customerEmail": "flow.fulfillment@example.com",
+              "paymentMethodId": "pm_ok",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-002", "quantity": 1, "unitPrice": 59.90 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "00000",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(OrderCancelledNotificationSent.class)
+                .matchingMappedValue(OrderCancelledNotificationSent::getCustomerId, "CUS-FLOW-FULFILLMENT")
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getReason()).isEqualTo("PAYMENT_VOIDED");
+                    assertThat(event.getRecipient()).isEqualTo("flow.fulfillment@example.com");
+                    assertThat(event.getSentAt()).isNotNull();
+
+                    assertThat(fulfillmentRepository.findByOrderId(orderId)).hasValueSatisfying(fulfillment -> {
+                        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.FAILED);
+                        assertThat(fulfillment.getFailureReason()).isEqualTo("carrier_unavailable");
+                        assertThat(fulfillment.getFailedAt()).isNotNull();
+                    });
+
+                    // authorized, then voided instead of captured
+                    assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+                        assertThat(payment.getAuthorizedAt()).isNotNull();
+                        assertThat(payment.getVoidedAt()).isNotNull();
+                        assertThat(payment.getCapturedAt()).isNull();
+                    });
+
+                    // the reservation was CONFIRMED (sold) at OrderConfirmed; releasing it moves sold back to available
+                    assertThat(stockReservationRepository.findByOrderId(orderId))
+                            .singleElement()
+                            .satisfies(r -> {
+                                assertThat(r.getSku()).isEqualTo("SKU-002");
+                                assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                                assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_VOIDED);
+                                assertThat(r.getConfirmedAt()).isNotNull();
+                                assertThat(r.getReleasedAt()).isNotNull();
+                            });
+
+                    InventoryPosition after = position("SKU-002");
+                    assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                    assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                    assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                    // cancelled from CONFIRMED
+                    assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                        assertThat(order.getConfirmedAt()).isNotNull();
+                        assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
+                        assertThat(order.getCancelledAt()).isNotNull();
+                    });
+
+                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
+                            .hasValueSatisfying(notification -> {
+                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                assertThat(notification.getRecipient()).isEqualTo("flow.fulfillment@example.com");
+                            });
+                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                            .isEmpty();
                 });
     }
 
