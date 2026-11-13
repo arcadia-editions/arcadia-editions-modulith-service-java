@@ -191,7 +191,8 @@ review: [ ]
       test data: data.sql ORD-009
       tests: PaymentsProcessingServiceTest
       blocked by: T-24
-- [/] T-27 mechanical AFK releaseStock on PaymentRetryExhausted: releaseReason PAYMENT_RETRY_EXHAUSTED
+- [x] T-27 mechanical AFK releaseStock on PaymentRetryExhausted: releaseReason PAYMENT_RETRY_EXHAUSTED
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:223-227, catalog-inventory-domain-model.zdl:114-118
       test data: data.sql ORD-011
       tests: InventoryServiceTest
@@ -207,7 +208,8 @@ path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment > Pa
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [/] T-29 bounded AFK scheduleFulfillment failed branch: Fulfillment FAILED with failureReason, emit FulfillmentFailed
+- [x] T-29 bounded AFK scheduleFulfillment failed branch: Fulfillment FAILED with failureReason, emit FulfillmentFailed
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:160-170, fulfillment-shipping-domain-model.zdl:82-84, fulfillment-shipping-domain-model.zdl:99-105
       test data: data.sql ORD-005, ORD-007
       tests: FulfillmentShippingServiceTest
@@ -262,7 +264,8 @@ review: [ ]
       blocked by: T-12, T-16, T-21
 - [ ] T-37 mechanical AFK ModularityTest: ApplicationModules.of(Application.class).verify() passes
       tests: ModularityTest
-- [/] T-39 mechanical AFK Integration tests start their own PostgreSQL: DockerComposeInitializer uses local compose (withLocalCompose(true)) and BaseWebTestClientTest enables it, so mvn verify is self-contained from any clone
+- [x] T-39 mechanical AFK Integration tests start their own PostgreSQL: DockerComposeInitializer uses local compose (withLocalCompose(true)) and BaseWebTestClientTest enables it, so mvn verify is self-contained from any clone
+      done: claude-sonnet sonnet
       tests: OrdersCheckoutApiIntegrationTest, OrderRepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (BaseWebTestClientTest.java:3,14, DockerComposeInitializer.java:44)
 - [ ] T-40 mechanical AFK Repository updateTest asserts what was persisted (flush, clear, findById) and uses TestClock.NOW instead of the hard-coded instant
