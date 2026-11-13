@@ -2,6 +2,8 @@ package com.arcadiaeditions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
 import org.springframework.modulith.core.VerificationOptions;
@@ -28,6 +30,17 @@ class ModularityTest {
 
     static boolean isCycleReport(Violation violation) {
         return violation.getMessage().startsWith(CYCLE_REPORT_PREFIX);
+    }
+
+    static final Set<String> EXPECTED_MODULES = Set.of("catalog.inventory", "catalog.products", "fulfillment.shipping",
+            "notifications.consumer", "orders.checkout", "payments.processing", "common", "config");
+
+    @Test
+    void detectsTheBoundedContextsAsSeparateModules() {
+        var modules = ApplicationModules.of(Application.class);
+
+        assertThat(modules.stream().map(module -> module.getIdentifier().toString()))
+                .containsExactlyInAnyOrderElementsOf(EXPECTED_MODULES);
     }
 
     @Test
