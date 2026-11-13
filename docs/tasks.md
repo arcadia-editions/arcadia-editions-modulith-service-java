@@ -316,7 +316,8 @@ review: [x] claude-opus PASS round 2 (reports/review-S9-2.md; round 1 reports/re
       done: claude-sonnet sonnet
       tests: ModularityTest
       fixes: review-S9 SHOULD FIX 3 (ModularityTest.java:35)
-- [/] T-47 mechanical AFK PlaceOrderFlowTest reads repository state only after the commit: every flow test's state asserts wait (Awaitility untilAsserted) instead of reading once when the terminal event arrives; the class is green 5 runs in a row
+- [x] T-47 mechanical AFK PlaceOrderFlowTest reads repository state only after the commit: every flow test's state asserts wait (Awaitility untilAsserted) instead of reading once when the terminal event arrives; the class is green 5 runs in a row
+      done: claude-sonnet sonnet (5 runs green per worker; orchestrator 1 run 7/7; verified in the exit full suite)
       tests: PlaceOrderFlowTest
       fixes: review-S4-2 SUITE SHOULD FIX (flaky PlaceOrderFlowTest.java:367-368, same pattern :452)
       blocked by: T-34
