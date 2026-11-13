@@ -167,6 +167,43 @@ class InventoryServiceTest {
     }
 
     @Test
+    void releaseStockOnPaymentVoidedSoldBackToAvailableTest() {
+        var voided = new com.arcadiaeditions.payments.processing.domain.event.PaymentVoided()
+                .setOrderId("ORD-016")
+                .setReason("carrier_unavailable");
+        var input = com.arcadiaeditions.catalog.inventory.events.processing.mappers.PaymentsProcessingEventsListenerMapper.INSTANCE
+                .asReleaseStockInput(voided);
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_VOIDED, input.getReason());
+        var before = context.inventoryPositionRepository().findAll().stream()
+                .map(p -> (InventoryPosition) p)
+                .filter(p -> "SKU-002".equals(p.getSku()))
+                .findFirst()
+                .orElseThrow();
+        int available = before.getAvailableQuantity();
+        int sold = before.getSoldQuantity();
+        int reserved = before.getReservedQuantity();
+
+        var result = inventoryService.releaseStock(input);
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, result.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_VOIDED, result.get(0).getReleaseReason());
+        var after = context.inventoryPositionRepository().findAll().stream()
+                .map(p -> (InventoryPosition) p)
+                .filter(p -> "SKU-002".equals(p.getSku()))
+                .findFirst()
+                .orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(available + 1, after.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(sold - 1, after.getSoldQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(reserved, after.getReservedQuantity());
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var event = (com.arcadiaeditions.catalog.inventory.domain.events.StockReleased) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-016", event.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_VOIDED, event.getReason());
+    }
+
+    @Test
     void releaseStockConfirmedReturnsSoldTest() {
         inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-003"));
         context.eventPublisher().getEvents().clear();
