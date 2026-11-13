@@ -110,7 +110,8 @@ review: [ ]
       test data: data.sql SKU-003, SKU-004
       tests: InventoryServiceTest
       blocked by: T-05
-- [/] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
+- [x] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
+      done: claude-opus opus
       model: place-order-flow.zfl:82-87, place-order-flow.zfl:194-197, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:126-135
       test data: data.sql SKU-004
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
@@ -121,7 +122,7 @@ review: [ ]
       test data: data.sql ORD-020
       tests: NotificationsConsumerServiceTest
       blocked by: T-12
-- [ ] T-17 bounded AFK Flow test stockGone: 409 and StockUnavailableNotificationSent, no order stored
+- [/] T-17 bounded AFK Flow test stockGone: 409 and StockUnavailableNotificationSent, no order stored
       model: place-order-flow.zfl:82-87, place-order-flow.zfl:199-202, place-order-flow.zfl:262-266
       test data: data.sql SKU-004
       tests: PlaceOrderFlowTest
