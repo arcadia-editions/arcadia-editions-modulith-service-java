@@ -16,7 +16,8 @@ public interface PaymentsProcessingEventsListenerMapper {
     com.arcadiaeditions.catalog.inventory.service.dtos.ReleaseStockInput asReleaseStockInput(
             com.arcadiaeditions.payments.processing.domain.event.PaymentDeclined event);
 
-    /** Add {@code @Mapping} here when MapStruct cannot infer the conversion. */
+    /** Release reason fixed by the event type, not the gateway reason. */
+    @org.mapstruct.Mapping(target = "reason", constant = "PAYMENT_RETRY_EXHAUSTED")
     com.arcadiaeditions.catalog.inventory.service.dtos.ReleaseStockInput asReleaseStockInput(
             com.arcadiaeditions.payments.processing.domain.event.PaymentRetryExhausted event);
 
