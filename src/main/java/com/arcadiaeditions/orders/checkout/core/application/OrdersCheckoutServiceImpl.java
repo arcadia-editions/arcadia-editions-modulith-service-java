@@ -56,6 +56,7 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
         this.clock = clock;
     }
 
+    @Transactional(noRollbackFor = StockUnavailableException.class)
     public Order startOrderCheckout(StartOrderCheckoutInput input) {
         log.debug("Request startOrderCheckout: {}", input);
 
@@ -66,7 +67,19 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
                         new ReserveStockItemInput().setSku(item.getSku()).setQuantity(item.getQuantity())));
         var reservation = inventoryService.reserveStock(reserveStockInput);
         if (reservation.getOutcome() != ReserveStockOutcome.RESERVED) {
-            throw new UnsupportedOperationException("StockUnavailableResult branch is task T-15");
+            // no order persisted; orderId is only the correlation id. Thrown after publishing: no rollback for it.
+            var stockUnavailable = new StockUnavailable()
+                    .setOrderId(orderId)
+                    .setCustomerId(input.getCustomerId())
+                    .setCustomerEmail(input.getCustomerEmail())
+                    .setUnavailableItems(reservation.getUnavailable().getUnavailableItems().stream()
+                            .map(line -> new StockUnavailableItem()
+                                    .setSku(line.getSku())
+                                    .setRequestedQuantity(line.getRequestedQuantity())
+                                    .setAvailableQuantity(line.getAvailableQuantity()))
+                            .collect(java.util.stream.Collectors.toCollection(ArrayList::new)));
+            eventPublisher.onStockUnavailable(stockUnavailable);
+            throw new StockUnavailableException(stockUnavailable);
         }
 
         var order = ordersCheckoutServiceMapper.update(new Order(), input);

@@ -75,6 +75,58 @@ class OrdersCheckoutServiceTest {
     }
 
     @Test
+    void startOrderCheckoutStockUnavailableTest() {
+        // data.sql SKU-004: zero available; SKU-001 available 9
+        var ordersBefore = orderRepository.findAll().size();
+        var input = new StartOrderCheckoutInput()
+                .setCustomerId("CUST-020")
+                .setCustomerEmail("customer020@example.com")
+                .setPaymentMethodId("PM-020")
+                .setCurrency("EUR")
+                .setItems(java.util.List.of(
+                        new OrderItemInput().setSku("SKU-001").setQuantity(1).setUnitPrice(new java.math.BigDecimal("49.99")),
+                        new OrderItemInput().setSku("SKU-004").setQuantity(1).setUnitPrice(new java.math.BigDecimal("25.00"))))
+                .setShippingAddress(new ShippingAddressInput()
+                        .setName("Buyer")
+                        .setLine1("1 Book Lane")
+                        .setCity("Madrid")
+                        .setPostalCode("28001")
+                        .setCountry("ES"));
+
+        var ex = org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class, () -> ordersCheckoutService.startOrderCheckout(input));
+        org.junit.jupiter.api.Assertions.assertFalse(ex instanceof UnsupportedOperationException, ex.toString());
+
+        // the order is not persisted
+        org.junit.jupiter.api.Assertions.assertEquals(ordersBefore, orderRepository.findAll().size());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                orderRepository.findAll().stream().noneMatch(o -> "PM-020".equals(o.getPaymentMethodId())
+                        && o.getItems().stream().anyMatch(i -> "SKU-004".equals(i.getSku()))));
+
+        // exactly one StockUnavailable, with a generated orderId as correlation id
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var unavailable = (com.arcadiaeditions.orders.checkout.core.domain.events.StockUnavailable) events.get(0);
+        org.junit.jupiter.api.Assertions.assertTrue(unavailable.getOrderId().matches("ORD-.+"));
+        org.junit.jupiter.api.Assertions.assertEquals("CUST-020", unavailable.getCustomerId());
+        org.junit.jupiter.api.Assertions.assertEquals("customer020@example.com", unavailable.getCustomerEmail());
+        org.junit.jupiter.api.Assertions.assertEquals(1, unavailable.getUnavailableItems().size());
+        var item = unavailable.getUnavailableItems().get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("SKU-004", item.getSku());
+        org.junit.jupiter.api.Assertions.assertEquals(1, item.getRequestedQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(0, item.getAvailableQuantity());
+
+        // the domain exception the web adapter turns into 409
+        org.junit.jupiter.api.Assertions.assertEquals("StockUnavailableException", ex.getClass().getSimpleName());
+
+        // all or nothing: no stock reserved
+        var position = context.inventoryContext.inventoryPositionRepository().findBySkuForUpdate("SKU-001").orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(9, position.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertTrue(context.inventoryContext.stockReservationRepository()
+                .findByOrderId(unavailable.getOrderId()).isEmpty());
+    }
+
+    @Test
     void confirmOrderTest() {
         var order = ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-003"));
 
