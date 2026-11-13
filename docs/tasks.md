@@ -132,7 +132,7 @@ review: [x] claude-opus PASS (reports/review-S2.md)
 ## S3 orderCancelled by payment declined
 path: OrderCreated > authorizePayment[declined] > PaymentDeclined > releaseStock > StockReleased > cancelOrder > OrderCancelled
       > sendOrderCancelledNotification > end orderCancelled
-review: [/] claude-opus fresh context
+review: [x] claude-opus PASS (reports/review-S3.md)
 
 - [x] T-18 bounded AFK authorizePayment declined branch: DECLINED with declinedAt and reason, emit PaymentDeclined, no retry
       done: claude-sonnet sonnet
