@@ -168,7 +168,7 @@ review: [x] claude-opus PASS (reports/review-S3.md)
 ## S4 payment retried, then completed
 path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[retried] > PaymentRetried > authorizePayment[authorized]
       > PaymentAuthorized > ... > end completed
-review: [ ]
+review: [/] claude-opus fresh context
 
 - [x] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
       done: claude-sonnet sonnet
@@ -182,7 +182,8 @@ review: [ ]
       test data: data.sql ORD-008
       tests: PaymentsProcessingServiceTest
       blocked by: T-23
-- [/] T-25 bounded AFK Flow test retry then completed (pm_fail_once)
+- [x] T-25 bounded AFK Flow test retry then completed (pm_fail_once)
+      done: claude-opus opus
       model: place-order-flow.zfl:118-140, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -205,7 +206,7 @@ review: [ ]
       test data: data.sql ORD-011
       tests: InventoryServiceTest
       blocked by: T-19
-- [ ] T-28 bounded AFK Flow test orderCancelled by retries exhausted (pm_fail_always)
+- [/] T-28 bounded AFK Flow test orderCancelled by retries exhausted (pm_fail_always)
       model: place-order-flow.zfl:124-130, place-order-flow.zfl:223-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -293,12 +294,14 @@ review: [ ] (round 1 PASS with 3 SHOULD FIX, reports/review-S9.md; fixes T-43, T
       tests: *RepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (TestClock duplication) and NOTE (updateTest asserts the saved instance)
       blocked by: T-39
-- [ ] T-43 mechanical AFK InventoryPositionRepositoryIntegrationTest.updateTest asserts the reloaded entity (flush, clear, findById) and uses TestClock.NOW, as T-40 did for the others
+- [/] T-43 mechanical AFK InventoryPositionRepositoryIntegrationTest.updateTest asserts the reloaded entity (flush, clear, findById) and uses TestClock.NOW, as T-40 did for the others
       tests: InventoryPositionRepositoryIntegrationTest
       fixes: review-S9 SHOULD FIX 1 (InventoryPositionRepositoryIntegrationTest.java:52-65)
-- [/] T-44 mechanical AFK Tests do not stall on Kafka: Spring Cloud Stream Kafka binding and Modulith event externalization are off in tests (no Kafka container), so no context waits ~60 s on localhost:9092
+- [x] T-44 mechanical AFK Tests do not stall on Kafka: Spring Cloud Stream Kafka binding and Modulith event externalization are off in tests (no Kafka container), so no context waits ~60 s on localhost:9092
+      done: claude-sonnet sonnet
       tests: OrderRepositoryIntegrationTest, PlaceOrderFlowTest
       fixes: review-S9 SHOULD FIX 2 (DockerComposeInitializer.java:34-53); orchestrator decision: switch off in tests rather than start Kafka
-- [/] T-45 bounded AFK ModularityTest detects catalog.inventory and catalog.products as separate modules (as the overlay lists them), so the boundary between them is verified
+- [x] T-45 bounded AFK ModularityTest detects catalog.inventory and catalog.products as separate modules (as the overlay lists them), so the boundary between them is verified
+      done: claude-sonnet sonnet
       tests: ModularityTest
       fixes: review-S9 SHOULD FIX 3 (ModularityTest.java:35)
