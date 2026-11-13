@@ -199,7 +199,7 @@ review: [/] round 2, claude-opus fresh context (round 1: reports/review-S4.md)
 ## S5 orderCancelled by retries exhausted
 path: PaymentFailed > retryPayment[retry-exhausted] > PaymentRetryExhausted > releaseStock > StockReleased > cancelOrder
       > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
-review: [/] claude-opus fresh context
+review: [x] claude-opus PASS (reports/review-S5.md)
 
 - [x] T-26 bounded AFK retryPayment retry-exhausted branch at the attempt limit: RETRY_EXHAUSTED, emit PaymentRetryExhausted
       done: claude-sonnet sonnet
