@@ -40,6 +40,8 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
 
     private final Clock clock;
 
+    private final com.arcadiaeditions.config.FlowProperties flowProperties;
+
     /**
      * Constructor.
      */
@@ -47,7 +49,9 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
             PaymentRepository paymentRepository,
             EventPublisher eventPublisher,
             PaymentProvider paymentProvider,
-            Clock clock) {
+            Clock clock,
+            com.arcadiaeditions.config.FlowProperties flowProperties) {
+        this.flowProperties = flowProperties;
         this.paymentRepository = paymentRepository;
         this.eventPublisher = eventPublisher;
         this.paymentProvider = paymentProvider;
@@ -60,9 +64,12 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
 
         // one Payment per order: get-or-create by orderId
         var existing = paymentRepository.findByOrderId(input.getOrderId());
-        if (existing.isPresent() && existing.get().getStatus() != PaymentStatus.AUTHORIZATION_REQUESTED) {
+        // PaymentRetried carries no payment data: its input has only the orderId, the stored Payment is reloaded
+        boolean retried = input.getPaymentMethodId() == null
+                && existing.isPresent()
+                && existing.get().getStatus() == PaymentStatus.FAILED;
+        if (existing.isPresent() && !retried && existing.get().getStatus() != PaymentStatus.AUTHORIZATION_REQUESTED) {
             // redelivery: the authorization is already resolved; nothing changes, nothing is emitted
-            // TODO T-24: on PaymentRetried a FAILED payment is authorized again
             log.debug(
                     "authorizePayment: payment of order {} already {}",
                     input.getOrderId(),
@@ -115,22 +122,18 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
 
         log.debug("Request retryPayment: {}", input);
 
-        // TODO CUSTOM_REQUIRED: load the Payment this transition applies to, e.g. by a correlation key in the input
-        Optional<Payment> foundPayment = Optional.empty();
-        var payment = foundPayment
-                .map(existingPayment -> {
-                    PaymentTransitions.ensureCanRetryPayment(existingPayment);
-                    paymentsProcessingServiceMapper.update(existingPayment, input);
-                    // TODO CUSTOM_REQUIRED: call existingPayment.setStatus(...) with one of FAILED, RETRY_EXHAUSTED
-                    return existingPayment;
-                })
-                .map(paymentRepository::save)
-                .orElseThrow();
-        // emit events
-        var paymentRetried = eventsMapper.asPaymentRetried(payment);
-        eventPublisher.onPaymentRetried(paymentRetried);
-        var paymentRetryExhausted = eventsMapper.asPaymentRetryExhausted(payment);
-        eventPublisher.onPaymentRetryExhausted(paymentRetryExhausted);
+        var payment = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
+        PaymentTransitions.ensureCanRetryPayment(payment);
+
+        if (payment.getAttemptCount() >= flowProperties.getPayments().getMaxAttempts()) {
+            // TODO T-26: retry-exhausted branch: RETRY_EXHAUSTED, emit PaymentRetryExhausted
+            throw new UnsupportedOperationException("retryPayment retry-exhausted branch not implemented yet");
+        }
+        // retried: stays FAILED, one more attempt
+        payment.setAttemptCount(payment.getAttemptCount() + 1);
+        payment = paymentRepository.save(payment);
+        eventPublisher.onPaymentRetried(
+                eventsMapper.asPaymentRetried(payment).setRetriedAt(Instant.now(clock)));
         return payment;
     }
 

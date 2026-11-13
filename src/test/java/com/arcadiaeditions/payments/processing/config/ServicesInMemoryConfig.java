@@ -26,7 +26,8 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
                     paymentRepository(),
                     eventPublisher,
                     new com.arcadiaeditions.payments.processing.adapter.driven.provider.StandInPaymentProvider(),
-                    clock);
+                    clock,
+                    new com.arcadiaeditions.config.FlowProperties());
 
     @Bean
     public <T extends PaymentsProcessingService> T paymentsProcessingService() {

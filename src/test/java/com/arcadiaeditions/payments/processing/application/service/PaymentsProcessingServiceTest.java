@@ -228,7 +228,72 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
-    void retryPaymentTest() { // TODO: implement this test
+    void retryPaymentTest() {
+        // ORD-008: FAILED a1 below the limit: stays FAILED, attemptCount 2, exactly one PaymentRetried
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-008"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getAttemptCount()).isEqualTo(2);
+        assertThat(paymentsOf("ORD-008")).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId("ORD-008").orElseThrow().getAttemptCount())
+                .isEqualTo(2);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentRetried.class);
+        var event = (PaymentRetried) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-008");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-008");
+        assertThat(event.getAttemptCount()).isEqualTo(2);
+        assertThat(event.getRetriedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void retryPaymentNotFailedTest() {
+        // ORD-003 is AUTHORIZED: retry is not allowed from there
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-003")))
+                .isInstanceOf(PaymentTransitions.InvalidStateTransitionException.class);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void authorizePaymentOnPaymentRetriedTest() {
+        // ORD-008 retried (attempt 2): PaymentRetried carries no payment data, the stored Payment is reloaded
+        paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-008"));
+        context.eventPublisher().getEvents().clear();
+
+        var payment = paymentsProcessingService.authorizePayment(new AuthorizePaymentInput().setOrderId("ORD-008"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
+        assertThat(payment.getAttemptCount()).isEqualTo(2);
+        assertThat(payment.getProviderReference()).isEqualTo("STANDIN-ORD-008");
+        assertThat(payment.getAuthorizedAt()).isEqualTo(TestClock.NOW);
+        assertThat(paymentsOf("ORD-008")).isEqualTo(1);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentAuthorized.class);
+        var event = (PaymentAuthorized) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-008");
+        assertThat(event.getAmount()).isEqualByComparingTo("59.90");
+    }
+
+    @Test
+    void authorizePaymentOnPaymentRetriedFailsAgainTest() {
+        // pm_fail_always: the second attempt fails again, FAILED with attemptCount 2, one PaymentFailed
+        paymentsProcessingService.authorizePayment(authorizeInput("ORD-904", "CUST-904", "pm_fail_always", "10.00"));
+        paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-904"));
+        context.eventPublisher().getEvents().clear();
+
+        var payment = paymentsProcessingService.authorizePayment(new AuthorizePaymentInput().setOrderId("ORD-904"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getAttemptCount()).isEqualTo(2);
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentFailed.class);
+        assertThat(((PaymentFailed) events.get(0)).getAttemptCount()).isEqualTo(2);
     }
 
     @Test

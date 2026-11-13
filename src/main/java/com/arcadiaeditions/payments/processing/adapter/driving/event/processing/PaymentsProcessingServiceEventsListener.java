@@ -19,12 +19,27 @@ public class PaymentsProcessingServiceEventsListener {
     private final PaymentsProcessingServiceEventsListenerMapper mapper =
             PaymentsProcessingServiceEventsListenerMapper.INSTANCE;
 
-    public PaymentsProcessingServiceEventsListener(PaymentsProcessingService paymentsProcessingService) {
+    private final com.arcadiaeditions.config.FlowProperties flowProperties;
+
+    public PaymentsProcessingServiceEventsListener(
+            PaymentsProcessingService paymentsProcessingService,
+            com.arcadiaeditions.config.FlowProperties flowProperties) {
         this.paymentsProcessingService = paymentsProcessingService;
+        this.flowProperties = flowProperties;
     }
 
     @ApplicationModuleListener
     public void authorizePayment(PaymentRetried event) {
+        // retry-delay (arcadia.payments.retry-delay) is applied here, not in the service: service tests never wait
+        var delay = flowProperties.getPayments().getRetryDelay();
+        if (delay != null && !delay.isZero() && !delay.isNegative()) {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted while waiting for the payment retry delay", e);
+            }
+        }
         paymentsProcessingService.authorizePayment(mapper.asAuthorizePaymentInput(event));
     }
 
