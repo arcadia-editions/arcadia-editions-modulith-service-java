@@ -100,10 +100,22 @@ class OrdersCheckoutServiceTest {
     }
 
     @Test
-    void confirmOrderFromConfirmedIsInvalidTest() {
+    void confirmOrderAlreadyConfirmedRedeliveryTest() {
+        // ORD-001: already CONFIRMED; redelivery is a no-op, unchanged, nothing emitted
+        var before = orderRepository.findByOrderId("ORD-001").orElseThrow().getConfirmedAt();
+
+        var order = ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-001"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(before, order.getConfirmedAt());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+    }
+
+    @Test
+    void confirmOrderFromCancelledIsInvalidTest() {
         org.junit.jupiter.api.Assertions.assertThrows(
                 OrderTransitions.InvalidStateTransitionException.class,
-                () -> ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-004")));
+                () -> ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-013")));
         org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
     }
 

@@ -87,18 +87,17 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
 
         log.debug("Request confirmOrder: {}", input);
 
-        var order = orderRepository
-                .findByOrderId(input.getOrderId())
-                .map(existingOrder -> {
-                    OrderTransitions.ensureCanConfirmOrder(existingOrder);
-                    inventoryService.confirmStockReservation(
-                            new ConfirmStockReservationInput().setOrderId(existingOrder.getOrderId()));
-                    existingOrder.setStatus(OrderStatus.CONFIRMED);
-                    existingOrder.setConfirmedAt(clock.instant());
-                    return existingOrder;
-                })
-                .map(orderRepository::save)
-                .orElseThrow();
+        var existing = orderRepository.findByOrderId(input.getOrderId()).orElseThrow();
+        if (existing.getStatus() == OrderStatus.CONFIRMED) {
+            log.debug("confirmOrder redelivery, order already CONFIRMED: {}", input.getOrderId());
+            return existing;
+        }
+        OrderTransitions.ensureCanConfirmOrder(existing);
+        inventoryService.confirmStockReservation(
+                new ConfirmStockReservationInput().setOrderId(existing.getOrderId()));
+        existing.setStatus(OrderStatus.CONFIRMED);
+        existing.setConfirmedAt(clock.instant());
+        var order = orderRepository.save(existing);
         // emit events
         var orderConfirmed = eventsMapper.asOrderConfirmed(order);
         eventPublisher.onOrderConfirmed(orderConfirmed);

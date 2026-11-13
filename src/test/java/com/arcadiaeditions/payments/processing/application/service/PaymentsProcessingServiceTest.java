@@ -345,13 +345,13 @@ class PaymentsProcessingServiceTest {
 
     @Test
     void capturePaymentAlreadyCapturedTest() {
-        // ORD-001: Payment already CAPTURED: invalid transition, nothing changes, nothing emitted
-        org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-001")))
-                .isInstanceOf(PaymentTransitions.InvalidStateTransitionException.class);
+        // ORD-001: Payment already CAPTURED; redelivery is a no-op, unchanged, provider not called, nothing emitted
+        var before = paymentRepository.findByOrderId("ORD-001").orElseThrow().getCapturedAt();
 
-        assertThat(paymentRepository.findByOrderId("ORD-001").orElseThrow().getStatus())
-                .isEqualTo(PaymentStatus.CAPTURED);
+        var payment = paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-001"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        assertThat(payment.getCapturedAt()).isEqualTo(before);
         assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 
