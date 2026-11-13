@@ -389,6 +389,65 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void capturePaymentFailedTest() {
+        // ORD-006: pm_capture_fail -> CAPTURE_FAILED with failedAt and failureReason, exactly one PaymentCaptureFailed
+        var payment = paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-006"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURE_FAILED);
+        assertThat(payment.getFailedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getFailureReason()).isEqualTo("capture_rejected");
+        assertThat(payment.getCapturedAt()).isNull();
+        assertThat(paymentRepository.findByOrderId("ORD-006").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.CAPTURE_FAILED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentCaptureFailed.class);
+        var event = (PaymentCaptureFailed) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-006");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-006");
+        assertThat(event.getReason()).isEqualTo("capture_rejected");
+        assertThat(event.getFailedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void voidPaymentFromCaptureFailedTest() {
+        // ORD-012: CAPTURE_FAILED, void pending -> VOIDED, one PaymentVoided
+        var payment = paymentsProcessingService.voidPayment(
+                new VoidPaymentInput().setOrderId("ORD-012").setReason("capture_rejected"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+        assertThat(payment.getVoidedAt()).isEqualTo(TestClock.NOW);
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentVoided.class);
+        var event = (PaymentVoided) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-012");
+        assertThat(event.getReason()).isEqualTo("capture_rejected");
+        assertThat(event.getVoidedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void voidPaymentFromAuthorizationRequestedTest() {
+        var payment = paymentsProcessingService.voidPayment(
+                new VoidPaymentInput().setOrderId("ORD-002").setReason("x"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+        assertThat(context.eventPublisher().getEvents()).hasSize(1);
+        assertThat(context.eventPublisher().getEvents().get(0)).isInstanceOf(PaymentVoided.class);
+    }
+
+    @Test
+    void voidPaymentFromFailedTest() {
+        var payment = paymentsProcessingService.voidPayment(
+                new VoidPaymentInput().setOrderId("ORD-008").setReason("x"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+        assertThat(context.eventPublisher().getEvents()).hasSize(1);
+        assertThat(context.eventPublisher().getEvents().get(0)).isInstanceOf(PaymentVoided.class);
+    }
+
+    @Test
     void voidPaymentAlreadyVoidedTest() {
         // ORD-016: already VOIDED; redelivery is a no-op, nothing changes, nothing emitted
         var payment = paymentsProcessingService.voidPayment(

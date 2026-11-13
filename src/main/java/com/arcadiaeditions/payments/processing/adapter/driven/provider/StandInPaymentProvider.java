@@ -31,7 +31,10 @@ public class StandInPaymentProvider implements PaymentProvider {
 
     @Override
     public CaptureResult capture(CaptureRequest request) {
-        // TODO T-33: pm_capture_fail (providerReference STANDIN-CAPFAIL-<orderId>) -> not captured "capture_declined"
+        // pm_capture_fail (providerReference STANDIN-CAPFAIL-<orderId>) -> not captured "capture_rejected"
+        if (request.providerReference() != null && request.providerReference().startsWith("STANDIN-CAPFAIL-")) {
+            return new CaptureResult(false, "capture_rejected");
+        }
         return new CaptureResult(true, null);
     }
 
