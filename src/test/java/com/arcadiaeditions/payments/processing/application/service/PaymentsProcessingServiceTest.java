@@ -249,6 +249,28 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void retryPaymentExhaustedTest() {
+        // ORD-009: FAILED at attempt 3 (the limit): RETRY_EXHAUSTED, exactly one PaymentRetryExhausted
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-009"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.RETRY_EXHAUSTED);
+        assertThat(payment.getAttemptCount()).isEqualTo(3);
+        assertThat(paymentsOf("ORD-009")).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId("ORD-009").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.RETRY_EXHAUSTED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentRetryExhausted.class);
+        var event = (PaymentRetryExhausted) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-009");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-009");
+        assertThat(event.getAttemptCount()).isEqualTo(3);
+        assertThat(event.getReason()).isEqualTo("processor_unavailable");
+        assertThat(event.getExhaustedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
     void retryPaymentNotFailedTest() {
         // ORD-003 is AUTHORIZED: retry is not allowed from there
         org.assertj.core.api.Assertions.assertThatThrownBy(
