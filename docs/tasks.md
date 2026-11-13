@@ -253,7 +253,7 @@ review: [x] claude-opus PASS (reports/review-S6.md)
 ## S7 orderCancelled by capture failed
 path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment > PaymentVoided > releaseStock > StockReleased
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
-review: [/] claude-opus fresh context
+review: [x] claude-opus PASS (reports/review-S7.md)
 
 - [x] T-33 bounded AFK capturePayment failure branch: CAPTURE_FAILED with failureReason (capture_rejected per data.sql), emit PaymentCaptureFailed; voidPayment from CAPTURE_FAILED, AUTHORIZATION_REQUESTED and FAILED (the other from-states of payments-processing-domain-model.zdl:99)
       done: claude-sonnet sonnet
