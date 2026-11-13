@@ -110,8 +110,7 @@ review: [ ]
       test data: data.sql SKU-003, SKU-004
       tests: InventoryServiceTest
       blocked by: T-05
-- [!] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
-      blocked: P-02
+- [ ] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
       model: place-order-flow.zfl:82-87, place-order-flow.zfl:194-197, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:126-135
       test data: data.sql SKU-004
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
@@ -122,8 +121,7 @@ review: [ ]
       test data: data.sql ORD-020
       tests: NotificationsConsumerServiceTest
       blocked by: T-12
-- [!] T-17 bounded AFK Flow test stockGone: 409 and StockUnavailableNotificationSent, no order stored
-      blocked: P-02 (via T-15)
+- [ ] T-17 bounded AFK Flow test stockGone: 409 and StockUnavailableNotificationSent, no order stored
       model: place-order-flow.zfl:82-87, place-order-flow.zfl:199-202, place-order-flow.zfl:262-266
       test data: data.sql SKU-004
       tests: PlaceOrderFlowTest
@@ -286,7 +284,8 @@ review: [ ]
       done: claude-sonnet sonnet
       tests: OrdersCheckoutApiIntegrationTest, OrderRepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (BaseWebTestClientTest.java:3,14, DockerComposeInitializer.java:44)
-- [/] T-40 mechanical AFK Repository updateTest asserts what was persisted (flush, clear, findById) and uses TestClock.NOW instead of the hard-coded instant
+- [x] T-40 mechanical AFK Repository updateTest asserts what was persisted (flush, clear, findById) and uses TestClock.NOW instead of the hard-coded instant
+      done: claude-sonnet sonnet (2 attempts)
       tests: *RepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (TestClock duplication) and NOTE (updateTest asserts the saved instance)
       blocked by: T-39
