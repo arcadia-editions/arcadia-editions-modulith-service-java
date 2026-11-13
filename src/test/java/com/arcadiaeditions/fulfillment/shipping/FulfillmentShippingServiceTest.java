@@ -112,6 +112,56 @@ class FulfillmentShippingServiceTest {
         assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 
+    private ScheduleFulfillmentInput postal00000Input(String orderId, String customerId) {
+        return new ScheduleFulfillmentInput()
+                .setOrderId(orderId)
+                .setCustomerId(customerId)
+                .setShippingAddress(new ShippingAddressInput()
+                        .setName("Arcadia Customer")
+                        .setLine1("1 Book Lane")
+                        .setCity("Madrid")
+                        .setPostalCode("00000")
+                        .setCountry("ES"))
+                .setItems(List.of(new FulfillmentItemInput().setSku("SKU-002").setQuantity(1)));
+    }
+
+    @Test
+    void scheduleFulfillmentFailedTest() {
+        // OrderConfirmed for ORD-005 (postal 00000): carrier_unavailable -> Fulfillment FAILED, FulfillmentFailed only
+        var fulfillment = fulfillmentShippingService.scheduleFulfillment(postal00000Input("ORD-005", "CUST-005"));
+
+        assertThat(fulfillment.getId()).isNotNull();
+        assertThat(fulfillment.getFulfillmentId()).startsWith("FUL-");
+        assertThat(fulfillment.getOrderId()).isEqualTo("ORD-005");
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.FAILED);
+        assertThat(fulfillment.getFailedAt()).isEqualTo(TestClock.NOW);
+        assertThat(fulfillment.getFailureReason()).isEqualTo("carrier_unavailable");
+        assertThat(fulfillment.getScheduledAt()).isNull();
+        assertThat(fulfillmentsOf("ORD-005")).isEqualTo(1);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(FulfillmentFailed.class);
+        var event = (FulfillmentFailed) events.get(0);
+        assertThat(event.getFulfillmentId()).isEqualTo(fulfillment.getFulfillmentId());
+        assertThat(event.getOrderId()).isEqualTo("ORD-005");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-005");
+        assertThat(event.getReason()).isEqualTo("carrier_unavailable");
+        assertThat(event.getFailedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void scheduleFulfillmentFailedRedeliveryTest() {
+        // OrderConfirmed redelivered for ORD-007: FUL-003 already FAILED; nothing changes, nothing is emitted
+        var fulfillment = fulfillmentShippingService.scheduleFulfillment(postal00000Input("ORD-007", "CUST-007"));
+
+        assertThat(fulfillment.getFulfillmentId()).isEqualTo("FUL-003");
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.FAILED);
+        assertThat(fulfillment.getFailureReason()).isEqualTo("carrier_unavailable");
+        assertThat(fulfillmentsOf("ORD-007")).isEqualTo(1);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
     @Test
     void markReadyToShipTest() { // TODO: implement this test
     }

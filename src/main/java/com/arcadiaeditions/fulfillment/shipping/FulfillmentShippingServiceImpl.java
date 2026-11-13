@@ -76,8 +76,12 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
                         .toList()));
 
         if (!result.scheduled()) {
-            // TODO T-29: FAILED with failedAt and failureReason, emit FulfillmentFailed
-            throw new UnsupportedOperationException("scheduleFulfillment failed branch not implemented yet");
+            fulfillment.setStatus(FulfillmentStatus.FAILED);
+            fulfillment.setFailedAt(Instant.now(clock));
+            fulfillment.setFailureReason(result.reason());
+            fulfillment = fulfillmentRepository.save(fulfillment);
+            eventPublisher.onFulfillmentFailed(eventsMapper.asFulfillmentFailed(fulfillment));
+            return fulfillment;
         }
 
         fulfillment.setStatus(FulfillmentStatus.SCHEDULED);
