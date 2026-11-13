@@ -153,13 +153,46 @@ public class NotificationsConsumerServiceImpl implements NotificationsConsumerSe
 
         log.debug("Request sendOrderCancelledNotification: {}", input);
 
+        // idempotent by orderId and type: a redelivered OrderCancelled changes nothing and emits nothing
+        var existing =
+                notificationRepository.findByOrderIdAndType(input.getOrderId(), NotificationType.ORDER_CANCELLED);
+        if (existing.isPresent()) {
+            log.debug(
+                    "sendOrderCancelledNotification: order {} already has a notification ({})",
+                    input.getOrderId(),
+                    existing.get().getStatus());
+            return existing.get();
+        }
+
         var notification = notificationsConsumerServiceMapper.update(new Notification(), input);
-        // TODO: implement this method
-        // emit events
-        var orderCancelledNotificationSent = eventsMapper.asOrderCancelledNotificationSent(notification);
-        eventPublisher.onOrderCancelledNotificationSent(orderCancelledNotificationSent);
-        var notificationDeliveryFailed = eventsMapper.asNotificationDeliveryFailed(notification);
-        eventPublisher.onNotificationDeliveryFailed(notificationDeliveryFailed);
+        notification.setNotificationId(BusinessIds.newId("NOT"));
+        notification.setType(NotificationType.ORDER_CANCELLED);
+        notification.setChannel(NotificationChannel.EMAIL);
+        notification.setRecipient(input.getCustomerEmail());
+        notification.setSubject("Order cancelled");
+        notification.setBody("Your order " + input.getOrderId() + " was cancelled: " + input.getReason() + ".");
+        notification.setStatus(NotificationStatus.PENDING);
+        notification.setCreatedAt(Instant.now(clock));
+
+        var result = notificationSender.send(new NotificationSender.NotificationMessage(
+                notification.getNotificationId(),
+                notification.getType(),
+                notification.getChannel(),
+                notification.getRecipient(),
+                notification.getSubject(),
+                notification.getBody()));
+
+        if (!result.delivered()) {
+            // TODO T-36: FAILED with failedAt and failureReason, emit NotificationDeliveryFailed
+            throw new UnsupportedOperationException(
+                    "sendOrderCancelledNotification delivery failure branch not implemented yet");
+        }
+        notification.setStatus(NotificationStatus.SENT);
+        notification.setSentAt(Instant.now(clock));
+        notification = notificationRepository.save(notification);
+        // reason is not stored on Notification: it comes from the input
+        eventPublisher.onOrderCancelledNotificationSent(
+                eventsMapper.asOrderCancelledNotificationSent(notification).setReason(input.getReason()));
         return notification;
     }
 }

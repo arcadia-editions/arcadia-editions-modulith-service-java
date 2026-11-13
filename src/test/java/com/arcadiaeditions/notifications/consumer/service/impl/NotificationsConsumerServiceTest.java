@@ -210,7 +210,68 @@ class NotificationsConsumerServiceTest {
         assertThat(eventPublisher.getEvents()).hasSize(1);
     }
 
+    private SendOrderCancelledNotificationInput cancelledInput(String orderId, String customerId, String email) {
+        return new SendOrderCancelledNotificationInput()
+                .setOrderId(orderId)
+                .setCustomerId(customerId)
+                .setReason("PAYMENT_DECLINED")
+                .setCustomerEmail(email);
+    }
+
+    /** OrderCancelled for an order with no notification yet (ORD-006) -> ORDER_CANCELLED SENT with the reason. */
     @Test
-    void sendOrderCancelledNotificationTest() { // TODO T-21
+    void sendOrderCancelledNotificationTest() {
+        var notification = notificationsConsumerService.sendOrderCancelledNotification(
+                cancelledInput("ORD-006", "CUST-006", "customer006@example.com"));
+
+        assertThat(notification.getId()).isNotNull();
+        assertThat(notification.getNotificationId()).startsWith("NOT-");
+        assertThat(notification.getOrderId()).isEqualTo("ORD-006");
+        assertThat(notification.getCustomerId()).isEqualTo("CUST-006");
+        assertThat(notification.getType()).isEqualTo(NotificationType.ORDER_CANCELLED);
+        assertThat(notification.getChannel()).isEqualTo(NotificationChannel.EMAIL);
+        assertThat(notification.getRecipient()).isEqualTo("customer006@example.com");
+        assertThat(notification.getBody()).contains("ORD-006").contains("PAYMENT_DECLINED");
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(notification.getCreatedAt()).isEqualTo(TestClock.NOW);
+        assertThat(notification.getSentAt()).isEqualTo(TestClock.NOW);
+        assertThat(notificationsOf("ORD-006", NotificationType.ORDER_CANCELLED)).hasSize(1);
+
+        var events = eventPublisher.getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(OrderCancelledNotificationSent.class);
+        var event = (OrderCancelledNotificationSent) events.get(0);
+        assertThat(event.getNotificationId()).isEqualTo(notification.getNotificationId());
+        assertThat(event.getOrderId()).isEqualTo("ORD-006");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-006");
+        assertThat(event.getReason()).isEqualTo("PAYMENT_DECLINED");
+        assertThat(event.getChannel()).isEqualTo(NotificationChannel.EMAIL);
+        assertThat(event.getRecipient()).isEqualTo("customer006@example.com");
+        assertThat(event.getSentAt()).isEqualTo(TestClock.NOW);
+    }
+
+    /** Redelivery of OrderCancelled for ORD-014 (ORDER_CANCELLED already SENT, NOT-003): no change, no event. */
+    @Test
+    void sendOrderCancelledNotificationRedeliveryTest() {
+        var notification = notificationsConsumerService.sendOrderCancelledNotification(
+                cancelledInput("ORD-014", "CUST-014", "customer014@example.com"));
+
+        assertThat(notification.getNotificationId()).isEqualTo("NOT-003");
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(notificationsOf("ORD-014", NotificationType.ORDER_CANCELLED)).hasSize(1);
+        assertThat(eventPublisher.getEvents()).isEmpty();
+    }
+
+    /** The same input twice: one Notification, one OrderCancelledNotificationSent. */
+    @Test
+    void sendOrderCancelledNotificationTwiceTest() {
+        var input = cancelledInput("ORD-006", "CUST-006", "customer006@example.com");
+
+        var first = notificationsConsumerService.sendOrderCancelledNotification(input);
+        var second = notificationsConsumerService.sendOrderCancelledNotification(input);
+
+        assertThat(second.getNotificationId()).isEqualTo(first.getNotificationId());
+        assertThat(notificationsOf("ORD-006", NotificationType.ORDER_CANCELLED)).hasSize(1);
+        assertThat(eventPublisher.getEvents()).hasSize(1);
     }
 }
