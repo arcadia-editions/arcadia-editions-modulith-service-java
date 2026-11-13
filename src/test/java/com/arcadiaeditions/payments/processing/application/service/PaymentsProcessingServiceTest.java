@@ -364,6 +364,66 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
-    void voidPaymentTest() { // TODO: implement this test
+    void voidPaymentTest() {
+        // ORD-007: fulfillment failed, Payment still AUTHORIZED -> VOIDED through the provider, one PaymentVoided
+        var payment = paymentsProcessingService.voidPayment(
+                new VoidPaymentInput().setOrderId("ORD-007").setReason("carrier_unavailable"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+        assertThat(payment.getVoidedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getFailureReason()).isEqualTo("carrier_unavailable");
+        assertThat(payment.getProviderReference()).isEqualTo("STANDIN-ORD-007");
+        assertThat(paymentsOf("ORD-007")).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId("ORD-007").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.VOIDED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentVoided.class);
+        var event = (PaymentVoided) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-007");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-007");
+        assertThat(event.getProviderReference()).isEqualTo("STANDIN-ORD-007");
+        assertThat(event.getReason()).isEqualTo("carrier_unavailable");
+        assertThat(event.getVoidedAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void voidPaymentAlreadyVoidedTest() {
+        // ORD-016: already VOIDED; redelivery is a no-op, nothing changes, nothing emitted
+        var payment = paymentsProcessingService.voidPayment(
+                new VoidPaymentInput().setOrderId("ORD-016").setReason("carrier_unavailable"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+        assertThat(payment.getVoidedAt()).isEqualTo(Instant.parse("2026-10-14T09:50:56Z"));
+        assertThat(paymentsOf("ORD-016")).isEqualTo(1);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void voidPaymentTwiceTest() {
+        var input = new VoidPaymentInput().setOrderId("ORD-007").setReason("carrier_unavailable");
+        paymentsProcessingService.voidPayment(input);
+
+        paymentsProcessingService.voidPayment(input);
+
+        assertThat(context.eventPublisher().getEvents()).hasSize(1);
+    }
+
+    @Test
+    void voidPaymentNotFoundTest() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> paymentsProcessingService.voidPayment(
+                        new VoidPaymentInput().setOrderId("ORD-999").setReason("x")))
+                .isInstanceOf(java.util.NoSuchElementException.class);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void voidPaymentInvalidStateTest() {
+        // ORD-010 is DECLINED: no void from there
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> paymentsProcessingService.voidPayment(
+                        new VoidPaymentInput().setOrderId("ORD-010").setReason("x")))
+                .isInstanceOf(PaymentTransitions.InvalidStateTransitionException.class);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 }
