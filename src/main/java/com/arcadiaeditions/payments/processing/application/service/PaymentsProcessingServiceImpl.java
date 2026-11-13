@@ -126,8 +126,14 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         PaymentTransitions.ensureCanRetryPayment(payment);
 
         if (payment.getAttemptCount() >= flowProperties.getPayments().getMaxAttempts()) {
-            // TODO T-26: retry-exhausted branch: RETRY_EXHAUSTED, emit PaymentRetryExhausted
-            throw new UnsupportedOperationException("retryPayment retry-exhausted branch not implemented yet");
+            // retry-exhausted: attempt limit reached, the order moves to cancellation
+            payment.setStatus(PaymentStatus.RETRY_EXHAUSTED);
+            payment = paymentRepository.save(payment);
+            eventPublisher.onPaymentRetryExhausted(eventsMapper
+                    .asPaymentRetryExhausted(payment)
+                    .setReason(payment.getFailureReason())
+                    .setExhaustedAt(Instant.now(clock)));
+            return payment;
         }
         // retried: stays FAILED, one more attempt
         payment.setAttemptCount(payment.getAttemptCount() + 1);
