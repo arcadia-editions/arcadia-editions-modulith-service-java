@@ -1,6 +1,7 @@
 package com.arcadiaeditions.payments.processing.adapter.driven.jpa;
 
 import com.arcadiaeditions.common.BaseRepositoryIntegrationTest;
+import com.arcadiaeditions.config.TestClock;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
 import com.arcadiaeditions.payments.processing.domain.*;
 import jakarta.persistence.EntityManager;
@@ -64,7 +65,7 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void updateTest() {
         var id = 1L;
-        var now = Instant.parse("2026-10-14T10:00:00Z");
+        var now = TestClock.NOW;
         var payment = paymentRepository.findById(id).orElseThrow();
         payment.setOrderId("");
         payment.setCustomerId("");
@@ -83,11 +84,14 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         payment.setFailureReason("");
 
         payment = paymentRepository.save(payment);
+        entityManager.flush();
+        entityManager.clear();
+        payment = paymentRepository.findById(id).orElseThrow();
         Assertions.assertEquals("", payment.getOrderId());
         Assertions.assertEquals("", payment.getCustomerId());
         Assertions.assertEquals("", payment.getPaymentMethodId());
         Assertions.assertEquals("", payment.getCustomerEmail());
-        Assertions.assertEquals(BigDecimal.valueOf(0), payment.getAmount());
+        Assertions.assertEquals(0, BigDecimal.ZERO.compareTo(payment.getAmount()));
         Assertions.assertEquals("", payment.getCurrency());
         Assertions.assertEquals(PaymentStatus.values()[0], payment.getStatus());
         Assertions.assertEquals("", payment.getProviderReference());

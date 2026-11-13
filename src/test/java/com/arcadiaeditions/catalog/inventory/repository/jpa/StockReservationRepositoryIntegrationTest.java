@@ -2,6 +2,7 @@ package com.arcadiaeditions.catalog.inventory.repository.jpa;
 
 import com.arcadiaeditions.catalog.inventory.domain.*;
 import com.arcadiaeditions.common.BaseRepositoryIntegrationTest;
+import com.arcadiaeditions.config.TestClock;
 import jakarta.persistence.EntityManager;
 import java.time.*;
 import org.junit.jupiter.api.Assertions;
@@ -57,7 +58,7 @@ class StockReservationRepositoryIntegrationTest extends BaseRepositoryIntegratio
     @Test
     void updateTest() {
         var id = 1L;
-        var now = Instant.parse("2026-10-14T10:00:00Z");
+        var now = TestClock.NOW;
         var stockReservation = stockReservationRepository.findById(id).orElseThrow();
         stockReservation.setReservationId("");
         stockReservation.setOrderId("");
@@ -71,6 +72,9 @@ class StockReservationRepositoryIntegrationTest extends BaseRepositoryIntegratio
         stockReservation.setReleaseReason(StockReleaseReason.values()[0]);
 
         stockReservation = stockReservationRepository.save(stockReservation);
+        entityManager.flush();
+        entityManager.clear();
+        stockReservation = stockReservationRepository.findById(id).orElseThrow();
         Assertions.assertEquals("", stockReservation.getReservationId());
         Assertions.assertEquals("", stockReservation.getOrderId());
         Assertions.assertEquals("", stockReservation.getSku());

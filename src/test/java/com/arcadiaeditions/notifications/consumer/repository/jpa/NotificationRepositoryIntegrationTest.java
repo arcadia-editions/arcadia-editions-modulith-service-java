@@ -1,6 +1,7 @@
 package com.arcadiaeditions.notifications.consumer.repository.jpa;
 
 import com.arcadiaeditions.common.BaseRepositoryIntegrationTest;
+import com.arcadiaeditions.config.TestClock;
 import com.arcadiaeditions.notifications.consumer.domain.*;
 import jakarta.persistence.EntityManager;
 import java.time.*;
@@ -62,7 +63,7 @@ class NotificationRepositoryIntegrationTest extends BaseRepositoryIntegrationTes
     @Test
     void updateTest() {
         var id = 1L;
-        var now = Instant.parse("2026-10-14T10:00:00Z");
+        var now = TestClock.NOW;
         var notification = notificationRepository.findById(id).orElseThrow();
         notification.setNotificationId("");
         notification.setCustomerId("");
@@ -80,6 +81,9 @@ class NotificationRepositoryIntegrationTest extends BaseRepositoryIntegrationTes
         notification.setFailureReason("");
 
         notification = notificationRepository.save(notification);
+        entityManager.flush();
+        entityManager.clear();
+        notification = notificationRepository.findById(id).orElseThrow();
         Assertions.assertEquals("", notification.getNotificationId());
         Assertions.assertEquals("", notification.getCustomerId());
         Assertions.assertEquals("", notification.getOrderId());
