@@ -253,7 +253,7 @@ review: [x] claude-opus PASS (reports/review-S6.md)
 ## S7 orderCancelled by capture failed
 path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment > PaymentVoided > releaseStock > StockReleased
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
-review: [ ]
+review: [/] claude-opus fresh context
 
 - [x] T-33 bounded AFK capturePayment failure branch: CAPTURE_FAILED with failureReason (capture_rejected per data.sql), emit PaymentCaptureFailed; voidPayment from CAPTURE_FAILED, AUTHORIZATION_REQUESTED and FAILED (the other from-states of payments-processing-domain-model.zdl:99)
       done: claude-sonnet sonnet
@@ -261,7 +261,8 @@ review: [ ]
       test data: data.sql ORD-006, ORD-012
       tests: PaymentsProcessingServiceTest
       blocked by: T-30
-- [/] T-34 bounded AFK Flow test orderCancelled by capture failure (pm_capture_fail)
+- [x] T-34 bounded AFK Flow test orderCancelled by capture failure (pm_capture_fail)
+      done: claude-opus opus
       model: place-order-flow.zfl:172-182, place-order-flow.zfl:204-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -315,7 +316,7 @@ review: [x] claude-opus PASS round 2 (reports/review-S9-2.md; round 1 reports/re
       done: claude-sonnet sonnet
       tests: ModularityTest
       fixes: review-S9 SHOULD FIX 3 (ModularityTest.java:35)
-- [ ] T-47 mechanical AFK PlaceOrderFlowTest reads repository state only after the commit: every flow test's state asserts wait (Awaitility untilAsserted) instead of reading once when the terminal event arrives; the class is green 5 runs in a row
+- [/] T-47 mechanical AFK PlaceOrderFlowTest reads repository state only after the commit: every flow test's state asserts wait (Awaitility untilAsserted) instead of reading once when the terminal event arrives; the class is green 5 runs in a row
       tests: PlaceOrderFlowTest
       fixes: review-S4-2 SUITE SHOULD FIX (flaky PlaceOrderFlowTest.java:367-368, same pattern :452)
       blocked by: T-34
