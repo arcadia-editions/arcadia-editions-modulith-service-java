@@ -22,13 +22,19 @@ import com.arcadiaeditions.orders.checkout.core.domain.events.StockUnavailable;
 import com.arcadiaeditions.orders.checkout.core.outbound.jpa.OrderRepository;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
 import com.arcadiaeditions.payments.processing.domain.PaymentStatus;
+import com.arcadiaeditions.payments.processing.domain.event.PaymentFailed;
+import com.arcadiaeditions.payments.processing.domain.event.PaymentRetried;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.modulith.test.EnableScenarios;
 import org.springframework.modulith.test.Scenario;
@@ -52,6 +58,9 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * StockUnavailable is published in the request (test) thread, so {@link ApplicationEvents} records it.
  * End "orderCancelled" by decline: OrderCreated, PaymentDeclined, StockReleased, OrderCancelled to
  * OrderCancelledNotificationSent, place-order-flow.zfl:108-116, 223-260, 262-266.
+ * End "completed" after one retry: PaymentFailed, PaymentRetried, PaymentAuthorized to OrderConfirmationSent,
+ * place-order-flow.zfl:118-140, 262-266. PaymentFailed and PaymentRetried are published in listener threads, which
+ * {@link ApplicationEvents} does not record: {@link PaymentEventsRecorder} counts them.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
@@ -78,6 +87,26 @@ class PlaceOrderFlowTest {
                 "DATASOURCE_URL",
                 () -> "jdbc:postgresql://%s:%d/app".formatted(postgres.getHost(), postgres.getMappedPort(5432)));
     }
+
+    /** Records payment events published in any thread (ApplicationEvents only sees the test thread). */
+    @TestConfiguration
+    static class PaymentEventsRecorder {
+        final Queue<PaymentFailed> paymentFailed = new ConcurrentLinkedQueue<>();
+        final Queue<PaymentRetried> paymentRetried = new ConcurrentLinkedQueue<>();
+
+        @EventListener
+        void on(PaymentFailed event) {
+            paymentFailed.add(event);
+        }
+
+        @EventListener
+        void on(PaymentRetried event) {
+            paymentRetried.add(event);
+        }
+    }
+
+    @Autowired
+    PaymentEventsRecorder paymentEvents;
 
     @Autowired
     WebApplicationContext context;
@@ -330,6 +359,91 @@ class PlaceOrderFlowTest {
                                 assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
                                 assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
                                 assertThat(notification.getRecipient()).isEqualTo("flow.declined@example.com");
+                            });
+                });
+    }
+
+    @Test
+    void completed_paymentRetriedThenAuthorizedToOrderConfirmationSent(Scenario scenario) {
+        // data.sql SKU-002: plenty (avail 20); pm_fail_once is the stand-in provider's fail-first-attempt trigger
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-RETRY",
+              "customerEmail": "flow.retry@example.com",
+              "paymentMethodId": "pm_fail_once",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-002", "quantity": 1, "unitPrice": 59.90 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(OrderConfirmationSent.class)
+                .matchingMappedValue(OrderConfirmationSent::getRecipient, "flow.retry@example.com")
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getSentAt()).isNotNull();
+
+                    assertThat(paymentEvents.paymentFailed.stream()
+                                    .filter(e -> orderId.equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> {
+                                assertThat(e.getAttemptCount()).isEqualTo(1);
+                                assertThat(e.getReason()).isEqualTo("processor_unavailable");
+                            });
+                    assertThat(paymentEvents.paymentRetried.stream()
+                                    .filter(e -> orderId.equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> assertThat(e.getAttemptCount()).isEqualTo(2));
+
+                    assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+                        assertThat(payment.getAttemptCount()).isEqualTo(2);
+                        assertThat(payment.getAuthorizedAt()).isNotNull();
+                        assertThat(payment.getCapturedAt()).isNotNull();
+                    });
+
+                    assertThat(orderRepository.findByOrderId(orderId))
+                            .hasValueSatisfying(order -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED));
+
+                    assertThat(stockReservationRepository.findByOrderId(orderId))
+                            .singleElement()
+                            .satisfies(r -> {
+                                assertThat(r.getSku()).isEqualTo("SKU-002");
+                                assertThat(r.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+                            });
+
+                    assertThat(fulfillmentRepository.findByOrderId(orderId))
+                            .hasValueSatisfying(fulfillment ->
+                                    assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
+
+                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                            .hasValueSatisfying(notification -> {
+                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                assertThat(notification.getRecipient()).isEqualTo("flow.retry@example.com");
                             });
                 });
     }
