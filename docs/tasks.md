@@ -77,13 +77,13 @@ review: [ ]
       test data: data.sql ORD-001
       tests: NotificationsConsumerServiceTest
       blocked by: T-03
-- [ ] T-13 advanced AFK Flow test completed: POST start-checkout to OrderConfirmationSent, Spring Modulith Scenario on PostgreSQL
+- [/] T-13 advanced AFK Flow test completed: POST start-checkout to OrderConfirmationSent, Spring Modulith Scenario on PostgreSQL
       model: place-order-flow.zfl:65-192, place-order-flow.zfl:262-266
       test data: data.sql SKU-001
       tests: PlaceOrderFlowTest
       blocked by: T-06, T-07, T-09, T-10, T-11, T-12
 
-- [ ] T-38 mechanical AFK OrdersCheckoutApiControllerTest#startOrderCheckoutTest sends a valid StartOrderCheckoutInput (SKU-001) and asserts 201 with an ORD id; it passes null since T-06
+- [/] T-38 mechanical AFK OrdersCheckoutApiControllerTest#startOrderCheckoutTest sends a valid StartOrderCheckoutInput (SKU-001) and asserts 201 with an ORD id; it passes null since T-06
       model: orders-checkout-domain-model.zdl:61-81
       test data: data.sql SKU-001
       tests: OrdersCheckoutApiControllerTest
@@ -140,7 +140,8 @@ review: [ ]
       test data: data.sql ORD-018, ORD-017
       tests: OrdersCheckoutServiceTest
       blocked by: T-09
-- [/] T-21 bounded AFK sendOrderCancelledNotification: type ORDER_CANCELLED with the reason, idempotent, emit OrderCancelledNotificationSent
+- [x] T-21 bounded AFK sendOrderCancelledNotification: type ORDER_CANCELLED with the reason, idempotent, emit OrderCancelledNotificationSent
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:252-260, notifications-consumer-domain-model.zdl:78-85, notifications-consumer-domain-model.zdl:96-98, notifications-consumer-domain-model.zdl:123-131
       test data: data.sql ORD-014
       tests: NotificationsConsumerServiceTest
@@ -162,7 +163,8 @@ review: [ ]
       test data: data.sql ORD-008
       tests: PaymentsProcessingServiceTest
       blocked by: T-07
-- [/] T-24 bounded AFK retryPayment retried branch below the attempt limit, emit PaymentRetried; on PaymentRetried, authorizePayment reloads the stored Payment by orderId after retry-delay
+- [x] T-24 bounded AFK retryPayment retried branch below the attempt limit, emit PaymentRetried; on PaymentRetried, authorizePayment reloads the stored Payment by orderId after retry-delay
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:118-140, payments-processing-domain-model.zdl:65-70, payments-processing-domain-model.zdl:85, payments-processing-domain-model.zdl:89-91, payments-processing-domain-model.zdl:133-138
       test data: data.sql ORD-008
       tests: PaymentsProcessingServiceTest
