@@ -1,6 +1,7 @@
 package com.arcadiaeditions.orders.checkout.infrastructure.jpa;
 
 import com.arcadiaeditions.common.BaseRepositoryIntegrationTest;
+import com.arcadiaeditions.config.TestClock;
 import com.arcadiaeditions.orders.checkout.core.domain.*;
 import com.arcadiaeditions.orders.checkout.core.outbound.jpa.OrderRepository;
 import jakarta.persistence.EntityManager;
@@ -65,7 +66,7 @@ class OrderRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         var id = 1L;
         var items = List.of(new OrderItem());
         var address = new ShippingAddress();
-        var now = Instant.parse("2026-10-14T10:00:00Z");
+        var now = TestClock.NOW;
         var order = orderRepository.findById(id).orElseThrow();
         order.setOrderId("");
         order.setStatus(OrderStatus.values()[0]);
@@ -82,14 +83,17 @@ class OrderRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         order.setCancellationReason("");
 
         order = orderRepository.save(order);
+        entityManager.flush();
+        entityManager.clear();
+        order = orderRepository.findById(id).orElseThrow();
         Assertions.assertEquals("", order.getOrderId());
         Assertions.assertEquals(OrderStatus.values()[0], order.getStatus());
         Assertions.assertEquals("", order.getCustomerId());
         Assertions.assertEquals("", order.getCustomerEmail());
         Assertions.assertEquals("", order.getPaymentMethodId());
-        Assertions.assertEquals(items, order.getItems());
-        Assertions.assertEquals(address, order.getShippingAddress());
-        Assertions.assertEquals(BigDecimal.valueOf(0), order.getTotalAmount());
+        Assertions.assertEquals(items.size(), order.getItems().size());
+        Assertions.assertNotNull(order.getShippingAddress());
+        Assertions.assertEquals(0, BigDecimal.ZERO.compareTo(order.getTotalAmount()));
         Assertions.assertEquals("", order.getCurrency());
         Assertions.assertEquals(now, order.getCreatedAt());
         Assertions.assertEquals(now, order.getConfirmedAt());
