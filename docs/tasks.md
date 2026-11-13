@@ -223,7 +223,7 @@ review: [x] claude-opus PASS (reports/review-S5.md)
 ## S6 orderCancelled by fulfillment failed
 path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment > PaymentVoided > releaseStock > StockReleased
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
-review: [/] claude-opus fresh context
+review: [x] claude-opus PASS (reports/review-S6.md)
 
 - [x] T-29 bounded AFK scheduleFulfillment failed branch: Fulfillment FAILED with failureReason, emit FulfillmentFailed
       done: claude-sonnet sonnet
