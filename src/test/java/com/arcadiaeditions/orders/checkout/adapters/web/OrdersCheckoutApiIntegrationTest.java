@@ -84,6 +84,77 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
             .jsonPath("$.totalAmount").isEqualTo(69);
     }
 
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    /**
+    * Test: startOrderCheckout when stock is unavailable (data.sql SKU-004: zero available).
+    * The order is not persisted, StockUnavailable is published (not rolled back), 409 with the unavailable items.
+    */
+    @Test
+    public void testStartOrderCheckout_409_StockUnavailable() {
+        String requestBody = """
+            {
+              "customerId" : "CUST-T15",
+              "customerEmail" : "customer-t15@example.com",
+              "paymentMethodId" : "PM-T15",
+              "currency" : "EUR",
+              "items" : [ {
+                "sku" : "SKU-001",
+                "quantity" : 1,
+                "unitPrice" : 49.99
+              }, {
+                "sku" : "SKU-004",
+                "quantity" : 1,
+                "unitPrice" : 25
+              } ],
+              "shippingAddress" : {
+                "name" : "Buyer",
+                "line1" : "1 Book Lane",
+                "city" : "Madrid",
+                "postalCode" : "28001",
+                "country" : "ES"
+              }
+            }
+        """;
+
+        webTestClient.method(POST).uri("/api/orders/start-checkout")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(requestBody)
+            .exchange()
+            .expectStatus().isEqualTo(409)
+            .expectBody()
+            .jsonPath("$.status").isEqualTo(409)
+            .jsonPath("$.unavailableItems").isArray()
+            .jsonPath("$.unavailableItems.length()").isEqualTo(1)
+            .jsonPath("$.unavailableItems[0].sku").isEqualTo("SKU-004")
+            .jsonPath("$.unavailableItems[0].requestedQuantity").isEqualTo(1)
+            .jsonPath("$.unavailableItems[0].availableQuantity").isEqualTo(0);
+
+        // the order is not persisted
+        Integer orders = jdbcTemplate.queryForObject(
+                "select count(*) from checkout_order where customer_id = 'CUST-T15'", Integer.class);
+        org.junit.jupiter.api.Assertions.assertEquals(0, orders);
+        // no stock reserved
+        Integer sku001 = jdbcTemplate.queryForObject(
+                "select available_quantity from inventory_position where sku = 'SKU-001'", Integer.class);
+        org.junit.jupiter.api.Assertions.assertEquals(9, sku001);
+
+        // the 409 did not mark the transaction rollback-only: StockUnavailable survives the failed request
+        var status = transactionManager.getTransaction(
+                new org.springframework.transaction.support.DefaultTransactionDefinition());
+        org.junit.jupiter.api.Assertions.assertFalse(status.isRollbackOnly(), "transaction marked rollback-only");
+        // and its publication is registered in this (committable) transaction
+        Integer publications = jdbcTemplate.queryForObject(
+                "select count(*) from event_publication where event_type like '%.StockUnavailable'"
+                        + " and serialized_event like '%CUST-T15%'", Integer.class);
+        org.junit.jupiter.api.Assertions.assertTrue(publications >= 1, "StockUnavailable publication registered");
+    }
+
     /**
     * Test: startOrderCheckout for Invalid request.
     */
