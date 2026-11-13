@@ -1,6 +1,7 @@
 package com.arcadiaeditions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.http.HttpMethod.POST;
 
 import com.arcadiaeditions.catalog.inventory.domain.InventoryPosition;
@@ -22,9 +23,11 @@ import com.arcadiaeditions.orders.checkout.core.domain.events.StockUnavailable;
 import com.arcadiaeditions.orders.checkout.core.outbound.jpa.OrderRepository;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
 import com.arcadiaeditions.payments.processing.domain.PaymentStatus;
+import com.arcadiaeditions.payments.processing.domain.event.PaymentCaptureFailed;
 import com.arcadiaeditions.payments.processing.domain.event.PaymentFailed;
 import com.arcadiaeditions.payments.processing.domain.event.PaymentRetried;
 import com.arcadiaeditions.payments.processing.domain.event.PaymentRetryExhausted;
+import com.arcadiaeditions.payments.processing.domain.event.PaymentVoided;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +70,9 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * place-order-flow.zfl:124-130, 223-260, 262-266.
  * End "orderCancelled" by fulfillment failure: OrderConfirmed, FulfillmentFailed, PaymentVoided, StockReleased,
  * OrderCancelled to OrderCancelledNotificationSent, place-order-flow.zfl:160-170, 204-260, 262-266.
+ * End "orderCancelled" by capture failure: FulfillmentScheduled, PaymentCaptureFailed, PaymentVoided, StockReleased,
+ * OrderCancelled to OrderCancelledNotificationSent, place-order-flow.zfl:172-182, 204-260, 262-266. Repository state is
+ * read with Awaitility: the terminal event can arrive before the last listener's transaction is visible.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
@@ -100,6 +106,8 @@ class PlaceOrderFlowTest {
         final Queue<PaymentFailed> paymentFailed = new ConcurrentLinkedQueue<>();
         final Queue<PaymentRetried> paymentRetried = new ConcurrentLinkedQueue<>();
         final Queue<PaymentRetryExhausted> paymentRetryExhausted = new ConcurrentLinkedQueue<>();
+        final Queue<PaymentCaptureFailed> paymentCaptureFailed = new ConcurrentLinkedQueue<>();
+        final Queue<PaymentVoided> paymentVoided = new ConcurrentLinkedQueue<>();
 
         @EventListener
         void on(PaymentFailed event) {
@@ -114,6 +122,16 @@ class PlaceOrderFlowTest {
         @EventListener
         void on(PaymentRetryExhausted event) {
             paymentRetryExhausted.add(event);
+        }
+
+        @EventListener
+        void on(PaymentCaptureFailed event) {
+            paymentCaptureFailed.add(event);
+        }
+
+        @EventListener
+        void on(PaymentVoided event) {
+            paymentVoided.add(event);
         }
     }
 
@@ -654,6 +672,118 @@ class PlaceOrderFlowTest {
                             });
                     assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
                             .isEmpty();
+                });
+    }
+
+    @Test
+    void orderCancelled_paymentCaptureFailedToOrderCancelledNotificationSent(Scenario scenario) {
+        // data.sql SKU-002: plenty (avail 20); pm_capture_fail is the stand-in provider's capture_rejected trigger
+        InventoryPosition before = position("SKU-002");
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-CAPTURE",
+              "customerEmail": "flow.capture@example.com",
+              "paymentMethodId": "pm_capture_fail",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-002", "quantity": 1, "unitPrice": 59.90 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(OrderCancelledNotificationSent.class)
+                .matchingMappedValue(OrderCancelledNotificationSent::getCustomerId, "CUS-FLOW-CAPTURE")
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getReason()).isEqualTo("PAYMENT_VOIDED");
+                    assertThat(event.getRecipient()).isEqualTo("flow.capture@example.com");
+                    assertThat(event.getSentAt()).isNotNull();
+
+                    // CAPTURE_FAILED first (capture_rejected), then voided: one event each
+                    assertThat(paymentEvents.paymentCaptureFailed.stream()
+                                    .filter(e -> orderId.equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> {
+                                assertThat(e.getReason()).isEqualTo("capture_rejected");
+                                assertThat(e.getFailedAt()).isNotNull();
+                            });
+                    assertThat(paymentEvents.paymentVoided.stream()
+                                    .filter(e -> orderId.equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> {
+                                assertThat(e.getProviderReference()).isEqualTo("STANDIN-CAPFAIL-" + orderId);
+                                assertThat(e.getVoidedAt()).isNotNull();
+                            });
+
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        // authorized, capture failed (failedAt), then voided; never captured
+                        assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
+                            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+                            assertThat(payment.getAuthorizedAt()).isNotNull();
+                            assertThat(payment.getFailedAt()).isNotNull();
+                            assertThat(payment.getVoidedAt()).isNotNull();
+                            assertThat(payment.getCapturedAt()).isNull();
+                        });
+
+                        // fulfillment was scheduled; the capture failed after it
+                        assertThat(fulfillmentRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(fulfillment ->
+                                        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
+
+                        // the reservation was CONFIRMED (sold) at OrderConfirmed; releasing it moves sold back to available
+                        assertThat(stockReservationRepository.findByOrderId(orderId))
+                                .singleElement()
+                                .satisfies(r -> {
+                                    assertThat(r.getSku()).isEqualTo("SKU-002");
+                                    assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                                    assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.PAYMENT_VOIDED);
+                                    assertThat(r.getConfirmedAt()).isNotNull();
+                                    assertThat(r.getReleasedAt()).isNotNull();
+                                });
+
+                        InventoryPosition after = position("SKU-002");
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                        assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                        assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                            assertThat(order.getConfirmedAt()).isNotNull();
+                            assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
+                            assertThat(order.getCancelledAt()).isNotNull();
+                        });
+
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                    assertThat(notification.getRecipient()).isEqualTo("flow.capture@example.com");
+                                });
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                                .isEmpty();
+                    });
                 });
     }
 
