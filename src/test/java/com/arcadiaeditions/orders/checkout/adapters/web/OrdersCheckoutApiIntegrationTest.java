@@ -125,7 +125,7 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
     */
     @Test
     public void testGetOrder_200() {
-        var id = "";
+        var id = 1L; // data.sql / Order/1.json: ORD-001
 
         webTestClient.method(GET).uri("/api/orders/{id}", id)
             .accept(MediaType.APPLICATION_JSON)
@@ -142,23 +142,21 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
             .jsonPath("$.paymentMethodId").isNotEmpty()
             .jsonPath("$.items").isNotEmpty()
             .jsonPath("$.items").isArray()
+            .jsonPath("$.orderId").isEqualTo("ORD-001")
+            .jsonPath("$.status").isEqualTo("CONFIRMED")
             .jsonPath("$.items[0].sku").isNotEmpty()
             .jsonPath("$.items[0].quantity").isNotEmpty()
             .jsonPath("$.items[0].unitPrice").isNotEmpty()
             .jsonPath("$.shippingAddress").isNotEmpty()
             .jsonPath("$.shippingAddress.name").isNotEmpty()
             .jsonPath("$.shippingAddress.line1").isNotEmpty()
-            .jsonPath("$.shippingAddress.line2").isNotEmpty()
             .jsonPath("$.shippingAddress.city").isNotEmpty()
-            .jsonPath("$.shippingAddress.region").isNotEmpty()
             .jsonPath("$.shippingAddress.postalCode").isNotEmpty()
             .jsonPath("$.shippingAddress.country").isNotEmpty()
             .jsonPath("$.totalAmount").isNotEmpty()
             .jsonPath("$.currency").isNotEmpty()
             .jsonPath("$.createdAt").isNotEmpty()
-            .jsonPath("$.confirmedAt").isNotEmpty()
-            .jsonPath("$.cancelledAt").isNotEmpty()
-            .jsonPath("$.cancellationReason").isNotEmpty();
+            .jsonPath("$.confirmedAt").isNotEmpty();
     }
 
     /**

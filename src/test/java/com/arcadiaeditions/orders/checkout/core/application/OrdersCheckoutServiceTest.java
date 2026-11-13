@@ -120,8 +120,15 @@ class OrdersCheckoutServiceTest {
 
     @Test
     void getOrderTest() {
-        Long id = null;
+        Long id = 1L; // fixtures: Order/1.json, ORD-001
         var order = ordersCheckoutService.getOrder(id);
         assertTrue(order.isPresent());
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-001", order.get().getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CONFIRMED, order.get().getStatus());
+    }
+
+    @Test
+    void getOrderNotFoundTest() {
+        assertTrue(ordersCheckoutService.getOrder(999999L).isEmpty());
     }
 }

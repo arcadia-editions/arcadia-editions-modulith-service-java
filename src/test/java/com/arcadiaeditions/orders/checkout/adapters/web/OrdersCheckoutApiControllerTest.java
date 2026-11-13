@@ -42,9 +42,10 @@ public class OrdersCheckoutApiControllerTest {
 
     @Test
     public void getOrderTest() {
-        Long id = null;
+        Long id = 1L; // fixtures: Order/1.json, ORD-001
         var response = controller.getOrder(id);
         Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("ORD-001", response.getBody().getOrderId());
     }
 
     // --- Problem details (WebExceptionsTranslator) ---
