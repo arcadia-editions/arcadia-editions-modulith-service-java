@@ -163,8 +163,14 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
                 payment.getCurrency()));
 
         if (!result.captured()) {
-            // TODO T-33: capture failure: CAPTURE_FAILED with failedAt and failureReason, emit PaymentCaptureFailed
-            throw new UnsupportedOperationException("capturePayment failure branch not implemented yet");
+            // capture failed: the authorization is to be voided (PaymentCaptureFailed listener)
+            payment.setStatus(PaymentStatus.CAPTURE_FAILED);
+            payment.setFailedAt(Instant.now(clock));
+            payment.setFailureReason(result.reason());
+            payment = paymentRepository.save(payment);
+            eventPublisher.onPaymentCaptureFailed(
+                    eventsMapper.asPaymentCaptureFailed(payment).setReason(payment.getFailureReason()));
+            return payment;
         }
         payment.setStatus(PaymentStatus.CAPTURED);
         payment.setCapturedAt(Instant.now(clock));
@@ -185,11 +191,6 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
             return payment;
         }
         PaymentTransitions.ensureCanVoidPayment(payment);
-        if (payment.getStatus() != PaymentStatus.AUTHORIZED) {
-            // TODO T-33: void from CAPTURE_FAILED (PaymentCaptureFailed listener)
-            throw new UnsupportedOperationException("voidPayment from " + payment.getStatus() + " not implemented yet");
-        }
-
         var result = paymentProvider.voidAuthorization(new PaymentProvider.VoidRequest(
                 payment.getOrderId(), payment.getProviderReference(), input.getReason()));
         if (!result.voided()) {
