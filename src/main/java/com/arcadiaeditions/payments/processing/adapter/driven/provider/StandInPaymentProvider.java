@@ -37,7 +37,8 @@ public class StandInPaymentProvider implements PaymentProvider {
 
     @Override
     public VoidResult voidAuthorization(VoidRequest request) {
-        throw new UnsupportedOperationException("void not implemented yet (T-30)");
+        // the stand-in always voids
+        return new VoidResult(true, null);
     }
 
     static String providerReference(String orderId, String paymentMethodId) {

@@ -173,20 +173,29 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
 
         log.debug("Request voidPayment: {}", input);
 
-        // TODO CUSTOM_REQUIRED: load the Payment this transition applies to, e.g. by a correlation key in the input
-        Optional<Payment> foundPayment = Optional.empty();
-        var payment = foundPayment
-                .map(existingPayment -> {
-                    PaymentTransitions.ensureCanVoidPayment(existingPayment);
-                    paymentsProcessingServiceMapper.update(existingPayment, input);
-                    existingPayment.setStatus(PaymentStatus.VOIDED);
-                    return existingPayment;
-                })
-                .map(paymentRepository::save)
-                .orElseThrow();
-        // emit events
-        var paymentVoided = eventsMapper.asPaymentVoided(payment);
-        eventPublisher.onPaymentVoided(paymentVoided);
+        // the payment is resolved by orderId (Payment.orderId is unique)
+        var payment = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
+        if (payment.getStatus() == PaymentStatus.VOIDED) {
+            // redelivery: already voided; nothing changes, nothing is emitted
+            log.debug("voidPayment: payment of order {} already VOIDED", input.getOrderId());
+            return payment;
+        }
+        PaymentTransitions.ensureCanVoidPayment(payment);
+        if (payment.getStatus() != PaymentStatus.AUTHORIZED) {
+            // TODO T-33: void from CAPTURE_FAILED (PaymentCaptureFailed listener)
+            throw new UnsupportedOperationException("voidPayment from " + payment.getStatus() + " not implemented yet");
+        }
+
+        var result = paymentProvider.voidAuthorization(new PaymentProvider.VoidRequest(
+                payment.getOrderId(), payment.getProviderReference(), input.getReason()));
+        if (!result.voided()) {
+            throw new IllegalStateException("provider did not void the authorization: " + result.reason());
+        }
+        payment.setStatus(PaymentStatus.VOIDED);
+        payment.setVoidedAt(Instant.now(clock));
+        payment.setFailureReason(input.getReason());
+        payment = paymentRepository.save(payment);
+        eventPublisher.onPaymentVoided(eventsMapper.asPaymentVoided(payment).setReason(input.getReason()));
         return payment;
     }
 }
