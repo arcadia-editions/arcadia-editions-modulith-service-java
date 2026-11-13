@@ -254,9 +254,10 @@ review: [ ]
       tests: PlaceOrderFlowTest
       blocked by: T-32, T-33
 
-- [/] T-42 bounded AFK capturePayment redelivery on a payment already CAPTURE_FAILED or VOIDED is a no-op (return it, no provider call, no event)
+- [x] T-42 bounded AFK capturePayment redelivery on a payment already CAPTURE_FAILED or VOIDED is a no-op (return it, no provider call, no event)
+      done: claude-sonnet sonnet (RED), claude-opus opus (handoff)
       model: place-order-flow.zfl:172-182, payments-processing-domain-model.zdl:93-95
-      test data: data.sql ORD-006, ORD-012
+      test data: data.sql ORD-012, ORD-016
       tests: PaymentsProcessingServiceTest
       fixes: review-S1-2 MODEL NOTE for T-33 (PaymentsProcessingServiceImpl.java:156)
 
