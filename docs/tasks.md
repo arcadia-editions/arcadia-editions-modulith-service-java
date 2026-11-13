@@ -139,7 +139,8 @@ review: [ ]
       test data: data.sql ORD-010, ORD-018
       tests: InventoryServiceTest
       blocked by: T-08
-- [/] T-20 bounded AFK cancelOrder: load by orderId, CREATED or CONFIRMED to CANCELLED with cancellationReason and cancelledAt, idempotent, emit OrderCancelled
+- [x] T-20 bounded AFK cancelOrder: load by orderId, CREATED or CONFIRMED to CANCELLED with cancellationReason and cancelledAt, idempotent, emit OrderCancelled
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:241-250, orders-checkout-domain-model.zdl:86-91, orders-checkout-domain-model.zdl:105-107, orders-checkout-domain-model.zdl:159-167
       test data: data.sql ORD-018, ORD-017
       tests: OrdersCheckoutServiceTest
@@ -206,7 +207,7 @@ path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment > Pa
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-29 bounded AFK scheduleFulfillment failed branch: Fulfillment FAILED with failureReason, emit FulfillmentFailed
+- [/] T-29 bounded AFK scheduleFulfillment failed branch: Fulfillment FAILED with failureReason, emit FulfillmentFailed
       model: place-order-flow.zfl:160-170, fulfillment-shipping-domain-model.zdl:82-84, fulfillment-shipping-domain-model.zdl:99-105
       test data: data.sql ORD-005, ORD-007
       tests: FulfillmentShippingServiceTest
