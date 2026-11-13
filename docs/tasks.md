@@ -272,7 +272,7 @@ review: [ ]
       blocked: out of scope for this iteration (overlay decision "Reservation expiry"); a person reopens it
 
 ## S9 Polish
-review: [/] claude-opus fresh context
+review: [ ] (round 1 PASS with 3 SHOULD FIX, reports/review-S9.md; fixes T-43, T-44, T-45, then re-review)
 
 - [x] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
       done: claude-sonnet sonnet
@@ -292,3 +292,12 @@ review: [/] claude-opus fresh context
       tests: *RepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (TestClock duplication) and NOTE (updateTest asserts the saved instance)
       blocked by: T-39
+- [ ] T-43 mechanical AFK InventoryPositionRepositoryIntegrationTest.updateTest asserts the reloaded entity (flush, clear, findById) and uses TestClock.NOW, as T-40 did for the others
+      tests: InventoryPositionRepositoryIntegrationTest
+      fixes: review-S9 SHOULD FIX 1 (InventoryPositionRepositoryIntegrationTest.java:52-65)
+- [/] T-44 mechanical AFK Tests do not stall on Kafka: Spring Cloud Stream Kafka binding and Modulith event externalization are off in tests (no Kafka container), so no context waits ~60 s on localhost:9092
+      tests: OrderRepositoryIntegrationTest, PlaceOrderFlowTest
+      fixes: review-S9 SHOULD FIX 2 (DockerComposeInitializer.java:34-53); orchestrator decision: switch off in tests rather than start Kafka
+- [/] T-45 bounded AFK ModularityTest detects catalog.inventory and catalog.products as separate modules (as the overlay lists them), so the boundary between them is verified
+      tests: ModularityTest
+      fixes: review-S9 SHOULD FIX 3 (ModularityTest.java:35)
