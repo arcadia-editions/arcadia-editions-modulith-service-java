@@ -356,6 +356,46 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void capturePaymentRedeliveryAlreadyCaptureFailedTest() {
+        // ORD-012: CAPTURE_FAILED; redelivered FulfillmentScheduled is a no-op, unchanged, nothing emitted
+        var before = paymentRepository.findByOrderId("ORD-012").orElseThrow();
+        var failedAt = before.getFailedAt();
+
+        var payment = paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-012"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURE_FAILED);
+        assertThat(payment.getFailedAt()).isEqualTo(failedAt);
+        assertThat(payment.getFailureReason()).isEqualTo("capture_rejected");
+        assertThat(paymentsOf("ORD-012")).isEqualTo(1);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void capturePaymentRedeliveryAlreadyVoidedTest() {
+        // ORD-016: VOIDED; redelivered FulfillmentScheduled is a no-op, unchanged, nothing emitted
+        var voidedAt = paymentRepository.findByOrderId("ORD-016").orElseThrow().getVoidedAt();
+
+        var payment = paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-016"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+        assertThat(payment.getVoidedAt()).isEqualTo(voidedAt);
+        assertThat(paymentsOf("ORD-016")).isEqualTo(1);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void capturePaymentOtherStatesStillThrowTest() {
+        // ORD-002 AUTHORIZATION_REQUESTED, ORD-008 FAILED, ORD-010 DECLINED, ORD-011 RETRY_EXHAUSTED
+        for (var orderId : java.util.List.of("ORD-002", "ORD-008", "ORD-010", "ORD-011")) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                            paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId(orderId)))
+                    .as(orderId)
+                    .isInstanceOf(RuntimeException.class);
+        }
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
     void capturePaymentNotFoundTest() {
         org.assertj.core.api.Assertions.assertThatThrownBy(
                         () -> paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-999")))
