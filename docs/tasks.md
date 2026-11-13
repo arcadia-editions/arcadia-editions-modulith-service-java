@@ -5,7 +5,7 @@ baseline: baseline/place-order-flow-2
 branch: afk/place-order-flow
 
 ## S0 Baseline
-review: [/] claude-opus
+review: [x] claude-opus PASS (reports/review-S0.md)
 
 - [x] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
       done: claude-sonnet sonnet
@@ -257,3 +257,10 @@ review: [ ]
       blocked by: T-12, T-16, T-21
 - [ ] T-37 mechanical AFK ModularityTest: ApplicationModules.of(Application.class).verify() passes
       tests: ModularityTest
+- [ ] T-39 mechanical AFK Integration tests start their own PostgreSQL: DockerComposeInitializer uses local compose (withLocalCompose(true)) and BaseWebTestClientTest enables it, so mvn verify is self-contained from any clone
+      tests: OrdersCheckoutApiIntegrationTest, OrderRepositoryIntegrationTest
+      fixes: review-S0 SHOULD FIX (BaseWebTestClientTest.java:3,14, DockerComposeInitializer.java:44)
+- [ ] T-40 mechanical AFK Repository updateTest asserts what was persisted (flush, clear, findById) and uses TestClock.NOW instead of the hard-coded instant
+      tests: *RepositoryIntegrationTest
+      fixes: review-S0 SHOULD FIX (TestClock duplication) and NOTE (updateTest asserts the saved instance)
+      blocked by: T-39
