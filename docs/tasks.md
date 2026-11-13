@@ -110,7 +110,7 @@ review: [ ]
       test data: data.sql SKU-003, SKU-004
       tests: InventoryServiceTest
       blocked by: T-05
-- [ ] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
+- [/] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
       model: place-order-flow.zfl:82-87, place-order-flow.zfl:194-197, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:126-135
       test data: data.sql SKU-004
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
