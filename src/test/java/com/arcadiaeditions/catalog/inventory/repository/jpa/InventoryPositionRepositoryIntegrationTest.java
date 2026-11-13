@@ -58,6 +58,9 @@ class InventoryPositionRepositoryIntegrationTest extends BaseRepositoryIntegrati
         inventoryPosition.setSoldQuantity(0);
 
         inventoryPosition = inventoryPositionRepository.save(inventoryPosition);
+        entityManager.flush();
+        entityManager.clear();
+        inventoryPosition = inventoryPositionRepository.findById(id).orElseThrow();
         Assertions.assertEquals("", inventoryPosition.getSku());
         Assertions.assertEquals(0, inventoryPosition.getAvailableQuantity());
         Assertions.assertEquals(0, inventoryPosition.getReservedQuantity());
