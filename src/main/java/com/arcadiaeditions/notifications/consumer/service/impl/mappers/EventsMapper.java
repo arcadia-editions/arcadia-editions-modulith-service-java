@@ -11,6 +11,7 @@ public interface EventsMapper {
 
     EventsMapper INSTANCE = Mappers.getMapper(EventsMapper.class);
 
+    @org.mapstruct.Mapping(target = "reason", source = "failureReason")
     com.arcadiaeditions.notifications.consumer.domain.events.NotificationDeliveryFailed asNotificationDeliveryFailed(
             Notification notification);
 

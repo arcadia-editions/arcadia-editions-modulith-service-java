@@ -274,4 +274,60 @@ class NotificationsConsumerServiceTest {
         assertThat(notificationsOf("ORD-006", NotificationType.ORDER_CANCELLED)).hasSize(1);
         assertThat(eventPublisher.getEvents()).hasSize(1);
     }
+
+    private void assertFailed(Notification n, NotificationType type, java.util.List<String> skus) {
+        assertThat(n.getStatus()).isEqualTo(NotificationStatus.FAILED);
+        assertThat(n.getFailedAt()).isEqualTo(TestClock.NOW);
+        assertThat(n.getFailureReason()).isEqualTo("mailbox_unavailable");
+        assertThat(n.getSentAt()).isNull();
+        assertThat(notificationsOf("ORD-006", type)).hasSize(1);
+        var events = eventPublisher.getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(NotificationDeliveryFailed.class);
+        var e = (NotificationDeliveryFailed) events.get(0);
+        assertThat(e.getNotificationId()).isEqualTo(n.getNotificationId());
+        assertThat(e.getOrderId()).isEqualTo("ORD-006");
+        assertThat(e.getCustomerId()).isEqualTo("CUST-006");
+        assertThat(e.getType()).isEqualTo(type);
+        assertThat(e.getChannel()).isEqualTo(NotificationChannel.EMAIL);
+        assertThat(e.getRecipient()).isEqualTo("customer006@fail.invalid");
+        assertThat(e.getReason()).isEqualTo("mailbox_unavailable");
+        assertThat(e.getFailedAt()).isEqualTo(TestClock.NOW);
+        assertThat(e.getSkus() == null ? List.<String>of() : e.getSkus()).containsExactlyElementsOf(skus);
+    }
+
+    @Test
+    void sendOrderConfirmationDeliveryFailedTest() {
+        var n = notificationsConsumerService.sendOrderConfirmation(new SendOrderConfirmationInput()
+                .setOrderId("ORD-006")
+                .setCustomerId("CUST-006")
+                .setCustomerEmail("customer006@fail.invalid"));
+        assertFailed(n, NotificationType.ORDER_CONFIRMATION, List.of());
+    }
+
+    @Test
+    void sendStockUnavailableNotificationDeliveryFailedTest() {
+        var n = notificationsConsumerService.sendStockUnavailableNotification(
+                stockInput("ORD-006", "CUST-006", "customer006@fail.invalid"));
+        assertFailed(n, NotificationType.STOCK_UNAVAILABLE, List.of("SKU-004", "SKU-003"));
+    }
+
+    @Test
+    void sendOrderCancelledNotificationDeliveryFailedTest() {
+        var n = notificationsConsumerService.sendOrderCancelledNotification(
+                cancelledInput("ORD-006", "CUST-006", "customer006@fail.invalid"));
+        assertFailed(n, NotificationType.ORDER_CANCELLED, List.of());
+    }
+
+    /** Redelivery of OrderCancelled for ORD-015 (NOT-004 already FAILED): no-op, no retry, no event. */
+    @Test
+    void sendOrderCancelledNotificationRedeliveryOfFailedTest() {
+        var n = notificationsConsumerService.sendOrderCancelledNotification(
+                cancelledInput("ORD-015", "CUST-015", "customer015@fail.invalid"));
+        assertThat(n.getNotificationId()).isEqualTo("NOT-004");
+        assertThat(n.getStatus()).isEqualTo(NotificationStatus.FAILED);
+        assertThat(n.getFailureReason()).isEqualTo("mailbox_unavailable");
+        assertThat(notificationsOf("ORD-015", NotificationType.ORDER_CANCELLED)).hasSize(1);
+        assertThat(eventPublisher.getEvents()).isEmpty();
+    }
 }

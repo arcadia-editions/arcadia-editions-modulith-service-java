@@ -88,8 +88,7 @@ public class NotificationsConsumerServiceImpl implements NotificationsConsumerSe
                 notification.getBody()));
 
         if (!result.delivered()) {
-            // TODO T-36: FAILED with failedAt and failureReason, emit NotificationDeliveryFailed
-            throw new UnsupportedOperationException("sendOrderConfirmation delivery failure branch not implemented yet");
+            return failDelivery(notification, result.reason());
         }
         notification.setStatus(NotificationStatus.SENT);
         notification.setSentAt(Instant.now(clock));
@@ -138,9 +137,7 @@ public class NotificationsConsumerServiceImpl implements NotificationsConsumerSe
                 notification.getBody()));
 
         if (!result.delivered()) {
-            // TODO T-36: FAILED with failedAt and failureReason, emit NotificationDeliveryFailed
-            throw new UnsupportedOperationException(
-                    "sendStockUnavailableNotification delivery failure branch not implemented yet");
+            return failDelivery(notification, result.reason());
         }
         notification.setStatus(NotificationStatus.SENT);
         notification.setSentAt(Instant.now(clock));
@@ -183,9 +180,7 @@ public class NotificationsConsumerServiceImpl implements NotificationsConsumerSe
                 notification.getBody()));
 
         if (!result.delivered()) {
-            // TODO T-36: FAILED with failedAt and failureReason, emit NotificationDeliveryFailed
-            throw new UnsupportedOperationException(
-                    "sendOrderCancelledNotification delivery failure branch not implemented yet");
+            return failDelivery(notification, result.reason());
         }
         notification.setStatus(NotificationStatus.SENT);
         notification.setSentAt(Instant.now(clock));
@@ -193,6 +188,15 @@ public class NotificationsConsumerServiceImpl implements NotificationsConsumerSe
         // reason is not stored on Notification: it comes from the input
         eventPublisher.onOrderCancelledNotificationSent(
                 eventsMapper.asOrderCancelledNotificationSent(notification).setReason(input.getReason()));
+        return notification;
+    }
+
+    private Notification failDelivery(Notification notification, String reason) {
+        notification.setStatus(NotificationStatus.FAILED);
+        notification.setFailedAt(Instant.now(clock));
+        notification.setFailureReason(reason);
+        notification = notificationRepository.save(notification);
+        eventPublisher.onNotificationDeliveryFailed(eventsMapper.asNotificationDeliveryFailed(notification));
         return notification;
     }
 }
