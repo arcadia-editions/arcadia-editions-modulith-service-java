@@ -3,16 +3,20 @@ package com.arcadiaeditions;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpMethod.POST;
 
+import com.arcadiaeditions.catalog.inventory.domain.InventoryPosition;
 import com.arcadiaeditions.catalog.inventory.domain.ReservationStatus;
 import com.arcadiaeditions.catalog.inventory.domain.StockReservation;
+import com.arcadiaeditions.catalog.inventory.repository.jpa.InventoryPositionRepository;
 import com.arcadiaeditions.catalog.inventory.repository.jpa.StockReservationRepository;
 import com.arcadiaeditions.fulfillment.shipping.FulfillmentRepository;
 import com.arcadiaeditions.fulfillment.shipping.domain.FulfillmentStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationType;
 import com.arcadiaeditions.notifications.consumer.domain.events.OrderConfirmationSent;
+import com.arcadiaeditions.notifications.consumer.domain.events.StockUnavailableNotificationSent;
 import com.arcadiaeditions.notifications.consumer.repository.jpa.NotificationRepository;
 import com.arcadiaeditions.orders.checkout.core.domain.OrderStatus;
+import com.arcadiaeditions.orders.checkout.core.domain.events.StockUnavailable;
 import com.arcadiaeditions.orders.checkout.core.outbound.jpa.OrderRepository;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
 import com.arcadiaeditions.payments.processing.domain.PaymentStatus;
@@ -30,6 +34,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.test.web.servlet.client.MockMvcWebTestClient;
 import org.springframework.web.context.WebApplicationContext;
@@ -39,12 +45,15 @@ import org.testcontainers.containers.wait.strategy.Wait;
 /**
  * PlaceOrderFlow, end "completed": POST start-checkout follows the in-process events
  * (OrderCreated, PaymentAuthorized, OrderConfirmed, FulfillmentScheduled, PaymentCaptured) to OrderConfirmationSent.
- * place-order-flow.zfl:65-192, 262-266. Not @Transactional: the module listeners run after commit.
+ * place-order-flow.zfl:65-192, 262-266. End "stockGone": StockUnavailable to StockUnavailableNotificationSent,
+ * place-order-flow.zfl:82-87, 199-202, 262-266. Not @Transactional: the module listeners run after commit.
+ * StockUnavailable is published in the request (test) thread, so {@link ApplicationEvents} records it.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
 @EnableScenarios
 @TestPropertySource(properties = "arcadia.payments.retry-delay=0")
+@RecordApplicationEvents
 class PlaceOrderFlowTest {
 
     /** Own PostgreSQL on a random port: the project docker-compose binds fixed ports shared with other runs. */
@@ -74,6 +83,12 @@ class PlaceOrderFlowTest {
 
     @Autowired
     StockReservationRepository stockReservationRepository;
+
+    @Autowired
+    InventoryPositionRepository inventoryPositionRepository;
+
+    @Autowired
+    ApplicationEvents applicationEvents;
 
     @Autowired
     PaymentRepository paymentRepository;
@@ -156,5 +171,87 @@ class PlaceOrderFlowTest {
                                 assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
                             });
                 });
+    }
+
+    @Test
+    void stockGone_startCheckoutToStockUnavailableNotificationSent(Scenario scenario) {
+        // data.sql SKU-004: zero available; any quantity is short
+        InventoryPosition before = sku004Position();
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-004",
+              "customerEmail": "flow.stockgone@example.com",
+              "paymentMethodId": "pm_ok",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-004", "quantity": 1, "unitPrice": 79.00 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (Map<?, ?>) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(409)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody())
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(StockUnavailableNotificationSent.class)
+                .matchingMappedValue(StockUnavailableNotificationSent::getCustomerId, "CUS-FLOW-004")
+                .toArriveAndVerify((event, problem) -> {
+                    assertThat((List<?>) problem.get("unavailableItems"))
+                            .singleElement()
+                            .isEqualTo(Map.of("sku", "SKU-004", "requestedQuantity", 1, "availableQuantity", 0));
+
+                    List<StockUnavailable> stockUnavailable = applicationEvents.stream(StockUnavailable.class)
+                            .filter(e -> "CUS-FLOW-004".equals(e.getCustomerId()))
+                            .toList();
+                    assertThat(stockUnavailable).hasSize(1);
+                    String orderId = stockUnavailable.get(0).getOrderId();
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(stockUnavailable.get(0).getCustomerEmail()).isEqualTo("flow.stockgone@example.com");
+
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getSkus()).containsExactly("SKU-004");
+                    assertThat(event.getRecipient()).isEqualTo("flow.stockgone@example.com");
+                    assertThat(event.getSentAt()).isNotNull();
+
+                    assertThat(orderRepository.findByOrderId(orderId)).isEmpty();
+                    assertThat(stockReservationRepository.findByOrderId(orderId)).isEmpty();
+                    assertThat(paymentRepository.findByOrderId(orderId)).isEmpty();
+                    assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
+
+                    InventoryPosition after = sku004Position();
+                    assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                    assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                    assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.STOCK_UNAVAILABLE))
+                            .hasValueSatisfying(notification -> {
+                                assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+                                assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                assertThat(notification.getSkus()).containsExactly("SKU-004");
+                            });
+                });
+    }
+
+    private InventoryPosition sku004Position() {
+        return inventoryPositionRepository.findAll().stream()
+                .filter(p -> "SKU-004".equals(p.getSku()))
+                .findFirst()
+                .orElseThrow();
     }
 }
