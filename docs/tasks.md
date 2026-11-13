@@ -264,7 +264,8 @@ review: [ ]
 ## S9 Polish
 review: [ ]
 
-- [/] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
+- [x] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
+      done: claude-sonnet sonnet
       model: notifications-consumer-domain-model.zdl:88-98, notifications-consumer-domain-model.zdl:134-144
       test data: data.sql ORD-015
       tests: NotificationsConsumerServiceTest
