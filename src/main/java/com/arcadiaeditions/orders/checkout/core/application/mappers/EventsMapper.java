@@ -16,6 +16,7 @@ public interface EventsMapper {
 
     com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmed asOrderConfirmed(Order order);
 
+    @org.mapstruct.Mapping(target = "reason", source = "cancellationReason")
     com.arcadiaeditions.orders.checkout.core.domain.events.OrderCancelled asOrderCancelled(Order order);
 
     com.arcadiaeditions.orders.checkout.core.domain.events.StockUnavailable asStockUnavailable(Order order);
