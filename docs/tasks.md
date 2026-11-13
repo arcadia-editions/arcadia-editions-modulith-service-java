@@ -27,7 +27,7 @@ review: [x] claude-opus PASS (reports/review-S0.md)
 path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult] > OrderCreated > authorizePayment[authorized]
       > PaymentAuthorized > confirmOrder > confirmStockReservation > OrderConfirmed > scheduleFulfillment[FulfillmentScheduled]
       > capturePayment[PaymentCaptured] > sendOrderConfirmation > end completed
-review: [ ]
+review: [/] claude-opus (fresh context)
 
 - [x] T-05 bounded AFK reserveStock: all lines available, one RESERVED reservation per line, available moves to reserved under a write lock, expiresAt = reservedAt + 10 min, StockReservedResult
       done: claude-sonnet sonnet
@@ -77,7 +77,8 @@ review: [ ]
       test data: data.sql ORD-001
       tests: NotificationsConsumerServiceTest
       blocked by: T-03
-- [/] T-13 advanced AFK Flow test completed: POST start-checkout to OrderConfirmationSent, Spring Modulith Scenario on PostgreSQL
+- [x] T-13 advanced AFK Flow test completed: POST start-checkout to OrderConfirmationSent, Spring Modulith Scenario on PostgreSQL
+      done: claude-opus opus
       model: place-order-flow.zfl:65-192, place-order-flow.zfl:262-266
       test data: data.sql SKU-001
       tests: PlaceOrderFlowTest
@@ -102,7 +103,7 @@ review: [ ]
       test data: data.sql SKU-003, SKU-004
       tests: InventoryServiceTest
       blocked by: T-05
-- [ ] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
+- [/] T-15 bounded AFK startOrderCheckout unavailable branch: the order is not persisted, emit StockUnavailable with a generated orderId, answer 409 with the unavailable items
       model: place-order-flow.zfl:82-87, place-order-flow.zfl:194-197, orders-checkout-domain-model.zdl:95-98, orders-checkout-domain-model.zdl:126-135
       test data: data.sql SKU-004
       tests: OrdersCheckoutServiceTest, OrdersCheckoutApiIntegrationTest
@@ -181,7 +182,7 @@ path: PaymentFailed > retryPayment[retry-exhausted] > PaymentRetryExhausted > re
       > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-26 bounded AFK retryPayment retry-exhausted branch at the attempt limit: RETRY_EXHAUSTED, emit PaymentRetryExhausted
+- [/] T-26 bounded AFK retryPayment retry-exhausted branch at the attempt limit: RETRY_EXHAUSTED, emit PaymentRetryExhausted
       model: place-order-flow.zfl:124-130, payments-processing-domain-model.zdl:89-91, payments-processing-domain-model.zdl:141-147
       test data: data.sql ORD-009
       tests: PaymentsProcessingServiceTest
@@ -257,7 +258,7 @@ review: [ ]
       blocked by: T-12, T-16, T-21
 - [ ] T-37 mechanical AFK ModularityTest: ApplicationModules.of(Application.class).verify() passes
       tests: ModularityTest
-- [ ] T-39 mechanical AFK Integration tests start their own PostgreSQL: DockerComposeInitializer uses local compose (withLocalCompose(true)) and BaseWebTestClientTest enables it, so mvn verify is self-contained from any clone
+- [/] T-39 mechanical AFK Integration tests start their own PostgreSQL: DockerComposeInitializer uses local compose (withLocalCompose(true)) and BaseWebTestClientTest enables it, so mvn verify is self-contained from any clone
       tests: OrdersCheckoutApiIntegrationTest, OrderRepositoryIntegrationTest
       fixes: review-S0 SHOULD FIX (BaseWebTestClientTest.java:3,14, DockerComposeInitializer.java:44)
 - [ ] T-40 mechanical AFK Repository updateTest asserts what was persisted (flush, clear, findById) and uses TestClock.NOW instead of the hard-coded instant
