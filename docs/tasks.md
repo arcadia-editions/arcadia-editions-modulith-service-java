@@ -7,7 +7,8 @@ branch: afk/place-order-flow
 ## S0 Baseline
 review: [ ]
 
-- [/] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
+- [x] T-01 mechanical AFK Generated tests that should pass do: repository updateTest asserts stable values, getOrder and updateProduct stubs start from fixtures
+      done: claude-sonnet sonnet
       test data: src/test/resources/data.sql, src/test/resources/data/jpa/Order/1.json, src/test/resources/data/jpa/Product/1.json
       tests: *RepositoryIntegrationTest, OrdersCheckoutServiceTest#getOrderTest, OrdersCheckoutApiControllerTest#getOrderTest, ProductCatalogServiceTest#updateProductTest, OrdersCheckoutApiIntegrationTest#testGetOrder_200
 - [x] T-03 bounded AFK Shared config: injected Clock bean, FlowProperties (arcadia.payments.max-attempts 3, retry-delay), business ids PREFIX-UUID; fixed Clock at the test "now" in the in-memory configs
@@ -81,6 +82,13 @@ review: [ ]
       test data: data.sql SKU-001
       tests: PlaceOrderFlowTest
       blocked by: T-06, T-07, T-09, T-10, T-11, T-12
+
+- [ ] T-38 mechanical AFK OrdersCheckoutApiControllerTest#startOrderCheckoutTest sends a valid StartOrderCheckoutInput (SKU-001) and asserts 201 with an ORD id; it passes null since T-06
+      model: orders-checkout-domain-model.zdl:61-81
+      test data: data.sql SKU-001
+      tests: OrdersCheckoutApiControllerTest
+      fixes: regression of T-06 found by the orchestrator while checking T-01 (NPE on null input)
+      blocked by: T-06
 
 ## S2 stockGone
 path: StartOrderCheckout > startOrderCheckout > reserveStock[StockUnavailableResult] > StockUnavailable
