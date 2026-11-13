@@ -268,7 +268,8 @@ review: [ ]
       test data: data.sql ORD-015
       tests: NotificationsConsumerServiceTest
       blocked by: T-12, T-16, T-21
-- [ ] T-37 mechanical AFK ModularityTest: ApplicationModules.of(Application.class).verify() passes
+- [!] T-37 mechanical AFK ModularityTest: ApplicationModules.of(Application.class).verify() passes
+      blocked: person decision (review-S1: 19 Modulith violations at bff6254, 4 cycles from the generated listener topology, 15 jMolecules layering incl. StandInNotificationSender; verify() cannot pass as written)
       tests: ModularityTest
 - [x] T-39 mechanical AFK Integration tests start their own PostgreSQL: DockerComposeInitializer uses local compose (withLocalCompose(true)) and BaseWebTestClientTest enables it, so mvn verify is self-contained from any clone
       done: claude-sonnet sonnet
