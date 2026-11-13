@@ -198,7 +198,7 @@ review: [ ] (round 1 PASS with 1 SHOULD FIX, reports/review-S4.md; fix T-46, the
 ## S5 orderCancelled by retries exhausted
 path: PaymentFailed > retryPayment[retry-exhausted] > PaymentRetryExhausted > releaseStock > StockReleased > cancelOrder
       > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
-review: [ ]
+review: [/] claude-opus fresh context
 
 - [x] T-26 bounded AFK retryPayment retry-exhausted branch at the attempt limit: RETRY_EXHAUSTED, emit PaymentRetryExhausted
       done: claude-sonnet sonnet
@@ -212,7 +212,8 @@ review: [ ]
       test data: data.sql ORD-011
       tests: InventoryServiceTest
       blocked by: T-19
-- [/] T-28 bounded AFK Flow test orderCancelled by retries exhausted (pm_fail_always)
+- [x] T-28 bounded AFK Flow test orderCancelled by retries exhausted (pm_fail_always)
+      done: claude-opus opus
       model: place-order-flow.zfl:124-130, place-order-flow.zfl:223-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -241,7 +242,7 @@ review: [ ]
       test data: data.sql ORD-016
       tests: InventoryServiceTest
       blocked by: T-19
-- [ ] T-32 bounded AFK Flow test orderCancelled by fulfillment failure (postal 00000)
+- [/] T-32 bounded AFK Flow test orderCancelled by fulfillment failure (postal 00000)
       model: place-order-flow.zfl:160-170, place-order-flow.zfl:204-260, place-order-flow.zfl:262-266
       test data: data.sql SKU-002
       tests: PlaceOrderFlowTest
@@ -280,7 +281,7 @@ review: [ ]
       blocked: out of scope for this iteration (overlay decision "Reservation expiry"); a person reopens it
 
 ## S9 Polish
-review: [/] round 2, claude-opus fresh context (round 1: reports/review-S9.md)
+review: [x] claude-opus PASS round 2 (reports/review-S9-2.md; round 1 reports/review-S9.md)
 
 - [x] T-36 bounded AFK Notification delivery failure: FAILED with failureReason, emit NotificationDeliveryFailed, for the three send commands
       done: claude-sonnet sonnet
