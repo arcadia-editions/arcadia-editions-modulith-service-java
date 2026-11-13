@@ -168,7 +168,7 @@ review: [x] claude-opus PASS (reports/review-S3.md)
 ## S4 payment retried, then completed
 path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[retried] > PaymentRetried > authorizePayment[authorized]
       > PaymentAuthorized > ... > end completed
-review: [ ] (round 1 PASS with 1 SHOULD FIX, reports/review-S4.md; fix T-46, then re-review)
+review: [/] round 2, claude-opus fresh context (round 1: reports/review-S4.md)
 
 - [x] T-23 bounded AFK authorizePayment failed branch: FAILED with attemptCount and failureReason, emit PaymentFailed
       done: claude-sonnet sonnet
@@ -189,7 +189,8 @@ review: [ ] (round 1 PASS with 1 SHOULD FIX, reports/review-S4.md; fix T-46, the
       tests: PlaceOrderFlowTest
       blocked by: T-22, T-24
 
-- [/] T-46 bounded AFK retryPayment redelivery is a no-op: a PaymentFailed redelivered when the payment is no longer FAILED (AUTHORIZED, CAPTURED, VOIDED, RETRY_EXHAUSTED, ...) returns it unchanged and emits nothing
+- [x] T-46 bounded AFK retryPayment redelivery is a no-op: a PaymentFailed redelivered when the payment is no longer FAILED (AUTHORIZED, CAPTURED, VOIDED, RETRY_EXHAUSTED, ...) returns it unchanged and emits nothing
+      done: claude-sonnet sonnet
       model: place-order-flow.zfl:118-130, payments-processing-domain-model.zdl:89-91
       test data: data.sql ORD-003, ORD-009
       tests: PaymentsProcessingServiceTest
