@@ -35,9 +35,26 @@ public class OrdersCheckoutApiControllerTest {
 
     @Test
     public void startOrderCheckoutTest() {
-        StartOrderCheckoutInputDTO reqBody = null;
+        var shipping = new ShippingAddressInputDTO();
+        shipping.setName("Buyer");
+        shipping.setLine1("1 Book Lane");
+        shipping.setCity("Madrid");
+        shipping.setPostalCode("28001");
+        shipping.setCountry("ES");
+        var item = new OrderItemInputDTO();
+        item.setSku("SKU-001"); // data.sql SKU-001
+        item.setQuantity(1);
+        item.setUnitPrice(new BigDecimal("49.99"));
+        StartOrderCheckoutInputDTO reqBody = new StartOrderCheckoutInputDTO();
+        reqBody.setCustomerId("CUST-009");
+        reqBody.setCustomerEmail("buyer@example.com");
+        reqBody.setPaymentMethodId("PM-009");
+        reqBody.setCurrency("EUR");
+        reqBody.setItems(List.of(item));
+        reqBody.setShippingAddress(shipping);
         var response = controller.startOrderCheckout(reqBody);
         Assertions.assertEquals(201, response.getStatusCode().value());
+        Assertions.assertTrue(response.getBody().getOrderId().startsWith("ORD-"));
     }
 
     @Test
