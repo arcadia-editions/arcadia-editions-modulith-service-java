@@ -35,4 +35,8 @@ build/
 .DS_Store
 Thumbs.db
 .zenwave/work/
-.zenwave/handoff/
+.zenwave/handoff/*/*
+!.zenwave/handoff/*/log.md
+!.zenwave/handoff/*/quota.md
+!.zenwave/handoff/*/reports/
+!.zenwave/handoff/*/prompts/
