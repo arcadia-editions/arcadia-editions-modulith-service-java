@@ -1,6 +1,7 @@
 package com.arcadiaeditions.payments.processing.adapter.driven.jpa;
 
 import com.arcadiaeditions.common.BaseRepositoryIntegrationTest;
+import com.arcadiaeditions.config.TestClock;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
 import com.arcadiaeditions.payments.processing.domain.*;
 import jakarta.persistence.EntityManager;
@@ -64,6 +65,7 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void updateTest() {
         var id = 1L;
+        var now = TestClock.NOW;
         var payment = paymentRepository.findById(id).orElseThrow();
         payment.setOrderId("");
         payment.setCustomerId("");
@@ -74,28 +76,31 @@ class PaymentRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         payment.setStatus(PaymentStatus.values()[0]);
         payment.setProviderReference("");
         payment.setAttemptCount(0);
-        payment.setAuthorizedAt(Instant.now());
-        payment.setDeclinedAt(Instant.now());
-        payment.setFailedAt(Instant.now());
-        payment.setCapturedAt(Instant.now());
-        payment.setVoidedAt(Instant.now());
+        payment.setAuthorizedAt(now);
+        payment.setDeclinedAt(now);
+        payment.setFailedAt(now);
+        payment.setCapturedAt(now);
+        payment.setVoidedAt(now);
         payment.setFailureReason("");
 
         payment = paymentRepository.save(payment);
+        entityManager.flush();
+        entityManager.clear();
+        payment = paymentRepository.findById(id).orElseThrow();
         Assertions.assertEquals("", payment.getOrderId());
         Assertions.assertEquals("", payment.getCustomerId());
         Assertions.assertEquals("", payment.getPaymentMethodId());
         Assertions.assertEquals("", payment.getCustomerEmail());
-        Assertions.assertEquals(BigDecimal.valueOf(0), payment.getAmount());
+        Assertions.assertEquals(0, BigDecimal.ZERO.compareTo(payment.getAmount()));
         Assertions.assertEquals("", payment.getCurrency());
         Assertions.assertEquals(PaymentStatus.values()[0], payment.getStatus());
         Assertions.assertEquals("", payment.getProviderReference());
         Assertions.assertEquals(0, payment.getAttemptCount());
-        Assertions.assertEquals(Instant.now(), payment.getAuthorizedAt());
-        Assertions.assertEquals(Instant.now(), payment.getDeclinedAt());
-        Assertions.assertEquals(Instant.now(), payment.getFailedAt());
-        Assertions.assertEquals(Instant.now(), payment.getCapturedAt());
-        Assertions.assertEquals(Instant.now(), payment.getVoidedAt());
+        Assertions.assertEquals(now, payment.getAuthorizedAt());
+        Assertions.assertEquals(now, payment.getDeclinedAt());
+        Assertions.assertEquals(now, payment.getFailedAt());
+        Assertions.assertEquals(now, payment.getCapturedAt());
+        Assertions.assertEquals(now, payment.getVoidedAt());
         Assertions.assertEquals("", payment.getFailureReason());
     }
 

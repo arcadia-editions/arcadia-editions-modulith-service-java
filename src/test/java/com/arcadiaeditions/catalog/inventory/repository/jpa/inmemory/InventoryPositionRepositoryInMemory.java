@@ -7,4 +7,10 @@ import java.time.*;
 import java.util.*;
 
 public class InventoryPositionRepositoryInMemory extends InMemoryJpaRepository<InventoryPosition>
-        implements InventoryPositionRepository {}
+        implements InventoryPositionRepository {
+
+    @Override
+    public Optional<InventoryPosition> findBySkuForUpdate(String sku) {
+        return Optional.ofNullable(findByUniqueField("sku", sku));
+    }
+}

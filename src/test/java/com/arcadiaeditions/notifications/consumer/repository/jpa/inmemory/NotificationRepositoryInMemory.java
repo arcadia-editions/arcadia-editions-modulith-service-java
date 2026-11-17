@@ -7,4 +7,12 @@ import java.time.*;
 import java.util.*;
 
 public class NotificationRepositoryInMemory extends InMemoryJpaRepository<Notification>
-        implements NotificationRepository {}
+        implements NotificationRepository {
+
+    @Override
+    public Optional<Notification> findByOrderIdAndType(String orderId, NotificationType type) {
+        return findByField("orderId", orderId).stream()
+                .filter(notification -> notification.getType() == type)
+                .findFirst();
+    }
+}

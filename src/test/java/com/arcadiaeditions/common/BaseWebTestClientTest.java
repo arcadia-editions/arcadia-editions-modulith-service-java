@@ -1,6 +1,6 @@
 package com.arcadiaeditions.common;
 
-// import com.arcadiaeditions.config.DockerComposeInitializer;
+import com.arcadiaeditions.config.DockerComposeInitializer;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,7 +11,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
-// @DockerComposeInitializer.EnableDockerCompose
+@DockerComposeInitializer.EnableDockerCompose
 @org.springframework.transaction.annotation.Transactional
 public abstract class BaseWebTestClientTest {
 

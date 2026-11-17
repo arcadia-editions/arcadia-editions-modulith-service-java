@@ -18,9 +18,16 @@ import org.springframework.context.annotation.Profile;
 @Profile("in-memory")
 public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
+    public final java.time.Clock clock = com.arcadiaeditions.config.TestClock.FIXED;
+
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
     protected final PaymentsProcessingServiceImpl paymentsProcessingService =
-            new PaymentsProcessingServiceImpl(paymentRepository(), eventPublisher);
+            new PaymentsProcessingServiceImpl(
+                    paymentRepository(),
+                    eventPublisher,
+                    new com.arcadiaeditions.payments.processing.adapter.driven.provider.StandInPaymentProvider(),
+                    clock,
+                    new com.arcadiaeditions.config.FlowProperties());
 
     @Bean
     public <T extends PaymentsProcessingService> T paymentsProcessingService() {

@@ -18,9 +18,15 @@ import org.springframework.context.annotation.Profile;
 @Profile("in-memory")
 public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
+    public final java.time.Clock clock = com.arcadiaeditions.config.TestClock.FIXED;
+
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
     protected final NotificationsConsumerServiceImpl notificationsConsumerService =
-            new NotificationsConsumerServiceImpl(notificationRepository(), eventPublisher);
+            new NotificationsConsumerServiceImpl(
+                    notificationRepository(),
+                    eventPublisher,
+                    new com.arcadiaeditions.notifications.consumer.sender.StandInNotificationSender(),
+                    clock);
 
     @Bean
     public <T extends NotificationsConsumerService> T notificationsConsumerService() {

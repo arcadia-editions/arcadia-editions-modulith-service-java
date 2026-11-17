@@ -2,6 +2,7 @@ package com.arcadiaeditions.catalog.products;
 
 import com.arcadiaeditions.catalog.products.domain.*;
 import com.arcadiaeditions.common.BaseRepositoryIntegrationTest;
+import com.arcadiaeditions.config.TestClock;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.*;
@@ -57,6 +58,7 @@ class ProductRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
     @Test
     void updateTest() {
         var id = 1L;
+        var now = TestClock.NOW;
         var product = productRepository.findById(id).orElseThrow();
         product.setSku("");
         product.setName("");
@@ -65,18 +67,21 @@ class ProductRepositoryIntegrationTest extends BaseRepositoryIntegrationTest {
         product.setCurrency("");
         product.setEditionSize(0);
         product.setTrackingMode(InventoryTrackingMode.values()[0]);
-        product.setLaunchAt(Instant.now());
+        product.setLaunchAt(now);
         product.setStatus(ProductStatus.values()[0]);
 
         product = productRepository.save(product);
+        entityManager.flush();
+        entityManager.clear();
+        product = productRepository.findById(id).orElseThrow();
         Assertions.assertEquals("", product.getSku());
         Assertions.assertEquals("", product.getName());
         Assertions.assertEquals("", product.getDescription());
-        Assertions.assertEquals(BigDecimal.valueOf(0), product.getPrice());
+        Assertions.assertEquals(0, BigDecimal.ZERO.compareTo(product.getPrice()));
         Assertions.assertEquals("", product.getCurrency());
         Assertions.assertEquals(0, product.getEditionSize());
         Assertions.assertEquals(InventoryTrackingMode.values()[0], product.getTrackingMode());
-        Assertions.assertEquals(Instant.now(), product.getLaunchAt());
+        Assertions.assertEquals(now, product.getLaunchAt());
         Assertions.assertEquals(ProductStatus.values()[0], product.getStatus());
     }
 

@@ -1,12 +1,15 @@
 package com.arcadiaeditions.config;
 
 import org.springframework.context.i18n.LocaleContextHolder;
+import java.util.NoSuchElementException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -29,6 +32,20 @@ public class WebExceptionsTranslator extends ResponseEntityExceptionHandler {
                 .getFieldErrors()
                 .forEach(fieldError -> body.setProperty(fieldError.getObjectName() + "." + fieldError.getField(),
                         fieldError.getDefaultMessage()));
+    }
+
+    @ExceptionHandler(NoSuchElementException.class)
+    public ProblemDetail handleNoSuchElement(NoSuchElementException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ProblemDetail handleInvalidStateTransition(IllegalStateException ex) {
+        if (!ex.getClass().getSimpleName().equals("InvalidStateTransitionException")) {
+            logger.error("Internal Error", ex);
+            return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error");
+        }
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @Override

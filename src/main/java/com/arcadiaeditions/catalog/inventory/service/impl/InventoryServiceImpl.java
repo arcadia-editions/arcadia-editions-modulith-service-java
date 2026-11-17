@@ -25,11 +25,16 @@ import org.springframework.transaction.annotation.Transactional;
 @org.jmolecules.architecture.layered.ApplicationLayer
 public class InventoryServiceImpl implements InventoryService {
 
+    private static final Duration RESERVATION_TTL = Duration.ofMinutes(10);
+
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private final InventoryServiceMapper inventoryServiceMapper = InventoryServiceMapper.INSTANCE;
 
     private final StockReservationRepository stockReservationRepository;
+
+    private final InventoryPositionRepository inventoryPositionRepository;
+    private final Clock clock;
 
     private final EventsMapper eventsMapper = EventsMapper.INSTANCE;
     private final EventPublisher eventPublisher;
@@ -37,59 +42,170 @@ public class InventoryServiceImpl implements InventoryService {
     /**
      * Constructor.
      */
-    public InventoryServiceImpl(StockReservationRepository stockReservationRepository, EventPublisher eventPublisher) {
+    public InventoryServiceImpl(
+            StockReservationRepository stockReservationRepository,
+            InventoryPositionRepository inventoryPositionRepository,
+            EventPublisher eventPublisher,
+            Clock clock) {
         this.stockReservationRepository = stockReservationRepository;
+        this.inventoryPositionRepository = inventoryPositionRepository;
         this.eventPublisher = eventPublisher;
+        this.clock = clock;
     }
 
     public ReserveStockResult reserveStock(ReserveStockInput input) {
 
         log.debug("Request reserveStock: {}", input);
 
-        var stockReservation = inventoryServiceMapper.update(new StockReservation(), input);
-        // TODO: implement this method
-        return inventoryServiceMapper.asReserveStockResult(stockReservation);
+        // lock one position per sku, in sku order (stable lock order), summing repeated skus
+        var requested = new java.util.TreeMap<String, Integer>();
+        input.getItems().forEach(item -> requested.merge(item.getSku(), item.getQuantity(), Integer::sum));
+        var positions = new java.util.HashMap<String, InventoryPosition>();
+        var unavailable = new StockUnavailableResult().setOrderId(input.getOrderId());
+        requested.forEach((sku, quantity) -> {
+            var position = inventoryPositionRepository.findBySkuForUpdate(sku);
+            int available = position.map(InventoryPosition::getAvailableQuantity).orElse(0);
+            if (available >= quantity) {
+                positions.put(sku, position.get());
+            } else {
+                unavailable.addUnavailableItems(new StockUnavailableLine()
+                        .setSku(sku)
+                        .setRequestedQuantity(quantity)
+                        .setAvailableQuantity(available));
+            }
+        });
+        if (!unavailable.getUnavailableItems().isEmpty()) {
+            // all or nothing: no reservation, no counter change
+            return new ReserveStockResult().setOutcome(ReserveStockOutcome.UNAVAILABLE).setUnavailable(unavailable);
+        }
+
+        var reservedAt = clock.instant();
+        var expiresAt = reservedAt.plus(RESERVATION_TTL);
+        var reservations = input.getItems().stream()
+                .map(item -> new StockReservation()
+                        .setReservationId(com.arcadiaeditions.common.BusinessIds.newId("RES"))
+                        .setOrderId(input.getOrderId())
+                        .setSku(item.getSku())
+                        .setQuantity(item.getQuantity())
+                        .setStatus(ReservationStatus.RESERVED)
+                        .setReservedAt(reservedAt)
+                        .setExpiresAt(expiresAt))
+                .toList();
+        requested.forEach((sku, quantity) -> {
+            var position = positions.get(sku);
+            position.setAvailableQuantity(position.getAvailableQuantity() - quantity);
+            position.setReservedQuantity(position.getReservedQuantity() + quantity);
+            inventoryPositionRepository.save(position);
+        });
+        var saved = stockReservationRepository.saveAll(reservations);
+
+        var reserved = new StockReservedResult().setOrderId(input.getOrderId()).setExpiresAt(expiresAt);
+        saved.forEach(r -> reserved.addReservations(new StockReservedLine()
+                .setReservationId(r.getReservationId())
+                .setSku(r.getSku())
+                .setQuantity(r.getQuantity())
+                .setReservedAt(r.getReservedAt())));
+        return new ReserveStockResult().setOutcome(ReserveStockOutcome.RESERVED).setReserved(reserved);
     }
 
     public List<StockReservation> releaseStock(ReleaseStockInput input) {
 
         log.debug("Request releaseStock: {}", input);
 
-        // TODO CUSTOM_REQUIRED: load the StockReservation(s) this transition applies to, e.g. by a correlation key in
-        // the input
-        List<StockReservation> stockReservations = List.of();
-        stockReservations.forEach(existingStockReservation -> {
-            StockReservationTransitions.ensureCanReleaseStock(existingStockReservation);
-            inventoryServiceMapper.update(existingStockReservation, input);
-            existingStockReservation.setStatus(ReservationStatus.RELEASED);
+        // only RESERVED or CONFIRMED reservations of the order; already released ones (redelivery) are left alone
+        var releasable = stockReservationRepository.findByOrderId(input.getOrderId()).stream()
+                .filter(r -> r.getStatus() == ReservationStatus.RESERVED || r.getStatus() == ReservationStatus.CONFIRMED)
+                .toList();
+        if (releasable.isEmpty()) {
+            return List.of();
+        }
+
+        var releasedAt = clock.instant();
+        // back to available: RESERVED leaves reserved, CONFIRMED leaves sold
+        var reservedBack = new java.util.TreeMap<String, Integer>();
+        var soldBack = new java.util.TreeMap<String, Integer>();
+        releasable.forEach(reservation -> {
+            StockReservationTransitions.ensureCanReleaseStock(reservation);
+            var counter = reservation.getStatus() == ReservationStatus.CONFIRMED ? soldBack : reservedBack;
+            counter.merge(reservation.getSku(), reservation.getQuantity(), Integer::sum);
+            reservation
+                    .setStatus(ReservationStatus.RELEASED)
+                    .setReleasedAt(releasedAt)
+                    .setReleaseReason(input.getReason());
         });
-        stockReservations = stockReservationRepository.saveAll(stockReservations);
-        // emit events
-        stockReservations.forEach(eventSource -> {
-            var stockReleased = eventsMapper.asStockReleased(eventSource);
-            eventPublisher.onStockReleased(stockReleased);
+        var skus = new java.util.TreeSet<String>();
+        skus.addAll(reservedBack.keySet());
+        skus.addAll(soldBack.keySet());
+        skus.forEach(sku -> {
+            var position = inventoryPositionRepository
+                    .findBySkuForUpdate(sku)
+                    .orElseThrow(() -> new IllegalStateException("No inventory position for sku " + sku));
+            int fromReserved = reservedBack.getOrDefault(sku, 0);
+            int fromSold = soldBack.getOrDefault(sku, 0);
+            position.setAvailableQuantity(position.getAvailableQuantity() + fromReserved + fromSold);
+            position.setReservedQuantity(position.getReservedQuantity() - fromReserved);
+            position.setSoldQuantity(position.getSoldQuantity() - fromSold);
+            inventoryPositionRepository.save(position);
         });
-        return stockReservations;
+
+        var saved = stockReservationRepository.saveAll(releasable);
+
+        var event = new StockReleased()
+                .setOrderId(input.getOrderId())
+                .setReason(input.getReason())
+                .setReleasedAt(releasedAt)
+                .setItems(saved.stream()
+                        .map(r -> new StockReleasedItem()
+                                .setReservationId(r.getReservationId())
+                                .setSku(r.getSku())
+                                .setQuantity(r.getQuantity()))
+                        .toList());
+        eventPublisher.onStockReleased(event);
+        return saved;
     }
 
     public List<StockReservation> confirmStockReservation(ConfirmStockReservationInput input) {
 
         log.debug("Request confirmStockReservation: {}", input);
 
-        // TODO CUSTOM_REQUIRED: load the StockReservation(s) this transition applies to, e.g. by a correlation key in
-        // the input
-        List<StockReservation> stockReservations = List.of();
-        stockReservations.forEach(existingStockReservation -> {
-            StockReservationTransitions.ensureCanConfirmStockReservation(existingStockReservation);
-            inventoryServiceMapper.update(existingStockReservation, input);
-            existingStockReservation.setStatus(ReservationStatus.CONFIRMED);
+        // only the RESERVED reservations of the order; already confirmed ones (redelivery) are left alone
+        var reserved = stockReservationRepository.findByOrderId(input.getOrderId()).stream()
+                .filter(r -> r.getStatus() == ReservationStatus.RESERVED)
+                .toList();
+        if (reserved.isEmpty()) {
+            return List.of();
+        }
+
+        var confirmedAt = clock.instant();
+        reserved.forEach(reservation -> {
+            StockReservationTransitions.ensureCanConfirmStockReservation(reservation);
+            reservation.setStatus(ReservationStatus.CONFIRMED).setConfirmedAt(confirmedAt);
         });
-        stockReservations = stockReservationRepository.saveAll(stockReservations);
-        // emit events
-        stockReservations.forEach(eventSource -> {
-            var stockReservationConfirmed = eventsMapper.asStockReservationConfirmed(eventSource);
-            eventPublisher.onStockReservationConfirmed(stockReservationConfirmed);
+
+        // reserved moves to sold, one locked position per sku in sku order
+        var quantities = new java.util.TreeMap<String, Integer>();
+        reserved.forEach(r -> quantities.merge(r.getSku(), r.getQuantity(), Integer::sum));
+        quantities.forEach((sku, quantity) -> {
+            var position = inventoryPositionRepository
+                    .findBySkuForUpdate(sku)
+                    .orElseThrow(() -> new IllegalStateException("No inventory position for sku " + sku));
+            position.setReservedQuantity(position.getReservedQuantity() - quantity);
+            position.setSoldQuantity(position.getSoldQuantity() + quantity);
+            inventoryPositionRepository.save(position);
         });
-        return stockReservations;
+
+        var saved = stockReservationRepository.saveAll(reserved);
+
+        var event = new StockReservationConfirmed()
+                .setOrderId(input.getOrderId())
+                .setConfirmedAt(confirmedAt)
+                .setItems(saved.stream()
+                        .map(r -> new StockReservationConfirmedItem()
+                                .setReservationId(r.getReservationId())
+                                .setSku(r.getSku())
+                                .setQuantity(r.getQuantity()))
+                        .toList());
+        eventPublisher.onStockReservationConfirmed(event);
+        return saved;
     }
 }
