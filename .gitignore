@@ -40,3 +40,4 @@ Thumbs.db
 !.zenwave/handoff/*/quota.md
 !.zenwave/handoff/*/reports/
 !.zenwave/handoff/*/prompts/
+.zenwave/handoff/
