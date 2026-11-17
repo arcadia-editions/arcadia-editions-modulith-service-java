@@ -26,4 +26,10 @@ public class OrdersCheckoutEventsListener {
     public void onOrderCreated(com.arcadiaeditions.orders.checkout.core.domain.events.OrderCreated event) {
         paymentsProcessingService.authorizePayment(mapper.asAuthorizePaymentInput(event));
     }
+
+    @ApplicationModuleListener
+    public void onOrderConfirmationRejected(
+            com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmationRejected event) {
+        paymentsProcessingService.voidPayment(mapper.asVoidPaymentInput(event));
+    }
 }

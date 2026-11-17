@@ -14,6 +14,8 @@ public interface EventPublisher {
 
     void onStockUnavailable(StockUnavailable event);
 
+    void onOrderConfirmationRejected(OrderConfirmationRejected event);
+
     void onOrderConfirmed(OrderConfirmed event);
 
     void onOrderCancelled(OrderCancelled event);

@@ -14,4 +14,8 @@ public interface OrdersCheckoutEventsListenerMapper {
     /** Add {@code @Mapping} here when MapStruct cannot infer the conversion. */
     com.arcadiaeditions.payments.processing.application.port.driving.dto.AuthorizePaymentInput asAuthorizePaymentInput(
             com.arcadiaeditions.orders.checkout.core.domain.events.OrderCreated event);
+
+    /** Add {@code @Mapping} here when MapStruct cannot infer the conversion. */
+    com.arcadiaeditions.payments.processing.application.port.driving.dto.VoidPaymentInput asVoidPaymentInput(
+            com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmationRejected event);
 }

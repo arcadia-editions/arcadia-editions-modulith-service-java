@@ -37,4 +37,9 @@ public class PaymentsProcessingEventsListener {
     public void onPaymentVoided(com.arcadiaeditions.payments.processing.domain.event.PaymentVoided event) {
         inventoryService.releaseStock(mapper.asReleaseStockInput(event));
     }
+
+    @ApplicationModuleListener
+    public void onPaymentVoidFailed(com.arcadiaeditions.payments.processing.domain.event.PaymentVoidFailed event) {
+        inventoryService.releaseStock(mapper.asReleaseStockInput(event));
+    }
 }

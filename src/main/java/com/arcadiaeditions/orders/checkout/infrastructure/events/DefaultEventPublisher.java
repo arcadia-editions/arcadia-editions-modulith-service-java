@@ -32,6 +32,10 @@ public class DefaultEventPublisher implements EventPublisher {
         applicationEventPublisher.publishEvent(event);
     }
 
+    public void onOrderConfirmationRejected(OrderConfirmationRejected event) {
+        applicationEventPublisher.publishEvent(event);
+    }
+
     public void onOrderConfirmed(OrderConfirmed event) {
         applicationEventPublisher.publishEvent(event);
     }

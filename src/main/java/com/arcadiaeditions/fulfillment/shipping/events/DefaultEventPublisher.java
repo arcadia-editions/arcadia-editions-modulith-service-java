@@ -26,4 +26,8 @@ public class DefaultEventPublisher implements EventPublisher {
     public void onFulfillmentFailed(FulfillmentFailed event) {
         applicationEventPublisher.publishEvent(event);
     }
+
+    public void onFulfillmentCancelled(FulfillmentCancelled event) {
+        applicationEventPublisher.publishEvent(event);
+    }
 }

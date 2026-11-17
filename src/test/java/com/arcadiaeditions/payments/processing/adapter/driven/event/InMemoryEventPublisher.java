@@ -45,4 +45,8 @@ public class InMemoryEventPublisher implements EventPublisher {
     public void onPaymentVoided(PaymentVoided event) {
         events.add(event);
     }
+
+    public void onPaymentVoidFailed(PaymentVoidFailed event) {
+        events.add(event);
+    }
 }

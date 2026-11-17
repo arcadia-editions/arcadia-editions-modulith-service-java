@@ -13,5 +13,6 @@ public enum PaymentStatus {
     CAPTURED,
     CAPTURE_FAILED,
     VOIDED,
+    VOID_FAILED,
     ;
 }

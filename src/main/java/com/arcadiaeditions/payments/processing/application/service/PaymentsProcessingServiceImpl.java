@@ -187,7 +187,12 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         return payment;
     }
 
-    public Payment voidPayment(VoidPaymentInput input) {
+    // the ZDL makes voidPayment return Payment? (0.10.x): the body below is the baseline behavior
+    public Optional<Payment> voidPayment(VoidPaymentInput input) {
+        return Optional.ofNullable(voidPaymentBaseline(input));
+    }
+
+    private Payment voidPaymentBaseline(VoidPaymentInput input) {
 
         log.debug("Request voidPayment: {}", input);
 
@@ -210,5 +215,15 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         payment = paymentRepository.save(payment);
         eventPublisher.onPaymentVoided(eventsMapper.asPaymentVoided(payment).setReason(input.getReason()));
         return payment;
+    }
+
+    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (PaymentRetried still reaches authorizePayment until then)
+    public Payment reauthorizePayment(ReauthorizePaymentInput input) {
+        throw new UnsupportedOperationException("reauthorizePayment: " + input.getOrderId());
+    }
+
+    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md
+    public GetPaymentStatusResult getPaymentStatus(GetPaymentStatusInput input) {
+        throw new UnsupportedOperationException("getPaymentStatus: " + input.getOrderId());
     }
 }

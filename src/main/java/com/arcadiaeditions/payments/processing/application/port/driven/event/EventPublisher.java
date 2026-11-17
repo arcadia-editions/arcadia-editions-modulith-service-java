@@ -21,4 +21,6 @@ public interface EventPublisher {
     void onPaymentCaptured(PaymentCaptured event);
 
     void onPaymentVoided(PaymentVoided event);
+
+    void onPaymentVoidFailed(PaymentVoidFailed event);
 }

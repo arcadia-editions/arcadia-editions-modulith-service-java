@@ -10,6 +10,10 @@ public final class FulfillmentTransitions {
         require("markReadyToShip", entity, FulfillmentStatus.SCHEDULED);
     }
 
+    public static void ensureCanCancelFulfillment(Fulfillment entity) {
+        require("cancelFulfillment", entity, FulfillmentStatus.SCHEDULED, FulfillmentStatus.READY_TO_SHIP);
+    }
+
     private static void require(String command, Fulfillment entity, FulfillmentStatus... allowed) {
         var current = entity.getStatus();
         for (var state : allowed) {

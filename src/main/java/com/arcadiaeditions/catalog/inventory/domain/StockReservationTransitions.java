@@ -10,6 +10,10 @@ public final class StockReservationTransitions {
         require("releaseStock", entity, ReservationStatus.RESERVED, ReservationStatus.CONFIRMED);
     }
 
+    public static void ensureCanExpireReservation(StockReservation entity) {
+        require("expireReservation", entity, ReservationStatus.RESERVED);
+    }
+
     public static void ensureCanConfirmStockReservation(StockReservation entity) {
         require("confirmStockReservation", entity, ReservationStatus.RESERVED);
     }

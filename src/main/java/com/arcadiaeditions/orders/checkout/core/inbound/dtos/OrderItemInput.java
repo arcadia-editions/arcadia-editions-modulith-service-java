@@ -21,6 +21,7 @@ public class OrderItemInput implements Serializable {
     private Integer quantity;
 
     @NotNull
+    @Min(0)
     private BigDecimal unitPrice;
 
     public String getSku() {

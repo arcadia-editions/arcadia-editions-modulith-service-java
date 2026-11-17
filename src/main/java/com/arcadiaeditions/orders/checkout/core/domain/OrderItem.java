@@ -27,6 +27,7 @@ public class OrderItem implements Serializable {
     private Integer quantity;
 
     @NotNull
+    @Min(0)
     @Column(name = "unit_price", nullable = false)
     private BigDecimal unitPrice;
 

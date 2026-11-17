@@ -8,5 +8,6 @@ public enum FulfillmentStatus {
     SCHEDULED,
     READY_TO_SHIP,
     FAILED,
+    CANCELLED,
     ;
 }

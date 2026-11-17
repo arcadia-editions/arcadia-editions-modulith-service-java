@@ -14,10 +14,20 @@ public interface FulfillmentShippingServiceMapper {
     FulfillmentShippingServiceMapper INSTANCE = Mappers.getMapper(FulfillmentShippingServiceMapper.class);
 
     // input mappings
+    // CancelFulfillmentInputnull-Fulfillment cancelFulfillment
+    Fulfillment asFulfillment(CancelFulfillmentInput input);
+
+    @Mapping(target = "id", ignore = true)
+    Fulfillment update(@MappingTarget Fulfillment entity, CancelFulfillmentInput input);
     // ScheduleFulfillmentInputnull-Fulfillment scheduleFulfillment
     Fulfillment asFulfillment(ScheduleFulfillmentInput input);
 
     @Mapping(target = "id", ignore = true)
     Fulfillment update(@MappingTarget Fulfillment entity, ScheduleFulfillmentInput input);
+    // RecordPaymentCapturedInputnull-Fulfillment recordPaymentCaptured
+    Fulfillment asFulfillment(RecordPaymentCapturedInput input);
+
+    @Mapping(target = "id", ignore = true)
+    Fulfillment update(@MappingTarget Fulfillment entity, RecordPaymentCapturedInput input);
     // output mappings
 }

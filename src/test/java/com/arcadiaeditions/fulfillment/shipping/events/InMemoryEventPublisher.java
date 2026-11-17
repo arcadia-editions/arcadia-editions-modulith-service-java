@@ -25,4 +25,8 @@ public class InMemoryEventPublisher implements EventPublisher {
     public void onFulfillmentFailed(FulfillmentFailed event) {
         events.add(event);
     }
+
+    public void onFulfillmentCancelled(FulfillmentCancelled event) {
+        events.add(event);
+    }
 }

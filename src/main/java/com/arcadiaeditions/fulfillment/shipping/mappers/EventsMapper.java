@@ -21,4 +21,8 @@ public interface EventsMapper {
 
     com.arcadiaeditions.fulfillment.shipping.domain.events.FulfillmentReadyToShip asFulfillmentReadyToShip(
             Fulfillment fulfillment);
+
+    @org.mapstruct.Mapping(target = "reason", source = "cancellationReason")
+    com.arcadiaeditions.fulfillment.shipping.domain.events.FulfillmentCancelled asFulfillmentCancelled(
+            Fulfillment fulfillment);
 }

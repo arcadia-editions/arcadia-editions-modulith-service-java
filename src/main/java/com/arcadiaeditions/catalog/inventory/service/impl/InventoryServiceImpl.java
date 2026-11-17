@@ -164,7 +164,18 @@ public class InventoryServiceImpl implements InventoryService {
         return saved;
     }
 
-    public List<StockReservation> confirmStockReservation(ConfirmStockReservationInput input) {
+    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (NOT_HELD outcome); the body below is the baseline behavior
+    public ConfirmStockReservationResult confirmStockReservation(ConfirmStockReservationInput input) {
+        var confirmed = confirmReservedStock(input);
+        var confirmedAt = confirmed.isEmpty() ? null : confirmed.get(0).getConfirmedAt();
+        return new ConfirmStockReservationResult()
+                .setOutcome(ConfirmStockReservationOutcome.CONFIRMED)
+                .setConfirmed(new StockReservationConfirmedResult()
+                        .setOrderId(input.getOrderId())
+                        .setConfirmedAt(confirmedAt));
+    }
+
+    private List<StockReservation> confirmReservedStock(ConfirmStockReservationInput input) {
 
         log.debug("Request confirmStockReservation: {}", input);
 
@@ -207,5 +218,10 @@ public class InventoryServiceImpl implements InventoryService {
                         .toList());
         eventPublisher.onStockReservationConfirmed(event);
         return saved;
+    }
+
+    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md
+    public List<StockReservation> expireReservation(ExpireReservationInput input) {
+        throw new UnsupportedOperationException("expireReservation: " + input.getOrderId());
     }
 }

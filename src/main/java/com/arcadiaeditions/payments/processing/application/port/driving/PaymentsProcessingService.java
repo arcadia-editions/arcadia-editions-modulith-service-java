@@ -15,31 +15,51 @@ import java.util.*;
 public interface PaymentsProcessingService {
 
     /**
-     *
+     * Creation only: no-op when a Payment for orderId exists, in any state (supersedes P-01 D).
+     * Saves AUTHORIZATION_REQUESTED (attemptCount = 1) and commits before calling the processor,
+     * so getPaymentStatus sees a call in flight; then saves the outcome.
+     * The processor call times out after 30 seconds and becomes PaymentFailed.
      *
      * With Events: [[PaymentAuthorized, PaymentDeclined, PaymentFailed]].
      *
      */
     public Payment authorizePayment(AuthorizePaymentInput input);
     /**
+     * No-op unless FAILED and input.attemptCount == attemptCount. Increments attemptCount and commits
+     * before calling the processor. The processor call times out after 30 seconds and becomes PaymentFailed.
      *
+     * With Events: [[PaymentAuthorized, PaymentDeclined, PaymentFailed]].
+     *
+     */
+    public Payment reauthorizePayment(ReauthorizePaymentInput input);
+    /**
+     * No-op unless FAILED and input.attemptCount == attemptCount. Never increments attemptCount.
+     * At most 3 attempts in all (authorize + reauthorize); backoff before the next attempt: 5 seconds
+     * before attempt 2, 15 seconds before attempt 3. RETRY_EXHAUSTED at the limit.
      *
      * With Events: [[PaymentRetried, PaymentRetryExhausted]].
      *
      */
     public Payment retryPayment(RetryPaymentInput input);
     /**
-     *
+     * No-op, no event, when CAPTURED, CAPTURE_FAILED or VOIDED (redelivery).
      *
      * With Events: [[PaymentCaptured, PaymentCaptureFailed]].
      *
      */
     public Payment capturePayment(CapturePaymentInput input);
     /**
+     * FulfillmentFailed and PaymentCaptureFailed void after a failure downstream;
+     * OrderConfirmationRejected voids an authorization that arrived after expiry or cancellation.
+     * No-op, no event, when there is no Payment or it is not AUTHORIZED or CAPTURE_FAILED (redelivery).
      *
-     *
-     * With Events: [PaymentVoided].
+     * With Events: [[PaymentVoided, PaymentVoidFailed]].
      *
      */
-    public Payment voidPayment(VoidPaymentInput input);
+    public Optional<Payment> voidPayment(VoidPaymentInput input);
+    /**
+     * Read only, for the reservation timer. STARTED for any existing Payment.
+     *
+     */
+    public GetPaymentStatusResult getPaymentStatus(GetPaymentStatusInput input);
 }

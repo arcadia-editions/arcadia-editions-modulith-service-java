@@ -246,8 +246,7 @@ class InventoryServiceTest {
         var result = inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-003"));
 
         var now = context.clock.instant();
-        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
-        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.CONFIRMED, result.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(ConfirmStockReservationOutcome.CONFIRMED, result.getOutcome());
         var saved = stockReservationRepository.findAll().stream()
                 .filter(r -> "ORD-003".equals(r.getOrderId()))
                 .toList();
@@ -284,7 +283,7 @@ class InventoryServiceTest {
 
         var result = inventoryService.confirmStockReservation(input);
 
-        org.junit.jupiter.api.Assertions.assertTrue(result.isEmpty());
+        org.junit.jupiter.api.Assertions.assertEquals(ConfirmStockReservationOutcome.CONFIRMED, result.getOutcome());
         org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
         assertPosition("SKU-002", 20, 6);
     }

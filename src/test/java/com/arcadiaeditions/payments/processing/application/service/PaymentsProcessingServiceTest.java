@@ -418,7 +418,7 @@ class PaymentsProcessingServiceTest {
     void voidPaymentTest() {
         // ORD-007: fulfillment failed, Payment still AUTHORIZED -> VOIDED through the provider, one PaymentVoided
         var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-007").setReason("carrier_unavailable"));
+                new VoidPaymentInput().setOrderId("ORD-007").setReason("carrier_unavailable")).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
         assertThat(payment.getVoidedAt()).isEqualTo(TestClock.NOW);
@@ -465,7 +465,7 @@ class PaymentsProcessingServiceTest {
     void voidPaymentFromCaptureFailedTest() {
         // ORD-012: CAPTURE_FAILED, void pending -> VOIDED, one PaymentVoided
         var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-012").setReason("capture_rejected"));
+                new VoidPaymentInput().setOrderId("ORD-012").setReason("capture_rejected")).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
         assertThat(payment.getVoidedAt()).isEqualTo(TestClock.NOW);
@@ -481,7 +481,7 @@ class PaymentsProcessingServiceTest {
     @Test
     void voidPaymentFromAuthorizationRequestedTest() {
         var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-002").setReason("x"));
+                new VoidPaymentInput().setOrderId("ORD-002").setReason("x")).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
         assertThat(context.eventPublisher().getEvents()).hasSize(1);
@@ -491,7 +491,7 @@ class PaymentsProcessingServiceTest {
     @Test
     void voidPaymentFromFailedTest() {
         var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-008").setReason("x"));
+                new VoidPaymentInput().setOrderId("ORD-008").setReason("x")).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
         assertThat(context.eventPublisher().getEvents()).hasSize(1);
@@ -502,7 +502,7 @@ class PaymentsProcessingServiceTest {
     void voidPaymentAlreadyVoidedTest() {
         // ORD-016: already VOIDED; redelivery is a no-op, nothing changes, nothing emitted
         var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-016").setReason("carrier_unavailable"));
+                new VoidPaymentInput().setOrderId("ORD-016").setReason("carrier_unavailable")).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
         assertThat(payment.getVoidedAt()).isEqualTo(Instant.parse("2026-10-14T09:50:56Z"));

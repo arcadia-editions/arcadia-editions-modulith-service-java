@@ -21,7 +21,7 @@
 		<openApiApiPackage>${basePackage}.adapters.web</openApiApiPackage>
 		<openApiModelPackage>${basePackage}.adapters.web.model</openApiModelPackage>
 
-		<arcadia-models.version>0.9.0</arcadia-models.version>
+		<arcadia-models.version>0.10.1</arcadia-models.version>
 
 		<spring-boot.version>${project.parent.version}</spring-boot.version>
 		<spring-cloud.version>2025.1.0</spring-cloud.version>

@@ -25,4 +25,9 @@ public interface PaymentsProcessingEventsListenerMapper {
     @org.mapstruct.Mapping(target = "reason", constant = "PAYMENT_VOIDED")
     com.arcadiaeditions.catalog.inventory.service.dtos.ReleaseStockInput asReleaseStockInput(
             com.arcadiaeditions.payments.processing.domain.event.PaymentVoided event);
+
+    /** Release reason fixed by the event type, not the void failure reason. */
+    @org.mapstruct.Mapping(target = "reason", constant = "PAYMENT_VOID_FAILED")
+    com.arcadiaeditions.catalog.inventory.service.dtos.ReleaseStockInput asReleaseStockInput(
+            com.arcadiaeditions.payments.processing.domain.event.PaymentVoidFailed event);
 }

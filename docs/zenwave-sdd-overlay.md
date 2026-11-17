@@ -23,17 +23,20 @@ this one: `../arcadia-editions-architecture` (flows) and `../arcadia-editions-mo
 | Model gap proposals | `docs/proposals/` |
 | Test data and scenario matrix | `src/test/resources/data.sql` (header: scenario and coverage matrices, chains `ORD-001`..`ORD-020` with stock `SKU-001`..`SKU-004`, assumptions incl. the stand-in trigger values `pm_*` / postal `00000` / `@fail.invalid`, the fixed test "now" `2026-10-14T10:00:00Z` read by tests through a fixed `Clock`) and `src/test/resources/data/jpa/<Entity>/<n>.json` |
 | Generation script | `zenwave-scripts.zw` |
+| Protected files | root `package-info.java` (regenerates with the wrong displayName); every `*Repository.java` and its in-memory twin (custom finders); `OrdersCheckoutApiController` (409 handler, P-02); `JMoleculesArchitectureTest`, `ModularityTest`, `DockerComposeInitializer`, `BaseWebTestClientTest`, `data.sql` and fixtures (hand-written) |
 
 **`zenwave-scripts.zw` reads the models from a packaged artifact** (`@import(...)` and `classpath:/...`):
 
-- artifact: `com.arcadiaeditions.modulith.application.arcadia-editions-modulith:service-all:0.9.0` (GitHub Packages,
-  `https://maven.pkg.github.com/arcadia-editions/arcadia-editions-architecture`; pom property `arcadia-models.version`),
+- artifact and version: the `@import(...)` line of `zenwave-scripts.zw` (source of truth; `pom.xml`
+  `arcadia-models.version` must match), from GitHub Packages (
+  `https://maven.pkg.github.com/arcadia-editions/arcadia-editions-architecture`),
   folder `com/arcadiaeditions/modulith/application/arcadia-editions-modulith/`;
 - extract the models when their repository is not cloned:
 
   ```bash
   P=com/arcadiaeditions/modulith/application/arcadia-editions-modulith
-  JAR=~/.m2/repository/$P/service-all/0.9.0/service-all-0.9.0.jar
+  V=$(grep -o 'service-all:[^")]*' zenwave-scripts.zw | head -1 | cut -d: -f2)
+  JAR=~/.m2/repository/$P/service-all/$V/service-all-$V.jar
   mkdir -p target/models && unzip -o -q -j "$JAR" "$P/*.zdl" "$P/*.yml" -d target/models
   ```
 
@@ -74,22 +77,21 @@ this one: `../arcadia-editions-architecture` (flows) and `../arcadia-editions-mo
 ```bash
 # JDK and tools: Java 25 and Maven on PATH (SDKMAN), JBang with the `zw` alias, Docker
 export JAVA_HOME=~/.sdkman/candidates/java/current
-# regenerate after a model change (the person runs it; never the orchestrator or its workers):
-# run each plugin block of zenwave-scripts.zw from the IDE play button (hover it for the `jbang zw -p <Plugin> ...`
-# command). Never --force unless you mean to overwrite generated-once files; check `git diff` afterwards.
+# regenerate after a model change: a HITL step, by the person or assisted by zenwave-regenerate (scratch worktree,
+# --force there, merge only what the change adds; never the Protected files). Never the orchestrator or its workers.
+# The 8 plugin blocks of zenwave-scripts.zw (`jbang zw -f -p <Plugin> ...`, the IDE play button shows each command)
 # compile, and collect MapStruct warnings
 mkdir -p target && mvn -q -DskipTests clean compile 2>&1 | tee target/compile.log
 # focused tests of a task (the implementer runs only these)
 mvn -q test -Dtest='<TestClass>'
 # full suite with integration tests and containers (once per slice review)
-# about 2.5 minutes (136 s, 2026-11-12); needs Docker (Testcontainers starts the docker-compose PostgreSQL).
+# about 2.5 to 5.5 minutes (136 s 2026-11-12, 316 s 2026-11-17); needs Docker (Testcontainers starts the docker-compose PostgreSQL).
 # Surefire failures stop the build before the integration tests: add -Dmaven.test.failure.ignore=true to see both.
 mvn -q verify
-# known failing at the baseline (generated stubs), each fixed by a board task:
-#   *RepositoryIntegrationTest.updateTest, OrdersCheckoutServiceTest/OrdersCheckoutApiControllerTest getOrderTest,
-#   ProductCatalogServiceTest.updateProductTest, OrdersCheckoutApiIntegrationTest.testGetOrder_200 -> T-01;
-#   OrdersCheckoutApiIntegrationTest.testGetOrder_400 -> T-04;
-#   OrdersCheckoutApiIntegrationTest.testStartOrderCheckout_201 -> T-06
+# known failing at the baseline (2026-11-17, models 0.10.1), each fixed by a board task:
+#   PaymentsProcessingServiceTest.voidPaymentFromFailedTest, .voidPaymentFromAuthorizationRequestedTest: assert the old
+#   void from FAILED / AUTHORIZATION_REQUESTED; 0.10.x narrows voidPayment to [AUTHORIZED, CAPTURE_FAILED], anything
+#   else a no-op -> the voidPayment task of the board
 # lint the models
 bash .zenwave/bin/lint-zdl.sh --strict ../arcadia-editions-modulith-api
 # export the Hibernate DDL (JPA)

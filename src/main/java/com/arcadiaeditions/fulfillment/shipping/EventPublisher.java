@@ -10,4 +10,6 @@ public interface EventPublisher {
     void onFulfillmentReadyToShip(FulfillmentReadyToShip event);
 
     void onFulfillmentFailed(FulfillmentFailed event);
+
+    void onFulfillmentCancelled(FulfillmentCancelled event);
 }

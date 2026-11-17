@@ -28,4 +28,8 @@ public interface EventsMapper {
 
     @org.mapstruct.Mapping(target = "reason", source = "failureReason")
     com.arcadiaeditions.payments.processing.domain.event.PaymentFailed asPaymentFailed(Payment payment);
+
+    @org.mapstruct.Mapping(target = "reason", source = "failureReason")
+    @org.mapstruct.Mapping(target = "failedAt", source = "voidFailedAt")
+    com.arcadiaeditions.payments.processing.domain.event.PaymentVoidFailed asPaymentVoidFailed(Payment payment);
 }

@@ -6,6 +6,14 @@ public final class PaymentTransitions {
 
     private PaymentTransitions() {}
 
+    public static void ensureCanAuthorizePayment(Payment entity) {
+        require("authorizePayment", entity, PaymentStatus.AUTHORIZATION_REQUESTED);
+    }
+
+    public static void ensureCanReauthorizePayment(Payment entity) {
+        require("reauthorizePayment", entity, PaymentStatus.FAILED);
+    }
+
     public static void ensureCanRetryPayment(Payment entity) {
         require("retryPayment", entity, PaymentStatus.FAILED);
     }
@@ -15,13 +23,7 @@ public final class PaymentTransitions {
     }
 
     public static void ensureCanVoidPayment(Payment entity) {
-        require(
-                "voidPayment",
-                entity,
-                PaymentStatus.AUTHORIZED,
-                PaymentStatus.AUTHORIZATION_REQUESTED,
-                PaymentStatus.FAILED,
-                PaymentStatus.CAPTURE_FAILED);
+        require("voidPayment", entity, PaymentStatus.AUTHORIZED, PaymentStatus.CAPTURE_FAILED);
     }
 
     private static void require(String command, Payment entity, PaymentStatus... allowed) {

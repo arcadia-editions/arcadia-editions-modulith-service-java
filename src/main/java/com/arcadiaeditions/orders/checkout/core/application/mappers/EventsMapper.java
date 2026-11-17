@@ -20,4 +20,10 @@ public interface EventsMapper {
     com.arcadiaeditions.orders.checkout.core.domain.events.OrderCancelled asOrderCancelled(Order order);
 
     com.arcadiaeditions.orders.checkout.core.domain.events.StockUnavailable asStockUnavailable(Order order);
+
+    /** reason and rejectedAt come from the command, not from the Order. */
+    @org.mapstruct.Mapping(target = "reason", ignore = true)
+    @org.mapstruct.Mapping(target = "rejectedAt", ignore = true)
+    com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmationRejected asOrderConfirmationRejected(
+            Order order);
 }

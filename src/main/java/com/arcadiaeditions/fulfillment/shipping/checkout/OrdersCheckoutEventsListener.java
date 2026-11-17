@@ -25,4 +25,9 @@ public class OrdersCheckoutEventsListener {
     public void onOrderConfirmed(com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmed event) {
         fulfillmentShippingService.scheduleFulfillment(mapper.asScheduleFulfillmentInput(event));
     }
+
+    @ApplicationModuleListener
+    public void onOrderCancelled(com.arcadiaeditions.orders.checkout.core.domain.events.OrderCancelled event) {
+        fulfillmentShippingService.cancelFulfillment(mapper.asCancelFulfillmentInput(event));
+    }
 }

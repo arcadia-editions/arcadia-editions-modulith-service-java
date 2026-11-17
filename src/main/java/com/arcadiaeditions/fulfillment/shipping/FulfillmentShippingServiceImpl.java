@@ -109,4 +109,14 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
         eventPublisher.onFulfillmentReadyToShip(fulfillmentReadyToShip);
         return fulfillment;
     }
+
+    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (no-op until then)
+    public Optional<Fulfillment> recordPaymentCaptured(RecordPaymentCapturedInput input) {
+        return Optional.empty();
+    }
+
+    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (no-op until then)
+    public Optional<Fulfillment> cancelFulfillment(CancelFulfillmentInput input) {
+        return Optional.empty();
+    }
 }

@@ -14,6 +14,11 @@ public interface InventoryServiceMapper {
     InventoryServiceMapper INSTANCE = Mappers.getMapper(InventoryServiceMapper.class);
 
     // input mappings
+    // ExpireReservationInputnull-StockReservation expireReservation
+    StockReservation asStockReservation(ExpireReservationInput input);
+
+    @Mapping(target = "id", ignore = true)
+    StockReservation update(@MappingTarget StockReservation entity, ExpireReservationInput input);
     // ReserveStockInputnull-StockReservation reserveStock
     StockReservation asStockReservation(ReserveStockInput input);
 
@@ -30,6 +35,8 @@ public interface InventoryServiceMapper {
     @Mapping(target = "id", ignore = true)
     StockReservation update(@MappingTarget StockReservation entity, ReleaseStockInput input);
     // output mappings
+    // StockReservation-ConfirmStockReservationResult confirmStockReservation
+    ConfirmStockReservationResult asConfirmStockReservationResult(StockReservation entity);
     // StockReservation-ReserveStockResult reserveStock
     ReserveStockResult asReserveStockResult(StockReservation entity);
 }

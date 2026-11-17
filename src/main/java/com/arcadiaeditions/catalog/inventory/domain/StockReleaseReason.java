@@ -8,6 +8,7 @@ public enum StockReleaseReason {
     PAYMENT_DECLINED,
     PAYMENT_RETRY_EXHAUSTED,
     PAYMENT_VOIDED,
+    PAYMENT_VOID_FAILED,
     RESERVATION_EXPIRED,
     ;
 }

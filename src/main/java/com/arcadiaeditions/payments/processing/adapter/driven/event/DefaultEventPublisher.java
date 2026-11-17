@@ -47,4 +47,8 @@ public class DefaultEventPublisher implements EventPublisher {
     public void onPaymentVoided(PaymentVoided event) {
         applicationEventPublisher.publishEvent(event);
     }
+
+    public void onPaymentVoidFailed(PaymentVoidFailed event) {
+        applicationEventPublisher.publishEvent(event);
+    }
 }

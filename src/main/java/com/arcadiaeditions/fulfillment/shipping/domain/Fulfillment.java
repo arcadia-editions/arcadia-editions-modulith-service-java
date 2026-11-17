@@ -75,6 +75,18 @@ public class Fulfillment implements Serializable {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    /**
+     * Set from PaymentCaptured; markReadyToShip requires it.
+     */
+    @Column(name = "payment_captured_at")
+    private Instant paymentCapturedAt;
+
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
+    @Column(name = "cancellation_reason")
+    private String cancellationReason;
+
     public Long getId() {
         return id;
     }
@@ -198,6 +210,33 @@ public class Fulfillment implements Serializable {
 
     public Fulfillment setFailureReason(String failureReason) {
         this.failureReason = failureReason;
+        return this;
+    }
+
+    public Instant getPaymentCapturedAt() {
+        return paymentCapturedAt;
+    }
+
+    public Fulfillment setPaymentCapturedAt(Instant paymentCapturedAt) {
+        this.paymentCapturedAt = paymentCapturedAt;
+        return this;
+    }
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public Fulfillment setCancelledAt(Instant cancelledAt) {
+        this.cancelledAt = cancelledAt;
+        return this;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public Fulfillment setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
         return this;
     }
 

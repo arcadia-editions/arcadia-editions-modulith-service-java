@@ -30,6 +30,10 @@ public class InMemoryEventPublisher implements EventPublisher {
         events.add(event);
     }
 
+    public void onOrderConfirmationRejected(OrderConfirmationRejected event) {
+        events.add(event);
+    }
+
     public void onOrderConfirmed(OrderConfirmed event) {
         events.add(event);
     }
