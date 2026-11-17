@@ -1,9 +1,0 @@
-You are the reviewer of slice S9 (Polish) of the board .zenwave/work/integration/docs/tasks.md. Work in .zenwave/work/review-S9, a read-only checkout at f017bb9.
-Follow the skill zenwave-review-slice: .zenwave/work/review-S9/.claude/skills/zenwave-review-slice/SKILL.md.
-Range: the slice's tasks were merged interleaved with other slices. Judge the S9 merges, each as <merge>^1..<merge>: T-36 = 7717d4f, T-37 = f017bb9, T-39 = 389ccdb, T-40 = 452f61f. Other merges are out of scope except where they change this slice's code paths.
-Tasks of the slice were implemented by: claude-sonnet (T-36, T-39, T-40), claude-opus (T-37). You are a fresh opus context. Judge the code, not their reports.
-Models (absolute paths): ZFL ~/workspace/arcadia-editions/arcadia-editions-architecture/business-flows/place-order-flow.zfl; ZDL and OpenAPI ~/workspace/arcadia-editions/arcadia-editions-modulith-api/.
-Decisions already taken by the person (not findings): P-02 decided A WITHOUT a contract change (docs/proposals/P-02.md): the 409 with unavailableItems is implemented while orders-checkout-openapi.yml still declares only 201/400; T-37 decided: ModularityTest runs without cycle detection and without jMolecules layering (cycles come from the generated listener topology).
-Run the full suite once: JAVA_HOME=~/.sdkman/candidates/java/current mvn -q verify -Dmaven.test.failure.ignore=true. Every IT starts its own Testcontainers PostgreSQL on a random port: do not start or stop containers by hand, no DATASOURCE_URL override. The suite must be green for PASS. Another review runs its own suite in parallel in another clone; that is expected.
-Standards to check: AGENTS.md, the project rules of docs/zenwave-sdd-overlay.md, the conventions of the code next to each change.
-Change nothing. Write your report, in the shape of the skill, to .zenwave/handoff/place-order-flow/reports/review-S9.md, and end your final message with it.
