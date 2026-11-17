@@ -1,0 +1,29 @@
+{
+    "id": 1201,
+    "version": 0,
+    "orderId": "ORD-026",
+    "status": "CANCELLED",
+    "customerId": "CUST-026",
+    "customerEmail": "customer026@example.com",
+    "paymentMethodId": "pm_void_fail",
+    "items": [
+        {
+            "sku": "SKU-002",
+            "quantity": 1,
+            "unitPrice": 59.9
+        }
+    ],
+    "shippingAddress": {
+        "name": "Arcadia Customer",
+        "line1": "1 Book Lane",
+        "city": "Madrid",
+        "postalCode": "00000",
+        "country": "ES"
+    },
+    "totalAmount": 59.9,
+    "currency": "EUR",
+    "createdAt": "2026-10-14T09:50:26Z",
+    "confirmedAt": "2026-10-14T09:50:36Z",
+    "cancelledAt": "2026-10-14T09:51:16Z",
+    "cancellationReason": "PAYMENT_VOID_FAILED"
+}

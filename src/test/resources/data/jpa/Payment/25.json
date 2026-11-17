@@ -1,0 +1,16 @@
+{
+    "id": 1201,
+    "version": 0,
+    "orderId": "ORD-026",
+    "customerId": "CUST-026",
+    "paymentMethodId": "pm_void_fail",
+    "customerEmail": "customer026@example.com",
+    "amount": 59.9,
+    "currency": "EUR",
+    "status": "VOID_FAILED",
+    "providerReference": "STANDIN-ORD-026",
+    "attemptCount": 1,
+    "authorizedAt": "2026-10-14T09:50:31Z",
+    "voidFailedAt": "2026-10-14T09:51:01Z",
+    "failureReason": "carrier_unavailable"
+}

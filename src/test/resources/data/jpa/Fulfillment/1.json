@@ -18,5 +18,6 @@
             "quantity": 1
         }
     ],
-    "scheduledAt": "2026-09-26T13:06:00Z"
+    "scheduledAt": "2026-09-26T13:06:00Z",
+    "paymentCapturedAt": "2026-09-26T13:06:35Z"
 }

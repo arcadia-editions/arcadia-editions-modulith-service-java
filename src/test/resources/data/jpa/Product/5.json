@@ -1,0 +1,13 @@
+{
+    "id": 201,
+    "version": 0,
+    "sku": "SKU-005",
+    "name": "Arcadia Anniversary Edition",
+    "description": "Numbered edition",
+    "price": 45.0,
+    "currency": "EUR",
+    "editionSize": 10,
+    "trackingMode": "QUANTITY",
+    "launchAt": "2026-09-26T10:00:00Z",
+    "status": "PUBLISHED"
+}

@@ -21,7 +21,7 @@ this one: `../arcadia-editions-architecture` (flows) and `../arcadia-editions-mo
 | Domain summary | `docs/domain.md` |
 | Board of the flow in progress | `docs/tasks.md` (archived boards in `docs/tasks/`) |
 | Model gap proposals | `docs/proposals/` |
-| Test data and scenario matrix | `src/test/resources/data.sql` (header: scenario and coverage matrices, chains `ORD-001`..`ORD-020` with stock `SKU-001`..`SKU-004`, assumptions incl. the stand-in trigger values `pm_*` / postal `00000` / `@fail.invalid`, the fixed test "now" `2026-10-14T10:00:00Z` read by tests through a fixed `Clock`) and `src/test/resources/data/jpa/<Entity>/<n>.json` |
+| Test data and scenario matrix | `src/test/resources/data.sql` (header: scenario and coverage matrices, chains `ORD-001`..`ORD-028` with stock `SKU-001`..`SKU-005`, assumptions incl. the stand-in trigger values `pm_*` / postal `00000` / `@fail.invalid`, the fixed test "now" `2026-10-14T10:00:00Z` read by tests through a fixed `Clock`) and `src/test/resources/data/jpa/<Entity>/<n>.json` |
 | Generation script | `zenwave-scripts.zw` |
 | Protected files | root `package-info.java` (regenerates with the wrong displayName); every `*Repository.java` and its in-memory twin (custom finders); `OrdersCheckoutApiController` (409 handler, P-02); `JMoleculesArchitectureTest`, `ModularityTest`, `DockerComposeInitializer`, `BaseWebTestClientTest`, `data.sql` and fixtures (hand-written) |
 
