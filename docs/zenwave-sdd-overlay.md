@@ -88,7 +88,7 @@ mvn -q test -Dtest='<TestClass>'
 # about 2.5 to 5.5 minutes (136 s 2026-11-12, 316 s 2026-11-17); needs Docker (Testcontainers starts the docker-compose PostgreSQL).
 # Surefire failures stop the build before the integration tests: add -Dmaven.test.failure.ignore=true to see both.
 mvn -q verify
-# known failing at the baseline (2026-11-17, models 0.10.1; unchanged with 0.10.2 2026-11-18), each fixed by a board task:
+# known failing at the baseline (2026-11-17, models 0.10.1; unchanged with 0.10.3 2026-11-18), each fixed by a board task:
 #   PaymentsProcessingServiceTest.voidPaymentFromFailedTest, .voidPaymentFromAuthorizationRequestedTest: assert the old
 #   void from FAILED / AUTHORIZATION_REQUESTED; 0.10.x narrows voidPayment to [AUTHORIZED, CAPTURE_FAILED], anything
 #   else a no-op -> the voidPayment task of the board

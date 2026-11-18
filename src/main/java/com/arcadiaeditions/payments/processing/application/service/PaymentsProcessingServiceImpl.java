@@ -118,7 +118,12 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         return payment;
     }
 
-    public Payment retryPayment(RetryPaymentInput input) {
+    // the ZDL makes retryPayment return Payment? (0.10.3, P-12 A): the body below is the baseline behavior
+    public Optional<Payment> retryPayment(RetryPaymentInput input) {
+        return Optional.ofNullable(retryPaymentBaseline(input));
+    }
+
+    private Payment retryPaymentBaseline(RetryPaymentInput input) {
 
         log.debug("Request retryPayment: {}", input);
 
@@ -218,7 +223,7 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
     }
 
     // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (PaymentRetried still reaches authorizePayment until then)
-    public Payment reauthorizePayment(ReauthorizePaymentInput input) {
+    public Optional<Payment> reauthorizePayment(ReauthorizePaymentInput input) {
         throw new UnsupportedOperationException("reauthorizePayment: " + input.getOrderId());
     }
 

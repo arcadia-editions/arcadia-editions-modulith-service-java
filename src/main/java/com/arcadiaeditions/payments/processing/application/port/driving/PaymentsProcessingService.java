@@ -25,22 +25,24 @@ public interface PaymentsProcessingService {
      */
     public Payment authorizePayment(AuthorizePaymentInput input);
     /**
-     * No-op unless FAILED and input.attemptCount == attemptCount. Increments attemptCount and commits
-     * before calling the processor. The processor call times out after 30 seconds and becomes PaymentFailed.
+     * No-op, no event, when there is no Payment (P-12 A), or unless FAILED and input.attemptCount == attemptCount. Saves AUTHORIZATION_REQUESTED with
+     * attemptCount + 1 and commits before calling the processor, as authorizePayment (P-11 A); then saves the outcome.
+     * The processor call times out after 30 seconds and becomes PaymentFailed.
      *
      * With Events: [[PaymentAuthorized, PaymentDeclined, PaymentFailed]].
      *
      */
-    public Payment reauthorizePayment(ReauthorizePaymentInput input);
+    public Optional<Payment> reauthorizePayment(ReauthorizePaymentInput input);
     /**
-     * No-op unless FAILED and input.attemptCount == attemptCount. Never increments attemptCount.
+     * No-op, no event, when there is no Payment (P-12 A), or unless FAILED and input.attemptCount == attemptCount.
+     * Never increments attemptCount.
      * At most 3 attempts in all (authorize + reauthorize); backoff before the next attempt: 5 seconds
      * before attempt 2, 15 seconds before attempt 3. RETRY_EXHAUSTED at the limit.
      *
      * With Events: [[PaymentRetried, PaymentRetryExhausted]].
      *
      */
-    public Payment retryPayment(RetryPaymentInput input);
+    public Optional<Payment> retryPayment(RetryPaymentInput input);
     /**
      * No-op, no event, when CAPTURED, CAPTURE_FAILED or VOIDED (redelivery).
      *

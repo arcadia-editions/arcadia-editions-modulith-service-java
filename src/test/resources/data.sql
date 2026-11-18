@@ -1,5 +1,5 @@
 -- Scenario test data. Regenerate with $zenwave-test-scenarios (specs/001-place-order-flow, G-FT-05).
--- DDL exported 2026-11-17 (models 0.10.1) to target/ddl/schema.sql; models 0.10.2: enum columns hold the ZDL enum id (ReservationStatus RESERVED(1)...),
+-- DDL exported 2026-11-17 (models 0.10.1) to target/ddl/schema.sql; models 0.10.2+: enum columns hold the ZDL enum id (ReservationStatus RESERVED(1)...),
 -- the JSON mirrors and this header use the enum names. Fixed test 'now' (fixed Clock): 2026-10-14T10:00:00Z.
 -- JSON mirrors: src/test/resources/data/jpa/<Entity>/<k>.json, k = row position, id = 1 + (k-1)*50.
 --
