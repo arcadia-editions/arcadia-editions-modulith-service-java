@@ -43,7 +43,7 @@ public class Fulfillment implements Serializable {
 
     @NotNull
     @Column(name = "status", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = FulfillmentStatus.FulfillmentStatusConverter.class)
     private FulfillmentStatus status = FulfillmentStatus.SCHEDULED;
 
     @NotNull

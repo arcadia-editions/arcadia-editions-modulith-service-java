@@ -35,7 +35,7 @@ public class Order implements Serializable {
 
     @NotNull
     @Column(name = "status", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = OrderStatus.OrderStatusConverter.class)
     private OrderStatus status = OrderStatus.CREATED;
 
     /**

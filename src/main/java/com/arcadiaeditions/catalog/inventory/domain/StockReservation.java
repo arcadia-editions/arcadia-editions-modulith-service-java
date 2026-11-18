@@ -51,7 +51,7 @@ public class StockReservation implements Serializable {
 
     @NotNull
     @Column(name = "status", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ReservationStatus.ReservationStatusConverter.class)
     private ReservationStatus status = ReservationStatus.RESERVED;
 
     @NotNull
@@ -69,7 +69,7 @@ public class StockReservation implements Serializable {
     private Instant releasedAt;
 
     @Column(name = "release_reason")
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = StockReleaseReason.StockReleaseReasonConverter.class)
     private StockReleaseReason releaseReason;
 
     public Long getId() {

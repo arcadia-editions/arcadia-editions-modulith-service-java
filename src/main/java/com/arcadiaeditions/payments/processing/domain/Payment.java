@@ -58,7 +58,7 @@ public class Payment implements Serializable {
 
     @NotNull
     @Column(name = "status", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PaymentStatus.PaymentStatusConverter.class)
     private PaymentStatus status = PaymentStatus.AUTHORIZATION_REQUESTED;
 
     @Column(name = "provider_reference")

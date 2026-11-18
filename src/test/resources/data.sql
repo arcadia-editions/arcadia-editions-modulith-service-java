@@ -1,5 +1,6 @@
 -- Scenario test data. Regenerate with $zenwave-test-scenarios (specs/001-place-order-flow, G-FT-05).
--- DDL exported 2026-11-17 (models 0.10.1) to target/ddl/schema.sql. Fixed test 'now' (fixed Clock): 2026-10-14T10:00:00Z.
+-- DDL exported 2026-11-17 (models 0.10.1) to target/ddl/schema.sql; models 0.10.2: enum columns hold the ZDL enum id (ReservationStatus RESERVED(1)...),
+-- the JSON mirrors and this header use the enum names. Fixed test 'now' (fixed Clock): 2026-10-14T10:00:00Z.
 -- JSON mirrors: src/test/resources/data/jpa/<Entity>/<k>.json, k = row position, id = 1 + (k-1)*50.
 --
 -- SCENARIO MATRIX: chain | business ids | state per aggregate (order/reservations/payment/fulfillment/notification) | used by
@@ -77,15 +78,15 @@
 
 -- Catalog products
 INSERT INTO product (id, version, sku, name, description, price, currency, edition_size, tracking_mode, launch_at, status)
-VALUES (nextval('product_seq'), 0, 'SKU-001', 'Arcadia First Edition', 'Numbered first edition', 49.99, 'EUR', 10, 'QUANTITY', '2026-09-26T10:00:00Z', 'PUBLISHED');
+VALUES (nextval('product_seq'), 0, 'SKU-001', 'Arcadia First Edition', 'Numbered first edition', 49.99, 'EUR', 10, 1, '2026-09-26T10:00:00Z', 2);
 INSERT INTO product (id, version, sku, name, description, price, currency, edition_size, tracking_mode, launch_at, status)
-VALUES (nextval('product_seq'), 0, 'SKU-002', 'Arcadia Second Edition', 'Numbered edition', 59.90, 'EUR', 50, 'QUANTITY', '2026-09-26T10:00:00Z', 'PUBLISHED');
+VALUES (nextval('product_seq'), 0, 'SKU-002', 'Arcadia Second Edition', 'Numbered edition', 59.90, 'EUR', 50, 1, '2026-09-26T10:00:00Z', 2);
 INSERT INTO product (id, version, sku, name, description, price, currency, edition_size, tracking_mode, launch_at, status)
-VALUES (nextval('product_seq'), 0, 'SKU-003', 'Arcadia Collector Edition', 'Numbered edition', 39.50, 'EUR', 20, 'QUANTITY', '2026-09-26T10:00:00Z', 'PUBLISHED');
+VALUES (nextval('product_seq'), 0, 'SKU-003', 'Arcadia Collector Edition', 'Numbered edition', 39.50, 'EUR', 20, 1, '2026-09-26T10:00:00Z', 2);
 INSERT INTO product (id, version, sku, name, description, price, currency, edition_size, tracking_mode, launch_at, status)
-VALUES (nextval('product_seq'), 0, 'SKU-004', 'Arcadia Sold-Out Edition', 'Numbered edition', 79.00, 'EUR', 5, 'QUANTITY', '2026-09-26T10:00:00Z', 'PUBLISHED');
+VALUES (nextval('product_seq'), 0, 'SKU-004', 'Arcadia Sold-Out Edition', 'Numbered edition', 79.00, 'EUR', 5, 1, '2026-09-26T10:00:00Z', 2);
 INSERT INTO product (id, version, sku, name, description, price, currency, edition_size, tracking_mode, launch_at, status)
-VALUES (nextval('product_seq'), 0, 'SKU-005', 'Arcadia Anniversary Edition', 'Numbered edition', 45.00, 'EUR', 10, 'QUANTITY', '2026-09-26T10:00:00Z', 'PUBLISHED');
+VALUES (nextval('product_seq'), 0, 'SKU-005', 'Arcadia Anniversary Edition', 'Numbered edition', 45.00, 'EUR', 10, 1, '2026-09-26T10:00:00Z', 2);
 
 -- Catalog inventory
 INSERT INTO inventory_position (id, version, sku, available_quantity, reserved_quantity, sold_quantity)
@@ -99,214 +100,214 @@ VALUES (nextval('inventory_position_seq'), 0, 'SKU-004', 0, 0, 0);
 INSERT INTO inventory_position (id, version, sku, available_quantity, reserved_quantity, sold_quantity)
 VALUES (nextval('inventory_position_seq'), 0, 'SKU-005', 6, 2, 2);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-001', 'ORD-001', 'SKU-001', 1, 'CONFIRMED', '2026-09-26T13:01:00Z', '2026-09-26T13:11:00Z', '2026-09-26T13:04:00Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-001', 'ORD-001', 'SKU-001', 1, 3, '2026-09-26T13:01:00Z', '2026-09-26T13:11:00Z', '2026-09-26T13:04:00Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-002', 'ORD-002', 'SKU-002', 2, 'RESERVED', '2026-10-14T09:50:02Z', '2026-10-14T10:00:02Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-002', 'ORD-002', 'SKU-002', 2, 1, '2026-10-14T09:50:02Z', '2026-10-14T10:00:02Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-003', 'ORD-002', 'SKU-003', 1, 'RESERVED', '2026-10-14T09:50:02Z', '2026-10-14T10:00:02Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-003', 'ORD-002', 'SKU-003', 1, 1, '2026-10-14T09:50:02Z', '2026-10-14T10:00:02Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-004', 'ORD-003', 'SKU-002', 1, 'RESERVED', '2026-10-14T09:50:03Z', '2026-10-14T10:00:03Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-004', 'ORD-003', 'SKU-002', 1, 1, '2026-10-14T09:50:03Z', '2026-10-14T10:00:03Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-005', 'ORD-004', 'SKU-002', 1, 'CONFIRMED', '2026-10-14T09:50:04Z', '2026-10-14T10:00:04Z', '2026-10-14T09:50:14Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-005', 'ORD-004', 'SKU-002', 1, 3, '2026-10-14T09:50:04Z', '2026-10-14T10:00:04Z', '2026-10-14T09:50:14Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-006', 'ORD-004', 'SKU-003', 1, 'CONFIRMED', '2026-10-14T09:50:04Z', '2026-10-14T10:00:04Z', '2026-10-14T09:50:14Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-006', 'ORD-004', 'SKU-003', 1, 3, '2026-10-14T09:50:04Z', '2026-10-14T10:00:04Z', '2026-10-14T09:50:14Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-007', 'ORD-005', 'SKU-002', 1, 'CONFIRMED', '2026-10-14T09:50:05Z', '2026-10-14T10:00:05Z', '2026-10-14T09:50:15Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-007', 'ORD-005', 'SKU-002', 1, 3, '2026-10-14T09:50:05Z', '2026-10-14T10:00:05Z', '2026-10-14T09:50:15Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-008', 'ORD-006', 'SKU-002', 1, 'CONFIRMED', '2026-10-14T09:50:06Z', '2026-10-14T10:00:06Z', '2026-10-14T09:50:16Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-008', 'ORD-006', 'SKU-002', 1, 3, '2026-10-14T09:50:06Z', '2026-10-14T10:00:06Z', '2026-10-14T09:50:16Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-009', 'ORD-007', 'SKU-002', 1, 'CONFIRMED', '2026-10-14T09:50:07Z', '2026-10-14T10:00:07Z', '2026-10-14T09:50:17Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-009', 'ORD-007', 'SKU-002', 1, 3, '2026-10-14T09:50:07Z', '2026-10-14T10:00:07Z', '2026-10-14T09:50:17Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-010', 'ORD-008', 'SKU-002', 1, 'RESERVED', '2026-10-14T09:50:08Z', '2026-10-14T10:00:08Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-010', 'ORD-008', 'SKU-002', 1, 1, '2026-10-14T09:50:08Z', '2026-10-14T10:00:08Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-011', 'ORD-009', 'SKU-002', 1, 'RESERVED', '2026-10-14T09:50:09Z', '2026-10-14T10:00:09Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-011', 'ORD-009', 'SKU-002', 1, 1, '2026-10-14T09:50:09Z', '2026-10-14T10:00:09Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-012', 'ORD-010', 'SKU-002', 1, 'RESERVED', '2026-10-14T09:50:10Z', '2026-10-14T10:00:10Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-012', 'ORD-010', 'SKU-002', 1, 1, '2026-10-14T09:50:10Z', '2026-10-14T10:00:10Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-013', 'ORD-011', 'SKU-002', 1, 'RESERVED', '2026-10-14T09:50:11Z', '2026-10-14T10:00:11Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-013', 'ORD-011', 'SKU-002', 1, 1, '2026-10-14T09:50:11Z', '2026-10-14T10:00:11Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-014', 'ORD-012', 'SKU-002', 1, 'CONFIRMED', '2026-10-14T09:50:12Z', '2026-10-14T10:00:12Z', '2026-10-14T09:50:22Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-014', 'ORD-012', 'SKU-002', 1, 3, '2026-10-14T09:50:12Z', '2026-10-14T10:00:12Z', '2026-10-14T09:50:22Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-015', 'ORD-013', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:13Z', '2026-10-14T10:00:13Z', '2026-10-14T09:51:03Z', 'PAYMENT_VOIDED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-015', 'ORD-013', 'SKU-002', 1, 2, '2026-10-14T09:50:13Z', '2026-10-14T10:00:13Z', '2026-10-14T09:51:03Z', 3);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-016', 'ORD-014', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:14Z', '2026-10-14T10:00:14Z', '2026-10-14T09:51:04Z', 'PAYMENT_DECLINED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-016', 'ORD-014', 'SKU-002', 1, 2, '2026-10-14T09:50:14Z', '2026-10-14T10:00:14Z', '2026-10-14T09:51:04Z', 1);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-017', 'ORD-015', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:15Z', '2026-10-14T10:00:15Z', '2026-10-14T09:51:05Z', 'PAYMENT_RETRY_EXHAUSTED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-017', 'ORD-015', 'SKU-002', 1, 2, '2026-10-14T09:50:15Z', '2026-10-14T10:00:15Z', '2026-10-14T09:51:05Z', 2);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-018', 'ORD-016', 'SKU-002', 1, 'CONFIRMED', '2026-10-14T09:50:16Z', '2026-10-14T10:00:16Z', '2026-10-14T09:50:26Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-018', 'ORD-016', 'SKU-002', 1, 3, '2026-10-14T09:50:16Z', '2026-10-14T10:00:16Z', '2026-10-14T09:50:26Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-019', 'ORD-017', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:17Z', '2026-10-14T10:00:17Z', '2026-10-14T09:51:07Z', 'PAYMENT_VOIDED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-019', 'ORD-017', 'SKU-002', 1, 2, '2026-10-14T09:50:17Z', '2026-10-14T10:00:17Z', '2026-10-14T09:51:07Z', 3);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-020', 'ORD-018', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:18Z', '2026-10-14T10:00:18Z', '2026-10-14T09:51:08Z', 'PAYMENT_DECLINED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-020', 'ORD-018', 'SKU-002', 1, 2, '2026-10-14T09:50:18Z', '2026-10-14T10:00:18Z', '2026-10-14T09:51:08Z', 1);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-021', 'ORD-019', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:19Z', '2026-10-14T10:00:19Z', '2026-10-14T09:51:09Z', 'PAYMENT_VOIDED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-021', 'ORD-019', 'SKU-002', 1, 2, '2026-10-14T09:50:19Z', '2026-10-14T10:00:19Z', '2026-10-14T09:51:09Z', 3);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-022', 'ORD-021', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:40:21Z', '2026-10-14T09:50:21Z', '2026-10-14T09:50:31Z', 'RESERVATION_EXPIRED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-022', 'ORD-021', 'SKU-002', 1, 2, '2026-10-14T09:40:21Z', '2026-10-14T09:50:21Z', '2026-10-14T09:50:31Z', 5);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-023', 'ORD-022', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:49:22Z', '2026-10-14T09:59:22Z', '2026-10-14T09:59:32Z', 'RESERVATION_EXPIRED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-023', 'ORD-022', 'SKU-002', 1, 2, '2026-10-14T09:49:22Z', '2026-10-14T09:59:22Z', '2026-10-14T09:59:32Z', 5);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-024', 'ORD-023', 'SKU-005', 1, 'CONFIRMED', '2026-10-14T09:50:23Z', '2026-10-14T10:00:23Z', '2026-10-14T09:50:33Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-024', 'ORD-023', 'SKU-005', 1, 3, '2026-10-14T09:50:23Z', '2026-10-14T10:00:23Z', '2026-10-14T09:50:33Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-025', 'ORD-024', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:24Z', '2026-10-14T10:00:24Z', '2026-10-14T09:51:04Z', 'PAYMENT_VOIDED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-025', 'ORD-024', 'SKU-002', 1, 2, '2026-10-14T09:50:24Z', '2026-10-14T10:00:24Z', '2026-10-14T09:51:04Z', 3);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, confirmed_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-026', 'ORD-025', 'SKU-005', 1, 'CONFIRMED', '2026-10-14T09:50:25Z', '2026-10-14T10:00:25Z', '2026-10-14T09:50:35Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-026', 'ORD-025', 'SKU-005', 1, 3, '2026-10-14T09:50:25Z', '2026-10-14T10:00:25Z', '2026-10-14T09:50:35Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at, released_at, release_reason)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-027', 'ORD-026', 'SKU-002', 1, 'RELEASED', '2026-10-14T09:50:26Z', '2026-10-14T10:00:26Z', '2026-10-14T09:51:06Z', 'PAYMENT_VOID_FAILED');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-027', 'ORD-026', 'SKU-002', 1, 2, '2026-10-14T09:50:26Z', '2026-10-14T10:00:26Z', '2026-10-14T09:51:06Z', 4);
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-028', 'ORD-027', 'SKU-005', 1, 'RESERVED', '2026-10-14T09:45:27Z', '2026-10-14T09:55:27Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-028', 'ORD-027', 'SKU-005', 1, 1, '2026-10-14T09:45:27Z', '2026-10-14T09:55:27Z');
 INSERT INTO stock_reservation (id, version, reservation_id, order_id, sku, quantity, status, reserved_at, expires_at)
-VALUES (nextval('stock_reservation_seq'), 0, 'RES-029', 'ORD-028', 'SKU-005', 1, 'RESERVED', '2026-10-14T09:45:28Z', '2026-10-14T09:55:28Z');
+VALUES (nextval('stock_reservation_seq'), 0, 'RES-029', 'ORD-028', 'SKU-005', 1, 1, '2026-10-14T09:45:28Z', '2026-10-14T09:55:28Z');
 
 -- Orders checkout
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-001', 'CONFIRMED', 'CUST-001', 'customer@example.com', 'PM-001', '[{"sku":"SKU-001","quantity":1,"unitPrice":49.99}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28001","country":"ES"}'::jsonb, 49.99, 'EUR', '2026-09-26T13:00:00Z', '2026-09-26T13:05:00Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-001', 2, 'CUST-001', 'customer@example.com', 'PM-001', '[{"sku":"SKU-001","quantity":1,"unitPrice":49.99}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28001","country":"ES"}'::jsonb, 49.99, 'EUR', '2026-09-26T13:00:00Z', '2026-09-26T13:05:00Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-002', 'CREATED', 'CUST-002', 'customer002@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":2,"unitPrice":59.9},{"sku":"SKU-003","quantity":1,"unitPrice":39.5}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28002","country":"ES"}'::jsonb, 159.30, 'EUR', '2026-10-14T09:50:02Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-002', 1, 'CUST-002', 'customer002@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":2,"unitPrice":59.9},{"sku":"SKU-003","quantity":1,"unitPrice":39.5}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28002","country":"ES"}'::jsonb, 159.30, 'EUR', '2026-10-14T09:50:02Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-003', 'CREATED', 'CUST-003', 'customer003@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28003","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:03Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-003', 1, 'CUST-003', 'customer003@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28003","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:03Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-004', 'CONFIRMED', 'CUST-004', 'customer004@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9},{"sku":"SKU-003","quantity":1,"unitPrice":39.5}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28004","country":"ES"}'::jsonb, 99.40, 'EUR', '2026-10-14T09:50:04Z', '2026-10-14T09:50:14Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-004', 2, 'CUST-004', 'customer004@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9},{"sku":"SKU-003","quantity":1,"unitPrice":39.5}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28004","country":"ES"}'::jsonb, 99.40, 'EUR', '2026-10-14T09:50:04Z', '2026-10-14T09:50:14Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-005', 'CONFIRMED', 'CUST-005', 'customer005@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:05Z', '2026-10-14T09:50:15Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-005', 2, 'CUST-005', 'customer005@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:05Z', '2026-10-14T09:50:15Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-006', 'CONFIRMED', 'CUST-006', 'customer006@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28006","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:06Z', '2026-10-14T09:50:16Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-006', 2, 'CUST-006', 'customer006@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28006","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:06Z', '2026-10-14T09:50:16Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-007', 'CONFIRMED', 'CUST-007', 'customer007@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:07Z', '2026-10-14T09:50:17Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-007', 2, 'CUST-007', 'customer007@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:07Z', '2026-10-14T09:50:17Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-008', 'CREATED', 'CUST-008', 'customer008@example.com', 'pm_fail_once', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28008","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:08Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-008', 1, 'CUST-008', 'customer008@example.com', 'pm_fail_once', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28008","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:08Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-009', 'CREATED', 'CUST-009', 'customer009@example.com', 'pm_fail_always', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28009","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:09Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-009', 1, 'CUST-009', 'customer009@example.com', 'pm_fail_always', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28009","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:09Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-010', 'CREATED', 'CUST-010', 'customer010@example.com', 'pm_decline', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28010","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:10Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-010', 1, 'CUST-010', 'customer010@example.com', 'pm_decline', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28010","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:10Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-011', 'CREATED', 'CUST-011', 'customer011@example.com', 'pm_fail_always', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28011","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:11Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-011', 1, 'CUST-011', 'customer011@example.com', 'pm_fail_always', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28011","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:11Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-012', 'CONFIRMED', 'CUST-012', 'customer012@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28012","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:12Z', '2026-10-14T09:50:22Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-012', 2, 'CUST-012', 'customer012@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28012","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:12Z', '2026-10-14T09:50:22Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at, cancelled_at, cancellation_reason)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-013', 'CANCELLED', 'CUST-013', 'customer013@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28013","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:13Z', '2026-10-14T09:50:23Z', '2026-10-14T09:51:13Z', 'PAYMENT_VOIDED');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-013', 3, 'CUST-013', 'customer013@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28013","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:13Z', '2026-10-14T09:50:23Z', '2026-10-14T09:51:13Z', 'PAYMENT_VOIDED');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, cancelled_at, cancellation_reason)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-014', 'CANCELLED', 'CUST-014', 'customer014@example.com', 'pm_decline', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28014","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:14Z', '2026-10-14T09:51:14Z', 'PAYMENT_DECLINED');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-014', 3, 'CUST-014', 'customer014@example.com', 'pm_decline', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28014","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:14Z', '2026-10-14T09:51:14Z', 'PAYMENT_DECLINED');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, cancelled_at, cancellation_reason)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-015', 'CANCELLED', 'CUST-015', 'customer015@fail.invalid', 'pm_fail_always', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28015","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:15Z', '2026-10-14T09:51:15Z', 'PAYMENT_RETRY_EXHAUSTED');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-015', 3, 'CUST-015', 'customer015@fail.invalid', 'pm_fail_always', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28015","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:15Z', '2026-10-14T09:51:15Z', 'PAYMENT_RETRY_EXHAUSTED');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-016', 'CONFIRMED', 'CUST-016', 'customer016@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:16Z', '2026-10-14T09:50:26Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-016', 2, 'CUST-016', 'customer016@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:16Z', '2026-10-14T09:50:26Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-017', 'CONFIRMED', 'CUST-017', 'customer017@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:17Z', '2026-10-14T09:50:27Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-017', 2, 'CUST-017', 'customer017@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:17Z', '2026-10-14T09:50:27Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-018', 'CREATED', 'CUST-018', 'customer018@example.com', 'pm_decline', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28018","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:18Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-018', 1, 'CUST-018', 'customer018@example.com', 'pm_decline', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28018","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:18Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at, cancelled_at, cancellation_reason)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-019', 'CANCELLED', 'CUST-019', 'customer019@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:19Z', '2026-10-14T09:50:29Z', '2026-10-14T09:51:19Z', 'PAYMENT_VOIDED');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-019', 3, 'CUST-019', 'customer019@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:19Z', '2026-10-14T09:50:29Z', '2026-10-14T09:51:19Z', 'PAYMENT_VOIDED');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, cancelled_at, cancellation_reason)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-021', 'CANCELLED', 'CUST-021', 'customer021@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28021","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:40:21Z', '2026-10-14T09:50:41Z', 'RESERVATION_EXPIRED');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-021', 3, 'CUST-021', 'customer021@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28021","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:40:21Z', '2026-10-14T09:50:41Z', 'RESERVATION_EXPIRED');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-022', 'CREATED', 'CUST-022', 'customer022@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28022","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:49:22Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-022', 1, 'CUST-022', 'customer022@example.com', 'pm_ok', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28022","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:49:22Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-023', 'CONFIRMED', 'CUST-023', 'customer023@example.com', 'pm_ok', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28023","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:50:23Z', '2026-10-14T09:50:33Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-023', 2, 'CUST-023', 'customer023@example.com', 'pm_ok', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28023","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:50:23Z', '2026-10-14T09:50:33Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at, cancelled_at, cancellation_reason)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-024', 'CANCELLED', 'CUST-024', 'customer024@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28024","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:24Z', '2026-10-14T09:50:34Z', '2026-10-14T09:51:14Z', 'PAYMENT_VOIDED');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-024', 3, 'CUST-024', 'customer024@example.com', 'pm_capture_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28024","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:24Z', '2026-10-14T09:50:34Z', '2026-10-14T09:51:14Z', 'PAYMENT_VOIDED');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-025', 'CONFIRMED', 'CUST-025', 'customer025@example.com', 'pm_void_fail', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:50:25Z', '2026-10-14T09:50:35Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-025', 2, 'CUST-025', 'customer025@example.com', 'pm_void_fail', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:50:25Z', '2026-10-14T09:50:35Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at, confirmed_at, cancelled_at, cancellation_reason)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-026', 'CANCELLED', 'CUST-026', 'customer026@example.com', 'pm_void_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:26Z', '2026-10-14T09:50:36Z', '2026-10-14T09:51:16Z', 'PAYMENT_VOID_FAILED');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-026', 3, 'CUST-026', 'customer026@example.com', 'pm_void_fail', '[{"sku":"SKU-002","quantity":1,"unitPrice":59.9}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, 59.90, 'EUR', '2026-10-14T09:50:26Z', '2026-10-14T09:50:36Z', '2026-10-14T09:51:16Z', 'PAYMENT_VOID_FAILED');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-027', 'CREATED', 'CUST-027', 'customer027@example.com', 'pm_ok', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28027","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:45:27Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-027', 1, 'CUST-027', 'customer027@example.com', 'pm_ok', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28027","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:45:27Z');
 INSERT INTO checkout_order (id, version, order_id, status, customer_id, customer_email, payment_method_id, items, shipping_address, total_amount, currency, created_at)
-VALUES (nextval('checkout_order_seq'), 0, 'ORD-028', 'CREATED', 'CUST-028', 'customer028@example.com', 'pm_ok', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28028","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:45:28Z');
+VALUES (nextval('checkout_order_seq'), 0, 'ORD-028', 1, 'CUST-028', 'customer028@example.com', 'pm_ok', '[{"sku":"SKU-005","quantity":1,"unitPrice":45.0}]'::jsonb, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28028","country":"ES"}'::jsonb, 45.00, 'EUR', '2026-10-14T09:45:28Z');
 
 -- Payments processing
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, captured_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-001', 'CUST-001', 'PM-001', 'customer@example.com', 49.99, 'EUR', 'CAPTURED', 'STANDIN-ORD-001', 1, '2026-09-26T13:03:00Z', '2026-09-26T13:06:30Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-001', 'CUST-001', 'PM-001', 'customer@example.com', 49.99, 'EUR', 6, 'STANDIN-ORD-001', 1, '2026-09-26T13:03:00Z', '2026-09-26T13:06:30Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count)
-VALUES (nextval('payment_seq'), 0, 'ORD-002', 'CUST-002', 'pm_ok', 'customer002@example.com', 159.30, 'EUR', 'AUTHORIZATION_REQUESTED', 1);
+VALUES (nextval('payment_seq'), 0, 'ORD-002', 'CUST-002', 'pm_ok', 'customer002@example.com', 159.30, 'EUR', 1, 1);
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-003', 'CUST-003', 'pm_ok', 'customer003@example.com', 59.90, 'EUR', 'AUTHORIZED', 'STANDIN-ORD-003', 1, '2026-10-14T09:50:08Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-003', 'CUST-003', 'pm_ok', 'customer003@example.com', 59.90, 'EUR', 2, 'STANDIN-ORD-003', 1, '2026-10-14T09:50:08Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-004', 'CUST-004', 'pm_ok', 'customer004@example.com', 99.40, 'EUR', 'AUTHORIZED', 'STANDIN-ORD-004', 1, '2026-10-14T09:50:09Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-004', 'CUST-004', 'pm_ok', 'customer004@example.com', 99.40, 'EUR', 2, 'STANDIN-ORD-004', 1, '2026-10-14T09:50:09Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-005', 'CUST-005', 'pm_ok', 'customer005@example.com', 59.90, 'EUR', 'AUTHORIZED', 'STANDIN-ORD-005', 1, '2026-10-14T09:50:10Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-005', 'CUST-005', 'pm_ok', 'customer005@example.com', 59.90, 'EUR', 2, 'STANDIN-ORD-005', 1, '2026-10-14T09:50:10Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-006', 'CUST-006', 'pm_capture_fail', 'customer006@example.com', 59.90, 'EUR', 'AUTHORIZED', 'STANDIN-CAPFAIL-ORD-006', 1, '2026-10-14T09:50:11Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-006', 'CUST-006', 'pm_capture_fail', 'customer006@example.com', 59.90, 'EUR', 2, 'STANDIN-CAPFAIL-ORD-006', 1, '2026-10-14T09:50:11Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-007', 'CUST-007', 'pm_ok', 'customer007@example.com', 59.90, 'EUR', 'AUTHORIZED', 'STANDIN-ORD-007', 1, '2026-10-14T09:50:12Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-007', 'CUST-007', 'pm_ok', 'customer007@example.com', 59.90, 'EUR', 2, 'STANDIN-ORD-007', 1, '2026-10-14T09:50:12Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count, failed_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-008', 'CUST-008', 'pm_fail_once', 'customer008@example.com', 59.90, 'EUR', 'FAILED', 1, '2026-10-14T09:50:13Z', 'processor_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-008', 'CUST-008', 'pm_fail_once', 'customer008@example.com', 59.90, 'EUR', 4, 1, '2026-10-14T09:50:13Z', 'processor_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count, failed_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-009', 'CUST-009', 'pm_fail_always', 'customer009@example.com', 59.90, 'EUR', 'FAILED', 3, '2026-10-14T09:50:14Z', 'processor_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-009', 'CUST-009', 'pm_fail_always', 'customer009@example.com', 59.90, 'EUR', 4, 3, '2026-10-14T09:50:14Z', 'processor_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count, declined_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-010', 'CUST-010', 'pm_decline', 'customer010@example.com', 59.90, 'EUR', 'DECLINED', 1, '2026-10-14T09:50:15Z', 'card_declined');
+VALUES (nextval('payment_seq'), 0, 'ORD-010', 'CUST-010', 'pm_decline', 'customer010@example.com', 59.90, 'EUR', 3, 1, '2026-10-14T09:50:15Z', 'card_declined');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count, failed_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-011', 'CUST-011', 'pm_fail_always', 'customer011@example.com', 59.90, 'EUR', 'RETRY_EXHAUSTED', 3, '2026-10-14T09:50:16Z', 'processor_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-011', 'CUST-011', 'pm_fail_always', 'customer011@example.com', 59.90, 'EUR', 5, 3, '2026-10-14T09:50:16Z', 'processor_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-012', 'CUST-012', 'pm_capture_fail', 'customer012@example.com', 59.90, 'EUR', 'CAPTURE_FAILED', 'STANDIN-CAPFAIL-ORD-012', 1, '2026-10-14T09:50:17Z', 'capture_rejected');
+VALUES (nextval('payment_seq'), 0, 'ORD-012', 'CUST-012', 'pm_capture_fail', 'customer012@example.com', 59.90, 'EUR', 7, 'STANDIN-CAPFAIL-ORD-012', 1, '2026-10-14T09:50:17Z', 'capture_rejected');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, voided_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-013', 'CUST-013', 'pm_capture_fail', 'customer013@example.com', 59.90, 'EUR', 'VOIDED', 'STANDIN-CAPFAIL-ORD-013', 1, '2026-10-14T09:50:18Z', '2026-10-14T09:50:53Z', 'capture_rejected');
+VALUES (nextval('payment_seq'), 0, 'ORD-013', 'CUST-013', 'pm_capture_fail', 'customer013@example.com', 59.90, 'EUR', 8, 'STANDIN-CAPFAIL-ORD-013', 1, '2026-10-14T09:50:18Z', '2026-10-14T09:50:53Z', 'capture_rejected');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count, declined_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-014', 'CUST-014', 'pm_decline', 'customer014@example.com', 59.90, 'EUR', 'DECLINED', 1, '2026-10-14T09:50:19Z', 'card_declined');
+VALUES (nextval('payment_seq'), 0, 'ORD-014', 'CUST-014', 'pm_decline', 'customer014@example.com', 59.90, 'EUR', 3, 1, '2026-10-14T09:50:19Z', 'card_declined');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count, failed_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-015', 'CUST-015', 'pm_fail_always', 'customer015@fail.invalid', 59.90, 'EUR', 'RETRY_EXHAUSTED', 3, '2026-10-14T09:50:20Z', 'processor_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-015', 'CUST-015', 'pm_fail_always', 'customer015@fail.invalid', 59.90, 'EUR', 5, 3, '2026-10-14T09:50:20Z', 'processor_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, voided_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-016', 'CUST-016', 'pm_ok', 'customer016@example.com', 59.90, 'EUR', 'VOIDED', 'STANDIN-ORD-016', 1, '2026-10-14T09:50:21Z', '2026-10-14T09:50:56Z', 'carrier_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-016', 'CUST-016', 'pm_ok', 'customer016@example.com', 59.90, 'EUR', 8, 'STANDIN-ORD-016', 1, '2026-10-14T09:50:21Z', '2026-10-14T09:50:56Z', 'carrier_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, voided_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-017', 'CUST-017', 'pm_ok', 'customer017@example.com', 59.90, 'EUR', 'VOIDED', 'STANDIN-ORD-017', 1, '2026-10-14T09:50:22Z', '2026-10-14T09:50:57Z', 'carrier_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-017', 'CUST-017', 'pm_ok', 'customer017@example.com', 59.90, 'EUR', 8, 'STANDIN-ORD-017', 1, '2026-10-14T09:50:22Z', '2026-10-14T09:50:57Z', 'carrier_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count, declined_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-018', 'CUST-018', 'pm_decline', 'customer018@example.com', 59.90, 'EUR', 'DECLINED', 1, '2026-10-14T09:50:23Z', 'card_declined');
+VALUES (nextval('payment_seq'), 0, 'ORD-018', 'CUST-018', 'pm_decline', 'customer018@example.com', 59.90, 'EUR', 3, 1, '2026-10-14T09:50:23Z', 'card_declined');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, voided_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-019', 'CUST-019', 'pm_ok', 'customer019@example.com', 59.90, 'EUR', 'VOIDED', 'STANDIN-ORD-019', 1, '2026-10-14T09:50:24Z', '2026-10-14T09:50:59Z', 'carrier_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-019', 'CUST-019', 'pm_ok', 'customer019@example.com', 59.90, 'EUR', 8, 'STANDIN-ORD-019', 1, '2026-10-14T09:50:24Z', '2026-10-14T09:50:59Z', 'carrier_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-021', 'CUST-021', 'pm_ok', 'customer021@example.com', 59.90, 'EUR', 'AUTHORIZED', 'STANDIN-ORD-021', 1, '2026-10-14T09:51:01Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-021', 'CUST-021', 'pm_ok', 'customer021@example.com', 59.90, 'EUR', 2, 'STANDIN-ORD-021', 1, '2026-10-14T09:51:01Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-022', 'CUST-022', 'pm_ok', 'customer022@example.com', 59.90, 'EUR', 'AUTHORIZED', 'STANDIN-ORD-022', 1, '2026-10-14T09:59:42Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-022', 'CUST-022', 'pm_ok', 'customer022@example.com', 59.90, 'EUR', 2, 'STANDIN-ORD-022', 1, '2026-10-14T09:59:42Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, captured_at)
-VALUES (nextval('payment_seq'), 0, 'ORD-023', 'CUST-023', 'pm_ok', 'customer023@example.com', 45.00, 'EUR', 'CAPTURED', 'STANDIN-ORD-023', 1, '2026-10-14T09:50:28Z', '2026-10-14T09:50:48Z');
+VALUES (nextval('payment_seq'), 0, 'ORD-023', 'CUST-023', 'pm_ok', 'customer023@example.com', 45.00, 'EUR', 6, 'STANDIN-ORD-023', 1, '2026-10-14T09:50:28Z', '2026-10-14T09:50:48Z');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, voided_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-024', 'CUST-024', 'pm_capture_fail', 'customer024@example.com', 59.90, 'EUR', 'VOIDED', 'STANDIN-CAPFAIL-ORD-024', 1, '2026-10-14T09:50:29Z', '2026-10-14T09:50:59Z', 'capture_rejected');
+VALUES (nextval('payment_seq'), 0, 'ORD-024', 'CUST-024', 'pm_capture_fail', 'customer024@example.com', 59.90, 'EUR', 8, 'STANDIN-CAPFAIL-ORD-024', 1, '2026-10-14T09:50:29Z', '2026-10-14T09:50:59Z', 'capture_rejected');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, void_failed_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-025', 'CUST-025', 'pm_void_fail', 'customer025@example.com', 45.00, 'EUR', 'VOID_FAILED', 'STANDIN-ORD-025', 1, '2026-10-14T09:50:30Z', '2026-10-14T09:51:00Z', 'carrier_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-025', 'CUST-025', 'pm_void_fail', 'customer025@example.com', 45.00, 'EUR', 9, 'STANDIN-ORD-025', 1, '2026-10-14T09:50:30Z', '2026-10-14T09:51:00Z', 'carrier_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, provider_reference, attempt_count, authorized_at, void_failed_at, failure_reason)
-VALUES (nextval('payment_seq'), 0, 'ORD-026', 'CUST-026', 'pm_void_fail', 'customer026@example.com', 59.90, 'EUR', 'VOID_FAILED', 'STANDIN-ORD-026', 1, '2026-10-14T09:50:31Z', '2026-10-14T09:51:01Z', 'carrier_unavailable');
+VALUES (nextval('payment_seq'), 0, 'ORD-026', 'CUST-026', 'pm_void_fail', 'customer026@example.com', 59.90, 'EUR', 9, 'STANDIN-ORD-026', 1, '2026-10-14T09:50:31Z', '2026-10-14T09:51:01Z', 'carrier_unavailable');
 INSERT INTO payment (id, version, order_id, customer_id, payment_method_id, customer_email, amount, currency, status, attempt_count)
-VALUES (nextval('payment_seq'), 0, 'ORD-028', 'CUST-028', 'pm_ok', 'customer028@example.com', 45.00, 'EUR', 'AUTHORIZATION_REQUESTED', 1);
+VALUES (nextval('payment_seq'), 0, 'ORD-028', 'CUST-028', 'pm_ok', 'customer028@example.com', 45.00, 'EUR', 1, 1);
 
 -- Fulfillment shipping
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, scheduled_at, payment_captured_at)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-001', 'ORD-001', 'CUST-001', 'SCHEDULED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28001","country":"ES"}'::jsonb, '[{"sku":"SKU-001","quantity":1}]'::jsonb, '2026-09-26T13:06:00Z', '2026-09-26T13:06:35Z');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-001', 'ORD-001', 'CUST-001', 1, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28001","country":"ES"}'::jsonb, '[{"sku":"SKU-001","quantity":1}]'::jsonb, '2026-09-26T13:06:00Z', '2026-09-26T13:06:35Z');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, scheduled_at)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-002', 'ORD-006', 'CUST-006', 'SCHEDULED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28006","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:26Z');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-002', 'ORD-006', 'CUST-006', 1, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28006","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:26Z');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, failed_at, failure_reason)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-003', 'ORD-007', 'CUST-007', 'FAILED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:27Z', 'carrier_unavailable');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-003', 'ORD-007', 'CUST-007', 3, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:27Z', 'carrier_unavailable');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, scheduled_at)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-004', 'ORD-012', 'CUST-012', 'SCHEDULED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28012","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:32Z');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-004', 'ORD-012', 'CUST-012', 1, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28012","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:32Z');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, scheduled_at)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-005', 'ORD-013', 'CUST-013', 'SCHEDULED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28013","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:33Z');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-005', 'ORD-013', 'CUST-013', 1, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28013","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:33Z');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, failed_at, failure_reason)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-006', 'ORD-016', 'CUST-016', 'FAILED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:36Z', 'carrier_unavailable');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-006', 'ORD-016', 'CUST-016', 3, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:36Z', 'carrier_unavailable');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, failed_at, failure_reason)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-007', 'ORD-017', 'CUST-017', 'FAILED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:37Z', 'carrier_unavailable');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-007', 'ORD-017', 'CUST-017', 3, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:37Z', 'carrier_unavailable');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, failed_at, failure_reason)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-008', 'ORD-019', 'CUST-019', 'FAILED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:39Z', 'carrier_unavailable');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-008', 'ORD-019', 'CUST-019', 3, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:39Z', 'carrier_unavailable');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, scheduled_at)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-009', 'ORD-023', 'CUST-023', 'SCHEDULED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28023","country":"ES"}'::jsonb, '[{"sku":"SKU-005","quantity":1}]'::jsonb, '2026-10-14T09:50:43Z');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-009', 'ORD-023', 'CUST-023', 1, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28023","country":"ES"}'::jsonb, '[{"sku":"SKU-005","quantity":1}]'::jsonb, '2026-10-14T09:50:43Z');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, scheduled_at, cancelled_at, cancellation_reason)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-010', 'ORD-024', 'CUST-024', 'CANCELLED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28024","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:44Z', '2026-10-14T09:51:24Z', 'PAYMENT_VOIDED');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-010', 'ORD-024', 'CUST-024', 4, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"28024","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:44Z', '2026-10-14T09:51:24Z', 'PAYMENT_VOIDED');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, failed_at, failure_reason)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-011', 'ORD-025', 'CUST-025', 'FAILED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-005","quantity":1}]'::jsonb, '2026-10-14T09:50:45Z', 'carrier_unavailable');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-011', 'ORD-025', 'CUST-025', 3, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-005","quantity":1}]'::jsonb, '2026-10-14T09:50:45Z', 'carrier_unavailable');
 INSERT INTO fulfillment (id, version, fulfillment_id, order_id, customer_id, status, shipping_address, items, failed_at, failure_reason)
-VALUES (nextval('fulfillment_seq'), 0, 'FUL-012', 'ORD-026', 'CUST-026', 'FAILED', '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:46Z', 'carrier_unavailable');
+VALUES (nextval('fulfillment_seq'), 0, 'FUL-012', 'ORD-026', 'CUST-026', 3, '{"name":"Arcadia Customer","line1":"1 Book Lane","city":"Madrid","postalCode":"00000","country":"ES"}'::jsonb, '[{"sku":"SKU-002","quantity":1}]'::jsonb, '2026-10-14T09:50:46Z', 'carrier_unavailable');
 
 -- Notifications consumer
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, sent_at)
-VALUES (nextval('notification_seq'), 0, 'NOT-001', 'CUST-001', 'ORD-001', ARRAY['SKU-001'], 'ORDER_CONFIRMATION', 'EMAIL', 'SENT', 'Order confirmed', 'Your order ORD-001 is confirmed.', 'customer@example.com', '2026-09-26T13:06:40Z', '2026-09-26T13:07:00Z');
+VALUES (nextval('notification_seq'), 0, 'NOT-001', 'CUST-001', 'ORD-001', ARRAY['SKU-001'], 1, 1, 2, 'Order confirmed', 'Your order ORD-001 is confirmed.', 'customer@example.com', '2026-09-26T13:06:40Z', '2026-09-26T13:07:00Z');
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, sent_at)
-VALUES (nextval('notification_seq'), 0, 'NOT-002', 'CUST-013', 'ORD-013', ARRAY['SKU-002'], 'ORDER_CANCELLED', 'EMAIL', 'SENT', 'Order cancelled', 'Your order ORD-013 was cancelled: PAYMENT_VOIDED.', 'customer013@example.com', '2026-10-14T09:51:13Z', '2026-10-14T09:51:23Z');
+VALUES (nextval('notification_seq'), 0, 'NOT-002', 'CUST-013', 'ORD-013', ARRAY['SKU-002'], 3, 1, 2, 'Order cancelled', 'Your order ORD-013 was cancelled: PAYMENT_VOIDED.', 'customer013@example.com', '2026-10-14T09:51:13Z', '2026-10-14T09:51:23Z');
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, sent_at)
-VALUES (nextval('notification_seq'), 0, 'NOT-003', 'CUST-014', 'ORD-014', ARRAY['SKU-002'], 'ORDER_CANCELLED', 'EMAIL', 'SENT', 'Order cancelled', 'Your order ORD-014 was cancelled: PAYMENT_DECLINED.', 'customer014@example.com', '2026-10-14T09:51:14Z', '2026-10-14T09:51:24Z');
+VALUES (nextval('notification_seq'), 0, 'NOT-003', 'CUST-014', 'ORD-014', ARRAY['SKU-002'], 3, 1, 2, 'Order cancelled', 'Your order ORD-014 was cancelled: PAYMENT_DECLINED.', 'customer014@example.com', '2026-10-14T09:51:14Z', '2026-10-14T09:51:24Z');
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, failed_at, failure_reason)
-VALUES (nextval('notification_seq'), 0, 'NOT-004', 'CUST-015', 'ORD-015', ARRAY['SKU-002'], 'ORDER_CANCELLED', 'EMAIL', 'FAILED', 'Order cancelled', 'Your order ORD-015 was cancelled: PAYMENT_RETRY_EXHAUSTED.', 'customer015@fail.invalid', '2026-10-14T09:51:15Z', '2026-10-14T09:51:25Z', 'mailbox_unavailable');
+VALUES (nextval('notification_seq'), 0, 'NOT-004', 'CUST-015', 'ORD-015', ARRAY['SKU-002'], 3, 1, 3, 'Order cancelled', 'Your order ORD-015 was cancelled: PAYMENT_RETRY_EXHAUSTED.', 'customer015@fail.invalid', '2026-10-14T09:51:15Z', '2026-10-14T09:51:25Z', 'mailbox_unavailable');
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, sent_at)
-VALUES (nextval('notification_seq'), 0, 'NOT-005', 'CUST-019', 'ORD-019', ARRAY['SKU-002'], 'ORDER_CANCELLED', 'EMAIL', 'SENT', 'Order cancelled', 'Your order ORD-019 was cancelled: PAYMENT_VOIDED.', 'customer019@example.com', '2026-10-14T09:51:19Z', '2026-10-14T09:51:29Z');
+VALUES (nextval('notification_seq'), 0, 'NOT-005', 'CUST-019', 'ORD-019', ARRAY['SKU-002'], 3, 1, 2, 'Order cancelled', 'Your order ORD-019 was cancelled: PAYMENT_VOIDED.', 'customer019@example.com', '2026-10-14T09:51:19Z', '2026-10-14T09:51:29Z');
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, sent_at)
-VALUES (nextval('notification_seq'), 0, 'NOT-006', 'CUST-020', 'ORD-020', ARRAY['SKU-004'], 'STOCK_UNAVAILABLE', 'EMAIL', 'SENT', 'Items unavailable', 'Your order ORD-020 could not be placed: SKU-004 is out of stock.', 'customer020@example.com', '2026-10-14T09:55:00Z', '2026-10-14T09:55:10Z');
+VALUES (nextval('notification_seq'), 0, 'NOT-006', 'CUST-020', 'ORD-020', ARRAY['SKU-004'], 2, 1, 2, 'Items unavailable', 'Your order ORD-020 could not be placed: SKU-004 is out of stock.', 'customer020@example.com', '2026-10-14T09:55:00Z', '2026-10-14T09:55:10Z');
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, sent_at)
-VALUES (nextval('notification_seq'), 0, 'NOT-007', 'CUST-024', 'ORD-024', ARRAY['SKU-002'], 'ORDER_CANCELLED', 'EMAIL', 'SENT', 'Order cancelled', 'Your order ORD-024 was cancelled: PAYMENT_VOIDED.', 'customer024@example.com', '2026-10-14T09:51:20Z', '2026-10-14T09:51:30Z');
+VALUES (nextval('notification_seq'), 0, 'NOT-007', 'CUST-024', 'ORD-024', ARRAY['SKU-002'], 3, 1, 2, 'Order cancelled', 'Your order ORD-024 was cancelled: PAYMENT_VOIDED.', 'customer024@example.com', '2026-10-14T09:51:20Z', '2026-10-14T09:51:30Z');
 INSERT INTO notification (id, version, notification_id, customer_id, order_id, skus, type, channel, status, subject, body, recipient, created_at, sent_at)
-VALUES (nextval('notification_seq'), 0, 'NOT-008', 'CUST-026', 'ORD-026', ARRAY['SKU-002'], 'ORDER_CANCELLED', 'EMAIL', 'SENT', 'Order cancelled', 'Your order ORD-026 was cancelled: PAYMENT_VOID_FAILED.', 'customer026@example.com', '2026-10-14T09:51:22Z', '2026-10-14T09:51:32Z');
+VALUES (nextval('notification_seq'), 0, 'NOT-008', 'CUST-026', 'ORD-026', ARRAY['SKU-002'], 3, 1, 2, 'Order cancelled', 'Your order ORD-026 was cancelled: PAYMENT_VOID_FAILED.', 'customer026@example.com', '2026-10-14T09:51:22Z', '2026-10-14T09:51:32Z');

@@ -6,7 +6,7 @@ branch: afk/place-order-flow
 
 <!-- Built by zenwave-tasks-from-code-and-models on 2026-11-17: the delta from baseline/place-order-flow-2 (board archived
      in docs/tasks/place-order-flow-baseline-2.md, T-01..T-47; T-35 reservation timer was out of scope there) to models
-     service-all 0.10.1. Code regenerated with zenwave-regenerate (.zenwave/handoff/place-order-flow/regen-reference-0.10.1.patch):
+     service-all 0.10.2 (0.10.1 + enum ids, stored as integers by converters; P-11 A). Code regenerated with zenwave-regenerate (.zenwave/handoff/place-order-flow/regen-reference-0.10.1.patch):
      compile stubs are marked "baseline/place-order-flow-3 compile stub"; listener left out: PaymentRetried -> reauthorizePayment
      (T-54); there is no ReservationExpired scheduler yet (T-63). Test data: data.sql header, chains ORD-001..ORD-028,
      stand-in triggers pm_* / postal 00000 / @fail.invalid, pm_void_fail new, fixed now 2026-10-14T10:00:00Z.
@@ -49,7 +49,7 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:124-136, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:138-145
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
-- [ ] T-53 advanced AFK reauthorizePayment: from FAILED with input.attemptCount == Payment.attemptCount, wait the backoff (5 s before attempt 2, 15 s before attempt 3), increment attemptCount and commit AUTHORIZATION_REQUESTED before the provider call (as T-48), 30 s timeout; outcomes AUTHORIZED / DECLINED / FAILED with their events; any other state or a stale attemptCount is a no-op (replace the compile stub)
+- [ ] T-53 advanced AFK reauthorizePayment: from FAILED with input.attemptCount == Payment.attemptCount, wait the backoff (5 s before attempt 2, 15 s before attempt 3), increment attemptCount and commit AUTHORIZATION_REQUESTED before the provider call (as T-48; ZDL transitions FAILED -> AUTHORIZATION_REQUESTED -> outcome, P-11 A), 30 s timeout; guard on FAILED in the service, not with the generated PaymentTransitions.ensureCanReauthorizePayment (it checks the last step's from); outcomes AUTHORIZED / DECLINED / FAILED with their events; any other state or a stale attemptCount is a no-op (replace the compile stub)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:138-146, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:130-136
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest

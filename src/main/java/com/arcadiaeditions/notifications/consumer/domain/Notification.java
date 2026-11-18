@@ -46,17 +46,17 @@ public class Notification implements Serializable {
 
     @NotNull
     @Column(name = "type", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = NotificationType.NotificationTypeConverter.class)
     private NotificationType type;
 
     @NotNull
     @Column(name = "channel", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = NotificationChannel.NotificationChannelConverter.class)
     private NotificationChannel channel;
 
     @NotNull
     @Column(name = "status", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = NotificationStatus.NotificationStatusConverter.class)
     private NotificationStatus status = NotificationStatus.PENDING;
 
     @NotNull

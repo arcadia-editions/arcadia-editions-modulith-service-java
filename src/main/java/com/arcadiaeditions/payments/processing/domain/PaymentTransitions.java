@@ -11,7 +11,7 @@ public final class PaymentTransitions {
     }
 
     public static void ensureCanReauthorizePayment(Payment entity) {
-        require("reauthorizePayment", entity, PaymentStatus.FAILED);
+        require("reauthorizePayment", entity, PaymentStatus.AUTHORIZATION_REQUESTED);
     }
 
     public static void ensureCanRetryPayment(Payment entity) {

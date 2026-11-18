@@ -54,7 +54,7 @@ public class Product implements Serializable {
 
     @NotNull
     @Column(name = "tracking_mode", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = InventoryTrackingMode.InventoryTrackingModeConverter.class)
     private InventoryTrackingMode trackingMode;
 
     @Column(name = "launch_at")
@@ -62,7 +62,7 @@ public class Product implements Serializable {
 
     @NotNull
     @Column(name = "status", nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ProductStatus.ProductStatusConverter.class)
     private ProductStatus status = ProductStatus.DRAFT;
 
     public Long getId() {
