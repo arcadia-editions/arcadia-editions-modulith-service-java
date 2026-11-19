@@ -52,7 +52,7 @@ review: [x] (review-S1 PASS 2026-11-20, claude-opus fresh context; P-03 opened)
 path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[retried] > PaymentRetried > reauthorizePayment[authorized|declined|failed]
       > ... > retryPayment[retry-exhausted] > PaymentRetryExhausted > releaseStock > StockReleased > cancelOrder > OrderCancelled
       > sendOrderCancelledNotification > end orderCancelled
-review: [ ]
+review: [x] (review-S2 PASS 2026-11-20, claude-opus fresh context)
 
 - [x] T-52 bounded AFK retryPayment: Optional.empty(), no event, when there is no Payment (P-12 A); no-op, no event, unless the Payment is FAILED and input.attemptCount == Payment.attemptCount (redelivery); never increments attemptCount; retried below 3 attempts, retry-exhausted at 3
       done: claude-sonnet sonnet (2 fix rounds)
@@ -98,11 +98,18 @@ review: [ ]
       model: ../arcadia-editions-modulith-api/notifications-consumer-domain-model.zdl:96-98, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161
       test data: data.sql ORD-026
       tests: NotificationsConsumerServiceTest
-- [/] T-59 advanced AFK Flow test void refused: fulfillment fails, the void is refused, the stock is released (PAYMENT_VOID_FAILED), the order is cancelled once and the customer told; ends at OrderCancelledNotificationSent with the Payment VOID_FAILED
+- [x] T-59 advanced AFK Flow test void refused: fulfillment fails, the void is refused, the stock is released (PAYMENT_VOID_FAILED), the order is cancelled once and the customer told; ends at OrderCancelledNotificationSent with the Payment VOID_FAILED
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-266, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:299-309, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
       test data: data.sql ORD-026
       tests: PlaceOrderFlowTest
       blocked by: T-56, T-57, T-58
+
+- [/] T-73 bounded AFK voidPayment refused: Payment.failureReason and PaymentVoidFailed.reason are the void's input reason (why the void was asked, e.g. carrier_unavailable), as the approved fixtures ORD-025/ORD-026 store it; the provider's refusal reason (void_rejected) is only logged (log.warn, as T-56 asks). Update the T-56 refused-void test and assert Payment.failureReason in the T-59 flow test
+      model: ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:243-249
+      test data: data.sql ORD-025, data.sql ORD-026
+      tests: PaymentsProcessingServiceTest, PlaceOrderFlowTest
+      fixes: .zenwave/handoff/place-order-flow/reports/T-59.md (CHOICES: fixture vs code)
 
 ## S4 orderCancelled (capture failed, fulfillment cancelled)
 path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment[voided] > PaymentVoided > releaseStock > StockReleased
@@ -114,7 +121,7 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:116-119, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:151-157
       test data: data.sql ORD-013, data.sql ORD-014, data.sql ORD-024
       tests: FulfillmentShippingServiceTest
-- [ ] T-61 bounded AFK Flow test capture failed: after the void and the cancellation the Fulfillment is CANCELLED and FulfillmentCancelled was emitted; the order is cancelled once: record OrderCancelled and assert exactly one for the orderId (Kotlin T-85)
+- [/] T-61 bounded AFK Flow test capture failed: after the void and the cancellation the Fulfillment is CANCELLED and FulfillmentCancelled was emitted; the order is cancelled once: record OrderCancelled and assert exactly one for the orderId (Kotlin T-85)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:190-200, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320
       test data: data.sql ORD-024
       tests: PlaceOrderFlowTest
@@ -136,7 +143,8 @@ review: [ ]
       test data: data.sql ORD-027, data.sql ORD-028, data.sql ORD-021
       tests: InventoryServiceTest
       blocked by: T-48, T-62
-- [/] T-64 advanced AFK ReservationExpired timer (reopens T-35 of baseline 2): a scheduler on StockReservation.expiresAt with the injected Clock that runs expireReservation once per order whose RESERVED reservations are past their deadline; channel reservation-expired-event-v1 as the ZDL @timer names it
+- [x] T-64 advanced AFK ReservationExpired timer (reopens T-35 of baseline 2): a scheduler on StockReservation.expiresAt with the injected Clock that runs expireReservation once per order whose RESERVED reservations are past their deadline; channel reservation-expired-event-v1 as the ZDL @timer names it
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:268-278, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:150-158
       test data: data.sql ORD-002, data.sql ORD-027, data.sql ORD-028
       tests: InventoryServiceTest
