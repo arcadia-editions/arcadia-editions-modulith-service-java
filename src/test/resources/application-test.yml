@@ -8,3 +8,6 @@ spring.sql.init.mode: always
 DATASOURCE_URL: jdbc:postgresql://localhost:5432/app
 DATASOURCE_USERNAME: postgres
 DATASOURCE_PASSWORD: admin123
+
+# ReservationExpired timer off in tests: tests call ReservationExpiredScheduler.expireDueReservations() themselves
+arcadia.timers.reservation-expired-event-v1.enabled: false
