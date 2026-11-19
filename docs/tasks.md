@@ -149,7 +149,8 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:166-176, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:161-163
       test data: data.sql ORD-003, data.sql ORD-004, data.sql ORD-022
       tests: InventoryServiceTest
-- [/] T-67 bounded AFK confirmOrder rejections: a CANCELLED order emits OrderConfirmationRejected (ORDER_CANCELLED) without calling inventory; NOT_HELD emits OrderConfirmationRejected (STOCK_NOT_HELD) and the order stays CREATED; rejectedAt from the Clock
+- [x] T-67 bounded AFK confirmOrder rejections: a CANCELLED order emits OrderConfirmationRejected (ORDER_CANCELLED) without calling inventory; NOT_HELD emits OrderConfirmationRejected (STOCK_NOT_HELD) and the order stays CREATED; rejectedAt from the Clock
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:148-164, ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:101-108, ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:177-183
       test data: data.sql ORD-003, data.sql ORD-021, data.sql ORD-022
       tests: OrdersCheckoutServiceTest
