@@ -115,7 +115,7 @@ review: [ ]
 ## S4 orderCancelled (capture failed, fulfillment cancelled)
 path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment[voided] > PaymentVoided > releaseStock > StockReleased
       > cancelOrder > OrderCancelled > cancelFulfillment > FulfillmentCancelled, sendOrderCancelledNotification > end orderCancelled
-review: [ ]
+review: [ ] (review-S4 2026-11-20: PASS with 3 SHOULD FIX, accepted as T-74)
 
 - [x] T-60 bounded AFK cancelFulfillment: on OrderCancelled, SCHEDULED or READY_TO_SHIP becomes CANCELLED with cancelledAt and cancellationReason = OrderCancelled.reason, emits FulfillmentCancelled; Optional.empty(), no event, when there is no Fulfillment or it is CANCELLED or FAILED (replace the no-op compile stub)
       done: claude-sonnet sonnet
@@ -128,6 +128,12 @@ review: [ ]
       test data: data.sql ORD-024
       tests: PlaceOrderFlowTest
       blocked by: T-56, T-60
+
+- [/] T-74 bounded AFK Fix round of review S4 plus a regression of T-73: (1) remove the stray assertThat(e.getReason()).isEqualTo("carrier_unavailable") that T-73 put in the PaymentCaptureFailed check of orderCancelled_paymentCaptureFailedToOrderCancelledNotificationSent (PlaceOrderFlowTest is red on it); (2) in that test assert Fulfillment.cancellationReason and FulfillmentCancelled.reason == PAYMENT_VOIDED, FulfillmentCancelled.fulfillmentId == the Fulfillment's, customerId == CUS-FLOW-CAPTURE, and repeat the "cancelled once" count after the await block; (3) FulfillmentShippingServiceTest cancelFulfillment* inputs use real OrderCancelled reasons (StockReleaseReason names, PAYMENT_VOIDED for ORD-013), not payment_capture_failed/customer_request/other/x; (4) class javadoc of PlaceOrderFlowTest: the capture-failure end lists cancelFulfillment/FulfillmentCancelled and cites zfl:190-200 and zfl:311-320
+      model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:190-200, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:116-119
+      test data: data.sql ORD-013, data.sql ORD-024
+      tests: PlaceOrderFlowTest, FulfillmentShippingServiceTest
+      fixes: .zenwave/handoff/place-order-flow/reports/review-S4.md
 
 ## S5 orderCancelled (reservation expired, query timer)
 path: ReservationExpired (10 minutes after OrderCreated) > expireReservation > getPaymentStatus[NoPaymentResult] > StockReleased > cancelOrder
@@ -195,7 +201,8 @@ review: [ ] (review-S7 2026-11-20: PASS with SHOULD FIX, accepted as T-72)
       test data: data.sql ORD-015
       tests: PlaceOrderFlowTest
 
-- [/] T-72 bounded AFK Flow test notification failed, cancelled branch: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed (type ORDER_CANCELLED), e.g. pm_decline + @fail.invalid: order CANCELLED, reservation RELEASED, stock counters back to the position read before, Notification FAILED with the notificationId of the event. Also fix T-70's test: its comment cites the lines it runs (zfl:207-212, sendOrderConfirmation failed, fresh order), paymentCapturedAt isEqualTo Payment.capturedAt, no OrderConfirmationSent for that order; add end notificationFailed (both branches) to the class javadoc list of ends
+- [x] T-72 bounded AFK Flow test notification failed, cancelled branch: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed (type ORDER_CANCELLED), e.g. pm_decline + @fail.invalid: order CANCELLED, reservation RELEASED, stock counters back to the position read before, Notification FAILED with the notificationId of the event. Also fix T-70's test: its comment cites the lines it runs (zfl:207-212, sendOrderConfirmation failed, fresh order), paymentCapturedAt isEqualTo Payment.capturedAt, no OrderConfirmationSent for that order; add end notificationFailed (both branches) to the class javadoc list of ends
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:207-212, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
       test data: data.sql ORD-015
       tests: PlaceOrderFlowTest
