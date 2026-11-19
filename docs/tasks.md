@@ -180,7 +180,7 @@ review: [ ]
       tests: PlaceOrderFlowTest
 
 ## S8 Polish
-review: [ ]
+review: [x] (review-S8 PASS 2026-11-20, claude-opus; 3 suite failures outside S8: T-56, T-61)
 
 - [x] T-71 mechanical AFK startOrderCheckout contract: the 409 body follows the StockUnavailable schema of the 0.10.1 OpenAPI (orderId and unavailableItems, P-02 update); quantity >= 1 and unitPrice >= 0 (ZDL bounds) answer 400 before any reservation: assert StockReservation and Order counts unchanged after each 400 request and the ProblemDetail field (items[0].quantity / items[0].unitPrice), one case per test (Kotlin T-77)
       done: claude-sonnet sonnet
