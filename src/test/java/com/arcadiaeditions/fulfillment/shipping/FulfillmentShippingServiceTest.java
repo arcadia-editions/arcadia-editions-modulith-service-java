@@ -261,14 +261,14 @@ class FulfillmentShippingServiceTest {
     @Test
     void cancelFulfillmentFromScheduledTest() {
         // OrderCancelled of ORD-013: FUL-005 SCHEDULED -> CANCELLED, exactly one FulfillmentCancelled
-        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-013", "payment_capture_failed"));
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-013", "PAYMENT_VOIDED"));
 
         assertThat(result).isPresent();
         var fulfillment = result.get();
         assertThat(fulfillment.getFulfillmentId()).isEqualTo("FUL-005");
         assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
         assertThat(fulfillment.getCancelledAt()).isEqualTo(TestClock.NOW);
-        assertThat(fulfillment.getCancellationReason()).isEqualTo("payment_capture_failed");
+        assertThat(fulfillment.getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
         assertThat(fulfillmentRepository.findByOrderId("ORD-013").orElseThrow().getStatus())
                 .isEqualTo(FulfillmentStatus.CANCELLED);
 
@@ -279,7 +279,7 @@ class FulfillmentShippingServiceTest {
         assertThat(event.getFulfillmentId()).isEqualTo("FUL-005");
         assertThat(event.getOrderId()).isEqualTo("ORD-013");
         assertThat(event.getCustomerId()).isEqualTo("CUST-013");
-        assertThat(event.getReason()).isEqualTo("payment_capture_failed");
+        assertThat(event.getReason()).isEqualTo("PAYMENT_VOIDED");
         assertThat(event.getCancelledAt()).isEqualTo(TestClock.NOW);
     }
 
@@ -289,11 +289,11 @@ class FulfillmentShippingServiceTest {
         fulfillmentShippingService.markReadyToShip(1L);
         context.eventPublisher().getEvents().clear();
 
-        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-001", "customer_request"));
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-001", "PAYMENT_VOIDED"));
 
         assertThat(result).isPresent();
         assertThat(result.get().getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
-        assertThat(result.get().getCancellationReason()).isEqualTo("customer_request");
+        assertThat(result.get().getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
         assertThat(context.eventPublisher().getEvents()).hasSize(1);
         assertThat(context.eventPublisher().getEvents().get(0)).isInstanceOf(FulfillmentCancelled.class);
     }
@@ -301,7 +301,7 @@ class FulfillmentShippingServiceTest {
     @Test
     void cancelFulfillmentNoFulfillmentTest() {
         // ORD-014 has no Fulfillment: no-op
-        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-014", "payment_declined"));
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-014", "PAYMENT_DECLINED"));
 
         assertThat(result).isEmpty();
         assertThat(fulfillmentsOf("ORD-014")).isZero();
@@ -315,7 +315,7 @@ class FulfillmentShippingServiceTest {
         var reason = before.getCancellationReason();
         var at = before.getCancelledAt();
 
-        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-024", "other"));
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-024", "PAYMENT_VOIDED"));
 
         assertThat(result).isEmpty();
         var after = fulfillmentRepository.findByOrderId("ORD-024").orElseThrow();
@@ -328,7 +328,7 @@ class FulfillmentShippingServiceTest {
     @Test
     void cancelFulfillmentFailedTest() {
         // ORD-007: FUL-003 FAILED: no-op
-        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-007", "x"));
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-007", "PAYMENT_VOIDED"));
 
         assertThat(result).isEmpty();
         assertThat(fulfillmentRepository.findByOrderId("ORD-007").orElseThrow().getStatus())
