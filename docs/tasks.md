@@ -161,7 +161,8 @@ review: [ ]
       test data: data.sql ORD-003, data.sql ORD-021, data.sql ORD-022
       tests: OrdersCheckoutServiceTest
       blocked by: T-66
-- [/] T-68 mechanical AFK voidPayment on OrderConfirmationRejected (listener and mapper already wired): the void reason is the rejection reason
+- [x] T-68 mechanical AFK voidPayment on OrderConfirmationRejected (listener and mapper already wired): the void reason is the rejection reason
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161
       test data: data.sql ORD-021
       tests: PaymentsProcessingServiceTest
