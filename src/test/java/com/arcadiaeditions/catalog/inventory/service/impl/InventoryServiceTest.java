@@ -342,4 +342,30 @@ class InventoryServiceTest {
         org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
         assertPosition("SKU-002", 20, 6);
     }
+
+    @Test
+    void confirmStockReservationNotHeldWhenReleasedTest() {
+        var result = inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-022"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(ConfirmStockReservationOutcome.NOT_HELD, result.getOutcome());
+        org.junit.jupiter.api.Assertions.assertNotNull(result.getNotHeld());
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-022", result.getNotHeld().getOrderId());
+        org.junit.jupiter.api.Assertions.assertNull(result.getConfirmed());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+        var saved = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-022".equals(r.getOrderId()))
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(1, saved.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, saved.get(0).getStatus());
+    }
+
+    @Test
+    void confirmStockReservationAlreadyConfirmedAnswersConfirmedTest() {
+        var result = inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-004"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(ConfirmStockReservationOutcome.CONFIRMED, result.getOutcome());
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-004", result.getConfirmed().getOrderId());
+        org.junit.jupiter.api.Assertions.assertNull(result.getNotHeld());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+    }
 }
