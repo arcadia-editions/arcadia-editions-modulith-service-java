@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import com.arcadiaeditions.payments.processing.adapter.driven.jpa.inmemory.*;
+import com.arcadiaeditions.payments.processing.adapter.driven.provider.StandInPaymentProvider;
+import com.arcadiaeditions.payments.processing.application.port.driven.provider.PaymentProvider;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.*;
 import com.arcadiaeditions.payments.processing.application.port.driving.*;
 import com.arcadiaeditions.payments.processing.application.port.driving.dto.*;
@@ -90,27 +92,170 @@ class PaymentsProcessingServiceTest {
 
     @Test
     void authorizePaymentExistingAuthorizationRequestedTest() {
-        // ORD-002: Payment AUTHORIZATION_REQUESTED (a1) already stored: get, not create a second one
-        var input = authorizeInput("ORD-002", "CUST-002", "pm_ok", "159.30");
+        // ORD-002: Payment AUTHORIZATION_REQUESTED (a1) already committed, a processor call in flight: a redelivered
+        // OrderCreated is a no-op (ZDL: creation only), no second Payment, no second processor call, no event
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var service = serviceWith(new StandInPaymentProvider() {
+            @Override
+            public AuthorizationResult authorize(AuthorizationRequest request) {
+                calls.incrementAndGet();
+                return super.authorize(request);
+            }
+        }, Duration.ofSeconds(30));
 
-        var payment = paymentsProcessingService.authorizePayment(input);
+        var payment = service.authorizePayment(authorizeInput("ORD-002", "CUST-002", "pm_ok", "159.30"));
 
         assertThat(payment.getId()).isEqualTo(51L);
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.AUTHORIZATION_REQUESTED);
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
+        assertThat(payment.getProviderReference()).isNull();
+        assertThat(payment.getAuthorizedAt()).isNull();
+        assertThat(paymentsOf("ORD-002")).isEqualTo(1);
+        assertThat(paymentRepository.findById(51L).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.AUTHORIZATION_REQUESTED);
+        assertThat(calls.get()).isZero();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    /** A service on the context's repository, events, clock and transactions, with this provider and timeout. */
+    private PaymentsProcessingServiceImpl serviceWith(PaymentProvider provider, Duration processorTimeout) {
+        var flowProperties = new com.arcadiaeditions.config.FlowProperties();
+        flowProperties.getPayments().setProcessorTimeout(processorTimeout);
+        var service = new PaymentsProcessingServiceImpl(
+                paymentRepository,
+                context.eventPublisher(),
+                provider,
+                context.clock,
+                context.transactionManager(),
+                flowProperties);
+        servicesToShutdown.add(service);
+        return service;
+    }
+
+    private final java.util.List<PaymentsProcessingServiceImpl> servicesToShutdown = new java.util.ArrayList<>();
+
+    @org.junit.jupiter.api.AfterEach
+    void shutdownServices() {
+        servicesToShutdown.forEach(PaymentsProcessingServiceImpl::shutdownProcessorCalls);
+    }
+
+    @Test
+    void authorizePaymentCommitsAuthorizationRequestedBeforeProviderCallTest() {
+        // OrderCreated: AUTHORIZATION_REQUESTED (attemptCount 1) is committed in its own transaction before the
+        // processor is called, so a call in flight counts as started (getPaymentStatus)
+        var seenStatus = new java.util.concurrent.atomic.AtomicReference<PaymentStatus>();
+        var seenAttempts = new java.util.concurrent.atomic.AtomicReference<Integer>();
+        var commitsBeforeCall = new java.util.concurrent.atomic.AtomicInteger(-1);
+        var service = serviceWith(new StandInPaymentProvider() {
+            @Override
+            public AuthorizationResult authorize(AuthorizationRequest request) {
+                var stored = paymentRepository.findByOrderId(request.orderId()).orElseThrow();
+                seenStatus.set(stored.getStatus());
+                seenAttempts.set(stored.getAttemptCount());
+                commitsBeforeCall.set(context.transactionManager().commits());
+                return super.authorize(request);
+            }
+        }, Duration.ofSeconds(30));
+
+        var payment = service.authorizePayment(authorizeInput("ORD-905", "CUST-905", "pm_ok", "59.90"));
+
+        assertThat(seenStatus.get()).isEqualTo(PaymentStatus.AUTHORIZATION_REQUESTED);
+        assertThat(seenAttempts.get()).isEqualTo(1);
+        assertThat(commitsBeforeCall.get()).isEqualTo(1);
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
         assertThat(payment.getAttemptCount()).isEqualTo(1);
-        assertThat(payment.getProviderReference()).isEqualTo("STANDIN-ORD-002");
-        assertThat(payment.getAuthorizedAt()).isEqualTo(TestClock.NOW);
-        assertThat(paymentsOf("ORD-002")).isEqualTo(1);
-        assertThat(paymentRepository.findById(51L).orElseThrow().getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
+        assertThat(paymentsOf("ORD-905")).isEqualTo(1);
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentAuthorized.class);
+    }
+
+    @Test
+    void authorizePaymentProcessorTimeoutTest() {
+        // a processor that does not answer within the timeout (a short one stands for the 30 s of the ZFL):
+        // FAILED processor_timeout, exactly one PaymentFailed
+        var service = serviceWith(new StandInPaymentProvider() {
+            @Override
+            public AuthorizationResult authorize(AuthorizationRequest request) {
+                try {
+                    Thread.sleep(Duration.ofSeconds(10));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return super.authorize(request);
+            }
+        }, Duration.ofMillis(200));
+
+        var started = System.nanoTime();
+        var payment = service.authorizePayment(authorizeInput("ORD-906", "CUST-906", "pm_ok", "59.90"));
+
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(5));
+        assertFailedWith(payment, "ORD-906", "CUST-906", PaymentProvider.PROCESSOR_TIMEOUT);
+    }
+
+    @Test
+    void authorizePaymentProcessorErrorTest() {
+        // a processor call that throws (P-10 A): FAILED processor_error, exactly one PaymentFailed, not left
+        // AUTHORIZATION_REQUESTED for good
+        var service = serviceWith(new StandInPaymentProvider() {
+            @Override
+            public AuthorizationResult authorize(AuthorizationRequest request) {
+                throw new IllegalStateException("processor exploded");
+            }
+        }, Duration.ofSeconds(30));
+
+        var payment = service.authorizePayment(authorizeInput("ORD-907", "CUST-907", "pm_ok", "59.90"));
+
+        assertFailedWith(payment, "ORD-907", "CUST-907", PaymentProvider.PROCESSOR_ERROR);
+    }
+
+    @Test
+    void shutdownProcessorCallsInterruptsCallsInFlightTest() throws Exception {
+        // @PreDestroy: the processor-call threads stop with the application
+        var callStarted = new java.util.concurrent.CountDownLatch(1);
+        var interrupted = new java.util.concurrent.CountDownLatch(1);
+        var service = serviceWith(new StandInPaymentProvider() {
+            @Override
+            public AuthorizationResult authorize(AuthorizationRequest request) {
+                callStarted.countDown();
+                try {
+                    Thread.sleep(Duration.ofSeconds(20));
+                } catch (InterruptedException e) {
+                    interrupted.countDown();
+                    Thread.currentThread().interrupt();
+                }
+                return super.authorize(request);
+            }
+        }, Duration.ofSeconds(30));
+        var caller = Thread.ofVirtual()
+                .start(() -> service.authorizePayment(authorizeInput("ORD-908", "CUST-908", "pm_ok", "59.90")));
+        assertThat(callStarted.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        service.shutdownProcessorCalls();
+
+        assertThat(interrupted.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        caller.join(Duration.ofSeconds(5));
+    }
+
+    private void assertFailedWith(Payment payment, String orderId, String customerId, String reason) {
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
+        assertThat(payment.getFailureReason()).isEqualTo(reason);
+        assertThat(payment.getFailedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getAuthorizedAt()).isNull();
+        assertThat(paymentsOf(orderId)).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId(orderId).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.FAILED);
 
         var events = context.eventPublisher().getEvents();
         assertThat(events).hasSize(1);
-        var event = (PaymentAuthorized) events.get(0);
-        assertThat(event.getOrderId()).isEqualTo("ORD-002");
-        assertThat(event.getCustomerId()).isEqualTo("CUST-002");
-        assertThat(event.getAmount()).isEqualByComparingTo("159.30");
-        assertThat(event.getProviderReference()).isEqualTo("STANDIN-ORD-002");
-        assertThat(event.getAuthorizedAt()).isEqualTo(TestClock.NOW);
+        assertThat(events.get(0)).isInstanceOf(PaymentFailed.class);
+        var event = (PaymentFailed) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo(orderId);
+        assertThat(event.getCustomerId()).isEqualTo(customerId);
+        assertThat(event.getAttemptCount()).isEqualTo(1);
+        assertThat(event.getReason()).isEqualTo(reason);
+        assertThat(event.getFailedAt()).isEqualTo(TestClock.NOW);
     }
 
     @Test

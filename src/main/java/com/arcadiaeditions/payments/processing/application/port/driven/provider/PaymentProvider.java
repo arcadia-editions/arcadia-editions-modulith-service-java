@@ -8,6 +8,15 @@ import java.math.BigDecimal;
 @org.jmolecules.architecture.hexagonal.SecondaryPort
 public interface PaymentProvider {
 
+    /** Failure reasons (Payment.failureReason, data.sql header), shared by the service and the stand-in processor. */
+    String CARD_DECLINED = "card_declined";
+    String PROCESSOR_UNAVAILABLE = "processor_unavailable";
+    /** The processor did not answer within the processor timeout (ZFL header: 30 s). */
+    String PROCESSOR_TIMEOUT = "processor_timeout";
+    /** The processor call threw (P-10 A of the Kotlin service, data.sql assumption). */
+    String PROCESSOR_ERROR = "processor_error";
+    String CAPTURE_REJECTED = "capture_rejected";
+
     AuthorizationResult authorize(AuthorizationRequest request);
 
     CaptureResult capture(CaptureRequest request);
