@@ -1025,6 +1025,31 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void getPaymentStatusNoPaymentTest() {
+        // ORD-027: no Payment
+        var before = paymentRepository.findAll().size();
+        var result = paymentsProcessingService.getPaymentStatus(new GetPaymentStatusInput().setOrderId("ORD-027"));
+
+        assertThat(result.getOutcome()).isEqualTo(GetPaymentStatusOutcome.NO_PAYMENT);
+        assertThat(result.getNoPayment().getOrderId()).isEqualTo("ORD-027");
+        assertThat(result.getStarted()).isNull();
+        assertThat(paymentRepository.findAll()).hasSize(before);
+    }
+
+    @Test
+    void getPaymentStatusStartedTest() {
+        // ORD-002 and ORD-028: AUTHORIZATION_REQUESTED counts as started
+        for (var orderId : new String[] {"ORD-002", "ORD-028"}) {
+            var result = paymentsProcessingService.getPaymentStatus(new GetPaymentStatusInput().setOrderId(orderId));
+
+            assertThat(result.getOutcome()).isEqualTo(GetPaymentStatusOutcome.STARTED);
+            assertThat(result.getStarted().getOrderId()).isEqualTo(orderId);
+            assertThat(result.getStarted().getStatus()).isEqualTo(PaymentStatus.AUTHORIZATION_REQUESTED);
+            assertThat(result.getNoPayment()).isNull();
+        }
+    }
+
+    @Test
     void flowPropertiesDefaultBackoffTest() {
         // ZFL header: 5 s before attempt 2, 15 s before attempt 3
         assertThat(new com.arcadiaeditions.config.FlowProperties().getPayments().getRetryBackoff())

@@ -364,8 +364,19 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         }
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md
+    @Override
+    @Transactional(readOnly = true)
     public GetPaymentStatusResult getPaymentStatus(GetPaymentStatusInput input) {
-        throw new UnsupportedOperationException("getPaymentStatus: " + input.getOrderId());
+        log.debug("getPaymentStatus: {}", input.getOrderId());
+        return paymentRepository
+                .findByOrderId(input.getOrderId())
+                .map(payment -> new GetPaymentStatusResult()
+                        .setOutcome(GetPaymentStatusOutcome.STARTED)
+                        .setStarted(new PaymentStartedResult()
+                                .setOrderId(payment.getOrderId())
+                                .setStatus(payment.getStatus())))
+                .orElseGet(() -> new GetPaymentStatusResult()
+                        .setOutcome(GetPaymentStatusOutcome.NO_PAYMENT)
+                        .setNoPayment(new NoPaymentResult().setOrderId(input.getOrderId())));
     }
 }
