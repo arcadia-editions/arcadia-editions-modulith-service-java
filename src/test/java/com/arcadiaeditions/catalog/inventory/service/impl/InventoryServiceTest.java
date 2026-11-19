@@ -463,4 +463,81 @@ class InventoryServiceTest {
         org.junit.jupiter.api.Assertions.assertEquals(before.getAvailableQuantity(), after.getAvailableQuantity());
         org.junit.jupiter.api.Assertions.assertEquals(before.getReservedQuantity(), after.getReservedQuantity());
     }
+
+    // ReservationExpired timer (reservation-expired-event-v1)
+
+    private com.arcadiaeditions.catalog.inventory.scheduling.ReservationExpiredScheduler scheduler(
+            InventoryService service, Clock clock) {
+        return new com.arcadiaeditions.catalog.inventory.scheduling.ReservationExpiredScheduler(
+                stockReservationRepository, service, clock);
+    }
+
+    @Test
+    void reservationExpiredTimerExpiresOnlyOrdersPastDeadlineTest() {
+        var result = scheduler(inventoryService, context.clock).expireDueReservations();
+
+        // RESERVED and past the deadline at the fixed now: ORD-027 (no payment), ORD-028 (payment started)
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("ORD-027", "ORD-028"), result);
+        var byOrder = stockReservationRepository.findAll().stream()
+                .collect(java.util.stream.Collectors.groupingBy(StockReservation::getOrderId));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                ReservationStatus.RELEASED, byOrder.get("ORD-027").get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                StockReleaseReason.RESERVATION_EXPIRED,
+                byOrder.get("ORD-027").get(0).getReleaseReason());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                ReservationStatus.RESERVED, byOrder.get("ORD-028").get(0).getStatus());
+        // before the deadline (10:00:02): untouched
+        byOrder.get("ORD-002")
+                .forEach(r -> org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RESERVED, r.getStatus()));
+
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var event = (com.arcadiaeditions.catalog.inventory.domain.events.StockReleased) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-027", event.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.RESERVATION_EXPIRED, event.getReason());
+    }
+
+    @Test
+    void reservationExpiredTimerRunsExpireReservationOncePerOrderTest() {
+        // at ORD-002's deadline, its two RESERVED lines are due: one expireReservation for the order
+        var atOrd002Deadline = Clock.fixed(Instant.parse("2026-10-14T10:00:02Z"), ZoneOffset.UTC);
+        var service = spy(inventoryService);
+
+        var result = scheduler(service, atOrd002Deadline).expireDueReservations();
+
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("ORD-002", "ORD-027", "ORD-028"), result);
+        verify(service, times(1)).expireReservation(argThat(i -> "ORD-002".equals(i.getOrderId())));
+        verify(service, times(3)).expireReservation(any());
+        // ORD-002 payment started: nothing released for it
+        stockReservationRepository.findByOrderId("ORD-002")
+                .forEach(r -> org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RESERVED, r.getStatus()));
+    }
+
+    @Test
+    void reservationExpiredTimerNextRunEmitsNothingNewTest() {
+        var timer = scheduler(inventoryService, context.clock);
+        timer.expireDueReservations();
+        context.eventPublisher().getEvents().clear();
+
+        var result = timer.expireDueReservations();
+
+        // ORD-027 is RELEASED now; ORD-028 still RESERVED (payment owns the end) and asked again, no release
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("ORD-028"), result);
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+    }
+
+    @Test
+    void reservationExpiredTimerFailureOfOneOrderDoesNotStopTheOthersTest() {
+        var service = spy(inventoryService);
+        doThrow(new IllegalStateException("boom"))
+                .when(service)
+                .expireReservation(argThat(i -> "ORD-027".equals(i.getOrderId())));
+
+        var result = scheduler(service, context.clock).expireDueReservations();
+
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("ORD-027", "ORD-028"), result);
+        verify(service, times(1)).expireReservation(argThat(i -> "ORD-028".equals(i.getOrderId())));
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+    }
 }

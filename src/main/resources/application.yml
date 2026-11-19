@@ -46,3 +46,10 @@ spring:
         prepStmtCacheSize: 250
         prepStmtCacheSqlLimit: 2048
         useServerPrepStmts: true
+
+# ReservationExpired timer (catalog.inventory ReservationExpiredScheduler)
+arcadia:
+  timers:
+    reservation-expired-event-v1:
+      enabled: true
+      fixed-delay: PT30S
