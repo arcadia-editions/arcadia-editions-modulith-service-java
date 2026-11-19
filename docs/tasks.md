@@ -59,12 +59,13 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:124-136, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:138-145
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
-- [/] T-53 advanced AFK reauthorizePayment: from FAILED with input.attemptCount == Payment.attemptCount, wait the backoff (5 s before attempt 2, 15 s before attempt 3), increment attemptCount and commit AUTHORIZATION_REQUESTED before the provider call (as T-48; ZDL transitions FAILED -> AUTHORIZATION_REQUESTED -> outcome, P-11 A), 30 s timeout; guard on FAILED in the service, not with the generated PaymentTransitions.ensureCanReauthorizePayment (it checks the last step's from); outcomes AUTHORIZED / DECLINED / FAILED with their events; Optional.empty() when there is no Payment (P-12 A); any other state or a stale attemptCount is a no-op (replace the compile stub). On JPA, do not save a Payment loaded before the REQUIRES_NEW block over the one that block committed (optimistic-lock failure on attempts 2 and 3): load and check inside the block, or re-read after it; a test with @Version semantics fails on the bug; a provider exception is FAILED processor_error as in T-48 (Kotlin T-80, T-75)
+- [x] T-53 advanced AFK reauthorizePayment: from FAILED with input.attemptCount == Payment.attemptCount, wait the backoff (5 s before attempt 2, 15 s before attempt 3), increment attemptCount and commit AUTHORIZATION_REQUESTED before the provider call (as T-48; ZDL transitions FAILED -> AUTHORIZATION_REQUESTED -> outcome, P-11 A), 30 s timeout; guard on FAILED in the service, not with the generated PaymentTransitions.ensureCanReauthorizePayment (it checks the last step's from); outcomes AUTHORIZED / DECLINED / FAILED with their events; Optional.empty() when there is no Payment (P-12 A); any other state or a stale attemptCount is a no-op (replace the compile stub). On JPA, do not save a Payment loaded before the REQUIRES_NEW block over the one that block committed (optimistic-lock failure on attempts 2 and 3): load and check inside the block, or re-read after it; a test with @Version semantics fails on the bug; a provider exception is FAILED processor_error as in T-48 (Kotlin T-80, T-75)
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:138-146, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:130-136
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
       blocked by: T-48, T-52
-- [ ] T-54 mechanical AFK Wire PaymentRetried to reauthorizePayment (PaymentsProcessingServiceEventsListener + asReauthorizePaymentInput, as the 0.10.1 generator writes them) and make authorizePayment creation only: drop the branch that reuses a FAILED Payment on PaymentRetried
+- [/] T-54 mechanical AFK Wire PaymentRetried to reauthorizePayment (PaymentsProcessingServiceEventsListener + asReauthorizePaymentInput, as the 0.10.1 generator writes them) and make authorizePayment creation only: drop the branch that reuses a FAILED Payment on PaymentRetried
       model: ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:119-136
       test data: data.sql ORD-002, data.sql ORD-008
       tests: PaymentsProcessingServiceTest
@@ -172,7 +173,8 @@ review: [ ]
 path: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed > end notificationFailed
 review: [ ]
 
-- [/] T-70 bounded AFK Flow test notification failed: the stand-in refuses the e-mail (@fail.invalid), Notification FAILED, the flow ends at NotificationDeliveryFailed with its type; the business outcome is untouched: Fulfillment.paymentCapturedAt set, stock counters relative to the position read before the checkout (available -1, sold +1), NotificationDeliveryFailed.notificationId equals the stored Notification; no assertion that only proves the stand-in (Kotlin T-87)
+- [x] T-70 bounded AFK Flow test notification failed: the stand-in refuses the e-mail (@fail.invalid), Notification FAILED, the flow ends at NotificationDeliveryFailed with its type; the business outcome is untouched: Fulfillment.paymentCapturedAt set, stock counters relative to the position read before the checkout (available -1, sold +1), NotificationDeliveryFailed.notificationId equals the stored Notification; no assertion that only proves the stand-in (Kotlin T-87)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
       test data: data.sql ORD-015
       tests: PlaceOrderFlowTest
