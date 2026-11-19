@@ -25,11 +25,11 @@ path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult
       > capturePayment[PaymentCaptured] > recordPaymentCaptured, sendOrderConfirmation[sent] > end completed
 review: [ ]
 
-- [ ] T-48 advanced AFK authorizePayment: commit AUTHORIZATION_REQUESTED (attemptCount 1) in its own transaction before calling the provider, so a call in flight counts as started for getPaymentStatus; a provider call longer than 30 s ends as FAILED with PaymentFailed (processor_timeout); a provider call that throws ends as FAILED with PaymentFailed (processor_error, P-10 A of the Kotlin service, data.sql assumption) instead of leaving the Payment AUTHORIZATION_REQUESTED for good; one constant per reason shared with the stand-in processor; shut the processor-call executor down (@PreDestroy) (Kotlin T-75)
+- [/] T-48 advanced AFK authorizePayment: commit AUTHORIZATION_REQUESTED (attemptCount 1) in its own transaction before calling the provider, so a call in flight counts as started for getPaymentStatus; a provider call longer than 30 s ends as FAILED with PaymentFailed (processor_timeout); a provider call that throws ends as FAILED with PaymentFailed (processor_error, P-10 A of the Kotlin service, data.sql assumption) instead of leaving the Payment AUTHORIZATION_REQUESTED for good; one constant per reason shared with the stand-in processor; shut the processor-call executor down (@PreDestroy) (Kotlin T-75)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:107-122, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:119-128
       test data: data.sql ORD-002, data/jpa/Payment/2.json
       tests: PaymentsProcessingServiceTest
-- [ ] T-49 bounded AFK recordPaymentCaptured: on PaymentCaptured set Fulfillment.paymentCapturedAt (SCHEDULED, no state change, no event); no-op when no Fulfillment exists or it is already set (replace the no-op compile stub)
+- [/] T-49 bounded AFK recordPaymentCaptured: on PaymentCaptured set Fulfillment.paymentCapturedAt (SCHEDULED, no state change, no event); no-op when no Fulfillment exists or it is already set (replace the no-op compile stub)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:215-221, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:105-110
       test data: data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
@@ -79,7 +79,7 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-252, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:243-249
       test data: data.sql ORD-002, data.sql ORD-007, data.sql ORD-008, data.sql ORD-012, data.sql ORD-019, data.sql ORD-025
       tests: PaymentsProcessingServiceTest
-- [ ] T-57 mechanical AFK releaseStock on PaymentVoidFailed (listener and mapper already wired): reason PAYMENT_VOID_FAILED from a CONFIRMED reservation, sold back to available
+- [/] T-57 mechanical AFK releaseStock on PaymentVoidFailed (listener and mapper already wired): reason PAYMENT_VOID_FAILED from a CONFIRMED reservation, sold back to available
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:142-148
       test data: data.sql ORD-025, data.sql ORD-026
       tests: InventoryServiceTest
