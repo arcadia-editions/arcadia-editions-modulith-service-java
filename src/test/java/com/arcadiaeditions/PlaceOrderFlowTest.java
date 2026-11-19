@@ -2,6 +2,8 @@ package com.arcadiaeditions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.http.HttpMethod.POST;
 
 import com.arcadiaeditions.catalog.inventory.domain.InventoryPosition;
@@ -11,6 +13,8 @@ import com.arcadiaeditions.catalog.inventory.domain.StockReservation;
 import com.arcadiaeditions.catalog.inventory.repository.jpa.InventoryPositionRepository;
 import com.arcadiaeditions.catalog.inventory.repository.jpa.StockReservationRepository;
 import com.arcadiaeditions.fulfillment.shipping.FulfillmentRepository;
+import com.arcadiaeditions.fulfillment.shipping.FulfillmentShippingService;
+import com.arcadiaeditions.fulfillment.shipping.PaymentNotCapturedException;
 import com.arcadiaeditions.fulfillment.shipping.domain.FulfillmentStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationType;
@@ -22,6 +26,7 @@ import com.arcadiaeditions.orders.checkout.core.domain.OrderStatus;
 import com.arcadiaeditions.orders.checkout.core.domain.events.StockUnavailable;
 import com.arcadiaeditions.orders.checkout.core.outbound.jpa.OrderRepository;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
+import com.arcadiaeditions.payments.processing.application.port.driven.provider.PaymentProvider;
 import com.arcadiaeditions.payments.processing.domain.PaymentStatus;
 import com.arcadiaeditions.payments.processing.domain.event.PaymentCaptureFailed;
 import com.arcadiaeditions.payments.processing.domain.event.PaymentFailed;
@@ -31,7 +36,11 @@ import com.arcadiaeditions.payments.processing.domain.event.PaymentVoided;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +55,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -162,6 +172,13 @@ class PlaceOrderFlowTest {
     @Autowired
     NotificationRepository notificationRepository;
 
+    @Autowired
+    FulfillmentShippingService fulfillmentShippingService;
+
+    /** The stand-in processor, real behavior; a test stubs it only to look at the state while a call is in flight. */
+    @MockitoSpyBean
+    PaymentProvider paymentProvider;
+
     WebTestClient webTestClient;
 
     @BeforeEach
@@ -171,6 +188,41 @@ class PlaceOrderFlowTest {
 
     @Test
     void completed_startCheckoutToOrderConfirmationSent(Scenario scenario) {
+        // T-51, place-order-flow.zfl:202-221, 336-345: while the processor authorizes, the Payment is already committed
+        // AUTHORIZATION_REQUESTED; while it captures, the Fulfillment is SCHEDULED without paymentCapturedAt and
+        // markReadyToShip is refused. Keyed by orderId: a listener of an earlier test may still be running.
+        Map<String, Optional<PaymentStatus>> statusDuringAuthorize = new ConcurrentHashMap<>();
+        Map<String, Optional<Throwable>> markReadyToShipDuringCapture = new ConcurrentHashMap<>();
+        doAnswer(invocation -> {
+                    PaymentProvider.AuthorizationRequest request = invocation.getArgument(0);
+                    statusDuringAuthorize.put(
+                            request.orderId(),
+                            paymentRepository.findByOrderId(request.orderId()).map(p -> p.getStatus()));
+                    return invocation.callRealMethod();
+                })
+                .when(paymentProvider)
+                .authorize(any());
+        doAnswer(invocation -> {
+                    PaymentProvider.CaptureRequest request = invocation.getArgument(0);
+                    // own thread, own transactions: the Fulfillment stays out of the capture transaction's persistence
+                    // context, and a refusal does not mark that transaction rollback-only
+                    Optional<Throwable> outcome;
+                    try {
+                        CompletableFuture.runAsync(() -> fulfillmentShippingService.markReadyToShip(fulfillmentRepository
+                                        .findByOrderId(request.orderId())
+                                        .orElseThrow()
+                                        .getId()))
+                                .join();
+                        outcome = Optional.empty();
+                    } catch (CompletionException e) {
+                        outcome = Optional.of(e.getCause());
+                    }
+                    markReadyToShipDuringCapture.put(request.orderId(), outcome);
+                    return invocation.callRealMethod();
+                })
+                .when(paymentProvider)
+                .capture(any());
+
         // data.sql SKU-001: plenty (avail 9); pm_ok, postal 28099 and example.com are non-trigger stand-in values
         String requestBody = """
             {
@@ -225,9 +277,14 @@ class PlaceOrderFlowTest {
                                 .hasValueSatisfying(
                                         payment -> assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED));
 
+                        var capturedAt = paymentRepository.findByOrderId(orderId).orElseThrow().getCapturedAt();
+                        assertThat(capturedAt).isNotNull();
                         assertThat(fulfillmentRepository.findByOrderId(orderId))
-                                .hasValueSatisfying(fulfillment ->
-                                        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
+                                .hasValueSatisfying(fulfillment -> {
+                                    assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED);
+                                    // recordPaymentCaptured (place-order-flow.zfl:215-221)
+                                    assertThat(fulfillment.getPaymentCapturedAt()).isEqualTo(capturedAt);
+                                });
 
                         assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
                                 .hasValueSatisfying(notification -> {
@@ -235,6 +292,27 @@ class PlaceOrderFlowTest {
                                     assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
                                 });
                     });
+
+                    // the processor was called with the Payment already AUTHORIZATION_REQUESTED; it then ended
+                    // AUTHORIZED (and CAPTURED, above)
+                    assertThat(statusDuringAuthorize)
+                            .containsEntry(orderId, Optional.of(PaymentStatus.AUTHORIZATION_REQUESTED));
+
+                    // before the capture was recorded, markReadyToShip was refused and named its cause
+                    assertThat(markReadyToShipDuringCapture).containsKey(orderId);
+                    assertThat(markReadyToShipDuringCapture.get(orderId))
+                            .hasValueSatisfying(refusal -> assertThat(refusal)
+                                    .isInstanceOf(PaymentNotCapturedException.class)
+                                    .hasMessageContaining("payment not captured yet"));
+
+                    // after it, markReadyToShip works
+                    var fulfillmentId =
+                            fulfillmentRepository.findByOrderId(orderId).orElseThrow().getId();
+                    assertThat(fulfillmentShippingService.markReadyToShip(fulfillmentId).getStatus())
+                            .isEqualTo(FulfillmentStatus.READY_TO_SHIP);
+                    assertThat(fulfillmentRepository.findByOrderId(orderId))
+                            .hasValueSatisfying(
+                                    f -> assertThat(f.getStatus()).isEqualTo(FulfillmentStatus.READY_TO_SHIP));
                 });
     }
 
