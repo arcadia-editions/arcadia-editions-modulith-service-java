@@ -110,9 +110,19 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
         return fulfillment;
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (no-op until then)
     public Optional<Fulfillment> recordPaymentCaptured(RecordPaymentCapturedInput input) {
-        return Optional.empty();
+
+        log.debug("Request recordPaymentCaptured: {}", input);
+
+        // no state change, no event; no-op when there is no Fulfillment, it is not SCHEDULED or already recorded
+        return fulfillmentRepository
+                .findByOrderId(input.getOrderId())
+                .filter(f -> f.getStatus() == FulfillmentStatus.SCHEDULED)
+                .filter(f -> f.getPaymentCapturedAt() == null)
+                .map(f -> {
+                    f.setPaymentCapturedAt(input.getCapturedAt());
+                    return fulfillmentRepository.save(f);
+                });
     }
 
     // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (no-op until then)
