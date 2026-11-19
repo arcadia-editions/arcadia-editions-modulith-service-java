@@ -18,6 +18,7 @@ import com.arcadiaeditions.fulfillment.shipping.PaymentNotCapturedException;
 import com.arcadiaeditions.fulfillment.shipping.domain.FulfillmentStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationType;
+import com.arcadiaeditions.notifications.consumer.domain.events.NotificationDeliveryFailed;
 import com.arcadiaeditions.notifications.consumer.domain.events.OrderCancelledNotificationSent;
 import com.arcadiaeditions.notifications.consumer.domain.events.OrderConfirmationSent;
 import com.arcadiaeditions.notifications.consumer.domain.events.StockUnavailableNotificationSent;
@@ -875,6 +876,81 @@ class PlaceOrderFlowTest {
                                 });
                         assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
                                 .isEmpty();
+                    });
+                });
+    }
+
+    @Test
+    void notificationFailed_startCheckoutToNotificationDeliveryFailed(Scenario scenario) {
+        // place-order-flow.zfl:322-345: the stand-in refuses @fail.invalid (data.sql ORD-015 e-mail domain); the failed
+        // confirmation hides nothing of the business outcome, which is the happy path
+        InventoryPosition before = position("SKU-001");
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-NOTIF",
+              "customerEmail": "flow.notif@fail.invalid",
+              "paymentMethodId": "pm_ok",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-001", "quantity": 1, "unitPrice": 49.99 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(NotificationDeliveryFailed.class)
+                .matchingMappedValue(NotificationDeliveryFailed::getCustomerId, "CUS-FLOW-NOTIF")
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getType()).isEqualTo(NotificationType.ORDER_CONFIRMATION);
+                    assertThat(event.getRecipient()).isEqualTo("flow.notif@fail.invalid");
+                    assertThat(event.getFailedAt()).isNotNull();
+
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.FAILED);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                });
+
+                        // the business outcome is untouched
+                        assertThat(orderRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(order -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED));
+                        assertThat(paymentRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(
+                                        payment -> assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED));
+                        assertThat(fulfillmentRepository.findByOrderId(orderId)).hasValueSatisfying(fulfillment -> {
+                            assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED);
+                            assertThat(fulfillment.getPaymentCapturedAt()).isNotNull();
+                        });
+                        assertThat(stockReservationRepository.findByOrderId(orderId))
+                                .singleElement()
+                                .satisfies(r -> assertThat(r.getStatus()).isEqualTo(ReservationStatus.CONFIRMED));
+
+                        InventoryPosition after = position("SKU-001");
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity() - 1);
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity() + 1);
                     });
                 });
     }
