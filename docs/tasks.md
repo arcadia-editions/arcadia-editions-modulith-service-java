@@ -65,12 +65,13 @@ review: [ ]
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
       blocked by: T-48, T-52
-- [/] T-54 mechanical AFK Wire PaymentRetried to reauthorizePayment (PaymentsProcessingServiceEventsListener + asReauthorizePaymentInput, as the 0.10.1 generator writes them) and make authorizePayment creation only: drop the branch that reuses a FAILED Payment on PaymentRetried
+- [x] T-54 mechanical AFK Wire PaymentRetried to reauthorizePayment (PaymentsProcessingServiceEventsListener + asReauthorizePaymentInput, as the 0.10.1 generator writes them) and make authorizePayment creation only: drop the branch that reuses a FAILED Payment on PaymentRetried
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:119-136
       test data: data.sql ORD-002, data.sql ORD-008
       tests: PaymentsProcessingServiceTest
       blocked by: T-53
-- [ ] T-55 advanced AFK Flow tests of the retry loop: attempts counted only by authorizePayment (1) and reauthorizePayment (2, 3), a redelivered PaymentFailed or PaymentRetried with a stale attemptCount changes nothing, backoff respected (fixed Clock or a test backoff)
+- [/] T-55 advanced AFK Flow tests of the retry loop: attempts counted only by authorizePayment (1) and reauthorizePayment (2, 3), a redelivered PaymentFailed or PaymentRetried with a stale attemptCount changes nothing, backoff respected (fixed Clock or a test backoff)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:124-146, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266
       test data: data.sql ORD-008, data.sql ORD-009, data.sql ORD-015
       tests: PlaceOrderFlowTest
@@ -81,7 +82,7 @@ path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment[void
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-56 bounded AFK voidPayment: Optional.empty(), no event, when there is no Payment or it is not AUTHORIZED or CAPTURE_FAILED (rewrite voidPaymentFromFailedTest and voidPaymentFromAuthorizationRequestedTest to assert the no-op); a refused void sets VOID_FAILED and voidFailedAt and emits PaymentVoidFailed; the stand-in refuses voids for paymentMethodId pm_void_fail. The no-op tests compare fields (status, failureReason, voidedAt, voidFailedAt), not the entity (equals is by id); the refused-void test asserts failureReason and PaymentVoidFailed.reason; log.warn the provider's refusal reason (ops own VOID_FAILED) (Kotlin T-78)
+- [/] T-56 bounded AFK voidPayment: Optional.empty(), no event, when there is no Payment or it is not AUTHORIZED or CAPTURE_FAILED (rewrite voidPaymentFromFailedTest and voidPaymentFromAuthorizationRequestedTest to assert the no-op); a refused void sets VOID_FAILED and voidFailedAt and emits PaymentVoidFailed; the stand-in refuses voids for paymentMethodId pm_void_fail. The no-op tests compare fields (status, failureReason, voidedAt, voidFailedAt), not the entity (equals is by id); the refused-void test asserts failureReason and PaymentVoidFailed.reason; log.warn the provider's refusal reason (ops own VOID_FAILED) (Kotlin T-78)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-252, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:243-249
       test data: data.sql ORD-002, data.sql ORD-007, data.sql ORD-008, data.sql ORD-012, data.sql ORD-019, data.sql ORD-025
       tests: PaymentsProcessingServiceTest
@@ -171,13 +172,20 @@ review: [ ]
 
 ## S7 notificationFailed
 path: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed > end notificationFailed
-review: [ ]
+review: [ ] (review-S7 2026-11-20: PASS with SHOULD FIX, accepted as T-72)
 
 - [x] T-70 bounded AFK Flow test notification failed: the stand-in refuses the e-mail (@fail.invalid), Notification FAILED, the flow ends at NotificationDeliveryFailed with its type; the business outcome is untouched: Fulfillment.paymentCapturedAt set, stock counters relative to the position read before the checkout (available -1, sold +1), NotificationDeliveryFailed.notificationId equals the stored Notification; no assertion that only proves the stand-in (Kotlin T-87)
       done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
       test data: data.sql ORD-015
       tests: PlaceOrderFlowTest
+
+- [ ] T-72 bounded AFK Flow test notification failed, cancelled branch: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed (type ORDER_CANCELLED), e.g. pm_decline + @fail.invalid: order CANCELLED, reservation RELEASED, stock counters back to the position read before, Notification FAILED with the notificationId of the event. Also fix T-70's test: its comment cites the lines it runs (zfl:207-212, sendOrderConfirmation failed, fresh order), paymentCapturedAt isEqualTo Payment.capturedAt, no OrderConfirmationSent for that order; add end notificationFailed (both branches) to the class javadoc list of ends
+      model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:207-212, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
+      test data: data.sql ORD-015
+      tests: PlaceOrderFlowTest
+      fixes: .zenwave/handoff/place-order-flow/reports/review-S7.md
+      blocked by: T-55
 
 ## S8 Polish
 review: [x] (review-S8 PASS 2026-11-20, claude-opus; 3 suite failures outside S8: T-56, T-61)
