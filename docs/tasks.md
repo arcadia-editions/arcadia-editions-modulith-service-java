@@ -121,7 +121,8 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:116-119, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:151-157
       test data: data.sql ORD-013, data.sql ORD-014, data.sql ORD-024
       tests: FulfillmentShippingServiceTest
-- [/] T-61 bounded AFK Flow test capture failed: after the void and the cancellation the Fulfillment is CANCELLED and FulfillmentCancelled was emitted; the order is cancelled once: record OrderCancelled and assert exactly one for the orderId (Kotlin T-85)
+- [x] T-61 bounded AFK Flow test capture failed: after the void and the cancellation the Fulfillment is CANCELLED and FulfillmentCancelled was emitted; the order is cancelled once: record OrderCancelled and assert exactly one for the orderId (Kotlin T-85)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:190-200, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320
       test data: data.sql ORD-024
       tests: PlaceOrderFlowTest
@@ -193,7 +194,7 @@ review: [ ] (review-S7 2026-11-20: PASS with SHOULD FIX, accepted as T-72)
       test data: data.sql ORD-015
       tests: PlaceOrderFlowTest
 
-- [ ] T-72 bounded AFK Flow test notification failed, cancelled branch: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed (type ORDER_CANCELLED), e.g. pm_decline + @fail.invalid: order CANCELLED, reservation RELEASED, stock counters back to the position read before, Notification FAILED with the notificationId of the event. Also fix T-70's test: its comment cites the lines it runs (zfl:207-212, sendOrderConfirmation failed, fresh order), paymentCapturedAt isEqualTo Payment.capturedAt, no OrderConfirmationSent for that order; add end notificationFailed (both branches) to the class javadoc list of ends
+- [/] T-72 bounded AFK Flow test notification failed, cancelled branch: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed (type ORDER_CANCELLED), e.g. pm_decline + @fail.invalid: order CANCELLED, reservation RELEASED, stock counters back to the position read before, Notification FAILED with the notificationId of the event. Also fix T-70's test: its comment cites the lines it runs (zfl:207-212, sendOrderConfirmation failed, fresh order), paymentCapturedAt isEqualTo Payment.capturedAt, no OrderConfirmationSent for that order; add end notificationFailed (both branches) to the class javadoc list of ends
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:207-212, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
       test data: data.sql ORD-015
       tests: PlaceOrderFlowTest
