@@ -128,6 +128,10 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
                 created.setAttemptCount(1);
                 return created;
             });
+            if (retried) {
+                // interim until T-54: reauthorizePayment will own this attempt (ZDL 130-136)
+                requested.setAttemptCount(requested.getAttemptCount() + 1);
+            }
             requested.setStatus(PaymentStatus.AUTHORIZATION_REQUESTED);
             return paymentRepository.save(requested);
         });
@@ -171,20 +175,27 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         return payment;
     }
 
-    // the ZDL makes retryPayment return Payment? (0.10.3, P-12 A): the body below is the baseline behavior
     public Optional<Payment> retryPayment(RetryPaymentInput input) {
-        return Optional.ofNullable(retryPaymentBaseline(input));
-    }
-
-    private Payment retryPaymentBaseline(RetryPaymentInput input) {
 
         log.debug("Request retryPayment: {}", input);
 
-        var payment = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
-        if (payment.getStatus() != PaymentStatus.FAILED) {
-            // redelivery: the payment already moved on; no attempt, no event
-            log.debug("retryPayment redelivery, payment already {}: {}", payment.getStatus(), input.getOrderId());
-            return payment;
+        var found = paymentRepository.findByOrderId(input.getOrderId());
+        if (found.isEmpty()) {
+            // P-12 A: no Payment for the order; nothing to retry, no event
+            log.debug("retryPayment: no payment for order {}", input.getOrderId());
+            return Optional.empty();
+        }
+        var payment = found.get();
+        if (payment.getStatus() != PaymentStatus.FAILED
+                || !Objects.equals(input.getAttemptCount(), payment.getAttemptCount())) {
+            // redelivery or stale PaymentFailed: the payment moved on or failed another attempt; no event
+            log.debug(
+                    "retryPayment no-op, payment {} at attempt {}, input attempt {}: {}",
+                    payment.getStatus(),
+                    payment.getAttemptCount(),
+                    input.getAttemptCount(),
+                    input.getOrderId());
+            return Optional.of(payment);
         }
         PaymentTransitions.ensureCanRetryPayment(payment);
 
@@ -196,14 +207,13 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
                     .asPaymentRetryExhausted(payment)
                     .setReason(payment.getFailureReason())
                     .setExhaustedAt(Instant.now(clock)));
-            return payment;
+            return Optional.of(payment);
         }
-        // retried: stays FAILED, one more attempt
-        payment.setAttemptCount(payment.getAttemptCount() + 1);
+        // retried: stays FAILED; attemptCount is incremented by reauthorizePayment, not here
         payment = paymentRepository.save(payment);
         eventPublisher.onPaymentRetried(
                 eventsMapper.asPaymentRetried(payment).setRetriedAt(Instant.now(clock)));
-        return payment;
+        return Optional.of(payment);
     }
 
     public Payment capturePayment(CapturePaymentInput input) {

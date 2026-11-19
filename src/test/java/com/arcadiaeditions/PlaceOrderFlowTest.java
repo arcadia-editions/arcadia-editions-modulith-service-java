@@ -527,10 +527,11 @@ class PlaceOrderFlowTest {
                                 assertThat(e.getAttemptCount()).isEqualTo(1);
                                 assertThat(e.getReason()).isEqualTo("processor_unavailable");
                             });
+                    // PaymentRetried carries the failed attempt, not incremented (ZDL 138-145)
                     assertThat(paymentEvents.paymentRetried.stream()
                                     .filter(e -> orderId.equals(e.getOrderId())))
                             .singleElement()
-                            .satisfies(e -> assertThat(e.getAttemptCount()).isEqualTo(2));
+                            .satisfies(e -> assertThat(e.getAttemptCount()).isEqualTo(1));
 
                     await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
                         assertThat(paymentRepository.findByOrderId(orderId)).hasValueSatisfying(payment -> {
@@ -615,10 +616,11 @@ class PlaceOrderFlowTest {
                                     .filter(e -> orderId.equals(e.getOrderId()))
                                     .map(PaymentFailed::getAttemptCount))
                             .containsExactlyInAnyOrder(1, 2, 3);
+                    // PaymentRetried carries the failed attempt, not incremented (ZDL 138-145)
                     assertThat(paymentEvents.paymentRetried.stream()
                                     .filter(e -> orderId.equals(e.getOrderId()))
                                     .map(PaymentRetried::getAttemptCount))
-                            .containsExactlyInAnyOrder(2, 3);
+                            .containsExactlyInAnyOrder(1, 2);
                     assertThat(paymentEvents.paymentRetryExhausted.stream()
                                     .filter(e -> orderId.equals(e.getOrderId())))
                             .singleElement()

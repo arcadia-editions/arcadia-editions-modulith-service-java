@@ -374,14 +374,14 @@ class PaymentsProcessingServiceTest {
 
     @Test
     void retryPaymentTest() {
-        // ORD-008: FAILED a1 below the limit: stays FAILED, attemptCount 2, exactly one PaymentRetried
-        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-008")).orElseThrow();
+        // ORD-008: FAILED a1 below the limit: stays FAILED, attemptCount unchanged (1), exactly one PaymentRetried
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-008").setAttemptCount(1)).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
-        assertThat(payment.getAttemptCount()).isEqualTo(2);
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
         assertThat(paymentsOf("ORD-008")).isEqualTo(1);
         assertThat(paymentRepository.findByOrderId("ORD-008").orElseThrow().getAttemptCount())
-                .isEqualTo(2);
+                .isEqualTo(1);
 
         var events = context.eventPublisher().getEvents();
         assertThat(events).hasSize(1);
@@ -389,14 +389,14 @@ class PaymentsProcessingServiceTest {
         var event = (PaymentRetried) events.get(0);
         assertThat(event.getOrderId()).isEqualTo("ORD-008");
         assertThat(event.getCustomerId()).isEqualTo("CUST-008");
-        assertThat(event.getAttemptCount()).isEqualTo(2);
+        assertThat(event.getAttemptCount()).isEqualTo(1);
         assertThat(event.getRetriedAt()).isEqualTo(TestClock.NOW);
     }
 
     @Test
     void retryPaymentExhaustedTest() {
         // ORD-009: FAILED at attempt 3 (the limit): RETRY_EXHAUSTED, exactly one PaymentRetryExhausted
-        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-009")).orElseThrow();
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-009").setAttemptCount(3)).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.RETRY_EXHAUSTED);
         assertThat(payment.getAttemptCount()).isEqualTo(3);
@@ -418,7 +418,7 @@ class PaymentsProcessingServiceTest {
     @Test
     void retryPaymentNotFailedTest() {
         // ORD-003 is AUTHORIZED: a redelivered PaymentFailed is a no-op, payment unchanged, no event
-        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-003")).orElseThrow();
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-003").setAttemptCount(1)).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
         assertThat(paymentRepository.findByOrderId("ORD-003").orElseThrow().getStatus())
@@ -427,9 +427,38 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void retryPaymentNoPaymentTest() {
+        // P-12 A: no Payment for the order: Optional.empty(), nothing created, no event
+        assertThat(paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-905").setAttemptCount(1)))
+                .isEmpty();
+        assertThat(paymentsOf("ORD-905")).isZero();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void retryPaymentStaleAttemptTest() {
+        // ORD-008 is at attempt 1: a PaymentFailed of another attempt is a no-op, unchanged, no event
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-008").setAttemptCount(2)).orElseThrow();
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getAttemptCount()).isEqualTo(1);
+        assertThat(paymentRepository.findByOrderId("ORD-008").orElseThrow().getAttemptCount()).isEqualTo(1);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void retryPaymentStaleAttemptAtLimitTest() {
+        // ORD-009 is at attempt 3: a stale PaymentFailed (attempt 2) must not exhaust it
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-009").setAttemptCount(2)).orElseThrow();
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
     void retryPaymentRetryExhaustedRedeliveryTest() {
         // ORD-011 is RETRY_EXHAUSTED: redelivery is a no-op, no second PaymentRetryExhausted
-        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-011")).orElseThrow();
+        var payment = paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-011").setAttemptCount(3)).orElseThrow();
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.RETRY_EXHAUSTED);
         assertThat(context.eventPublisher().getEvents()).isEmpty();
@@ -438,7 +467,7 @@ class PaymentsProcessingServiceTest {
     @Test
     void authorizePaymentOnPaymentRetriedTest() {
         // ORD-008 retried (attempt 2): PaymentRetried carries no payment data, the stored Payment is reloaded
-        paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-008"));
+        paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-008").setAttemptCount(1));
         context.eventPublisher().getEvents().clear();
 
         var payment = paymentsProcessingService.authorizePayment(new AuthorizePaymentInput().setOrderId("ORD-008"));
@@ -461,7 +490,7 @@ class PaymentsProcessingServiceTest {
     void authorizePaymentOnPaymentRetriedFailsAgainTest() {
         // pm_fail_always: the second attempt fails again, FAILED with attemptCount 2, one PaymentFailed
         paymentsProcessingService.authorizePayment(authorizeInput("ORD-904", "CUST-904", "pm_fail_always", "10.00"));
-        paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-904"));
+        paymentsProcessingService.retryPayment(new RetryPaymentInput().setOrderId("ORD-904").setAttemptCount(1));
         context.eventPublisher().getEvents().clear();
 
         var payment = paymentsProcessingService.authorizePayment(new AuthorizePaymentInput().setOrderId("ORD-904"));
