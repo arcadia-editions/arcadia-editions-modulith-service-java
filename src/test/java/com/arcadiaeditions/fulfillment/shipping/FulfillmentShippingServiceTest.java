@@ -1,6 +1,7 @@
 package com.arcadiaeditions.fulfillment.shipping;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.arcadiaeditions.config.TestClock;
@@ -216,6 +217,40 @@ class FulfillmentShippingServiceTest {
     }
 
     @Test
-    void markReadyToShipTest() { // TODO: implement this test
+    void markReadyToShipTest() {
+        // ORD-001: FUL-001 SCHEDULED with paymentCapturedAt -> READY_TO_SHIP, exactly one FulfillmentReadyToShip
+        var fulfillment = fulfillmentShippingService.markReadyToShip(1L);
+
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.READY_TO_SHIP);
+        assertThat(fulfillmentRepository.findById(1L).orElseThrow().getStatus())
+                .isEqualTo(FulfillmentStatus.READY_TO_SHIP);
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(FulfillmentReadyToShip.class);
+        assertThat(((FulfillmentReadyToShip) events.get(0)).getOrderId()).isEqualTo("ORD-001");
+    }
+
+    @Test
+    void markReadyToShipRefusedUntilPaymentCapturedTest() {
+        // ORD-023 and ORD-006: SCHEDULED without paymentCapturedAt -> refused naming the cause, no change, no event
+        for (var id : List.of(401L, 51L)) {
+            assertThatThrownBy(() -> fulfillmentShippingService.markReadyToShip(id))
+                    .isInstanceOf(PaymentNotCapturedException.class)
+                    .hasMessageContaining("payment not captured yet");
+            var unchanged = fulfillmentRepository.findById(id).orElseThrow();
+            assertThat(unchanged.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED);
+        }
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void markReadyToShipAfterPaymentCapturedTest() {
+        // ORD-023: PaymentCaptured recorded first, then the warehouse may mark it
+        fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-023", TestClock.NOW));
+
+        var fulfillment = fulfillmentShippingService.markReadyToShip(401L);
+
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.READY_TO_SHIP);
+        assertThat(context.eventPublisher().getEvents()).hasSize(1);
     }
 }
