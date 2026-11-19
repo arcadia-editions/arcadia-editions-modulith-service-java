@@ -167,7 +167,12 @@ public class NotificationsConsumerServiceImpl implements NotificationsConsumerSe
         notification.setChannel(NotificationChannel.EMAIL);
         notification.setRecipient(input.getCustomerEmail());
         notification.setSubject("Order cancelled");
-        notification.setBody("Your order " + input.getOrderId() + " was cancelled: " + input.getReason() + ".");
+        var body = "Your order " + input.getOrderId() + " was cancelled: " + input.getReason() + ".";
+        if ("PAYMENT_VOID_FAILED".equals(input.getReason())) {
+            // ZFL: ops release the hold by hand, so no promise of a delay
+            body += " The hold on your card may still show until we release it.";
+        }
+        notification.setBody(body);
         notification.setStatus(NotificationStatus.PENDING);
         notification.setCreatedAt(Instant.now(clock));
 
