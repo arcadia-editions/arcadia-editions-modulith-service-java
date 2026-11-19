@@ -204,6 +204,61 @@ class InventoryServiceTest {
     }
 
     @Test
+    void releaseStockOnPaymentVoidFailedSoldBackToAvailableTest() {
+        var voidFailed = new com.arcadiaeditions.payments.processing.domain.event.PaymentVoidFailed()
+                .setOrderId("ORD-025")
+                .setReason("carrier_unavailable");
+        var input = com.arcadiaeditions.catalog.inventory.events.processing.mappers.PaymentsProcessingEventsListenerMapper.INSTANCE
+                .asReleaseStockInput(voidFailed);
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_VOID_FAILED, input.getReason());
+        var before = skuPosition("SKU-005");
+        int available = before.getAvailableQuantity();
+        int sold = before.getSoldQuantity();
+        int reserved = before.getReservedQuantity();
+
+        var result = inventoryService.releaseStock(input);
+
+        var now = context.clock.instant();
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, result.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_VOID_FAILED, result.get(0).getReleaseReason());
+        org.junit.jupiter.api.Assertions.assertEquals(now, result.get(0).getReleasedAt());
+        var after = skuPosition("SKU-005");
+        org.junit.jupiter.api.Assertions.assertEquals(available + 1, after.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(sold - 1, after.getSoldQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(reserved, after.getReservedQuantity());
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var event = (com.arcadiaeditions.catalog.inventory.domain.events.StockReleased) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-025", event.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.PAYMENT_VOID_FAILED, event.getReason());
+    }
+
+    @Test
+    void releaseStockOnPaymentVoidFailedRedeliveryEmitsNothingTest() {
+        var input = new ReleaseStockInput().setOrderId("ORD-026").setReason(StockReleaseReason.PAYMENT_VOID_FAILED);
+        var before = skuPosition("SKU-002");
+        int available = before.getAvailableQuantity();
+        int sold = before.getSoldQuantity();
+
+        var result = inventoryService.releaseStock(input);
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+        var after = skuPosition("SKU-002");
+        org.junit.jupiter.api.Assertions.assertEquals(available, after.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(sold, after.getSoldQuantity());
+    }
+
+    private InventoryPosition skuPosition(String sku) {
+        return context.inventoryPositionRepository().findAll().stream()
+                .map(p -> (InventoryPosition) p)
+                .filter(p -> sku.equals(p.getSku()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @Test
     void releaseStockConfirmedReturnsSoldTest() {
         inventoryService.confirmStockReservation(new ConfirmStockReservationInput().setOrderId("ORD-003"));
         context.eventPublisher().getEvents().clear();
