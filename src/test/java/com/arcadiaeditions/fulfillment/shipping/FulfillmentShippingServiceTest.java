@@ -162,6 +162,59 @@ class FulfillmentShippingServiceTest {
         assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 
+    private RecordPaymentCapturedInput capturedInput(String orderId, Instant at) {
+        return new RecordPaymentCapturedInput().setOrderId(orderId).setCapturedAt(at);
+    }
+
+    @Test
+    void recordPaymentCapturedTest() {
+        // PaymentCaptured of ORD-023: FUL-009 SCHEDULED without paymentCapturedAt -> set, no state change, no event
+        var capturedAt = Instant.parse("2026-10-14T09:50:48Z");
+        var result = fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-023", capturedAt));
+
+        assertThat(result).isPresent();
+        var fulfillment = result.get();
+        assertThat(fulfillment.getFulfillmentId()).isEqualTo("FUL-009");
+        assertThat(fulfillment.getPaymentCapturedAt()).isEqualTo(capturedAt);
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED);
+        assertThat(fulfillmentRepository.findByOrderId("ORD-023").orElseThrow().getPaymentCapturedAt())
+                .isEqualTo(capturedAt);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void recordPaymentCapturedRedeliveryTest() {
+        // ORD-001: paymentCapturedAt already set; unchanged, no event
+        var result = fulfillmentShippingService.recordPaymentCaptured(
+                capturedInput("ORD-001", Instant.parse("2026-12-01T00:00:00Z")));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentRepository.findByOrderId("ORD-001").orElseThrow().getPaymentCapturedAt())
+                .isEqualTo(Instant.parse("2026-09-26T13:06:35Z"));
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void recordPaymentCapturedNoFulfillmentTest() {
+        // ORD-004 has no Fulfillment: no-op
+        var result = fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-004", TestClock.NOW));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentsOf("ORD-004")).isZero();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void recordPaymentCapturedNotScheduledTest() {
+        // ORD-007: FUL-003 FAILED: no-op
+        var result = fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-007", TestClock.NOW));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentRepository.findByOrderId("ORD-007").orElseThrow().getPaymentCapturedAt())
+                .isNull();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
     @Test
     void markReadyToShipTest() { // TODO: implement this test
     }
