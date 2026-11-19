@@ -252,34 +252,40 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         return payment;
     }
 
-    // the ZDL makes voidPayment return Payment? (0.10.x): the body below is the baseline behavior
     public Optional<Payment> voidPayment(VoidPaymentInput input) {
-        return Optional.ofNullable(voidPaymentBaseline(input));
-    }
-
-    private Payment voidPaymentBaseline(VoidPaymentInput input) {
 
         log.debug("Request voidPayment: {}", input);
 
         // the payment is resolved by orderId (Payment.orderId is unique)
-        var payment = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
-        if (payment.getStatus() == PaymentStatus.VOIDED) {
-            // redelivery: already voided; nothing changes, nothing is emitted
-            log.debug("voidPayment: payment of order {} already VOIDED", input.getOrderId());
-            return payment;
+        var found = paymentRepository.findByOrderId(input.getOrderId());
+        if (found.isEmpty()) {
+            log.debug("voidPayment: no payment for order {}; no-op", input.getOrderId());
+            return Optional.empty();
         }
-        PaymentTransitions.ensureCanVoidPayment(payment);
+        var payment = found.get();
+        if (payment.getStatus() != PaymentStatus.AUTHORIZED && payment.getStatus() != PaymentStatus.CAPTURE_FAILED) {
+            // redelivery or nothing to void: no change, no event
+            log.debug("voidPayment: payment of order {} is {}; no-op", input.getOrderId(), payment.getStatus());
+            return Optional.empty();
+        }
         var result = paymentProvider.voidAuthorization(new PaymentProvider.VoidRequest(
-                payment.getOrderId(), payment.getProviderReference(), input.getReason()));
+                payment.getOrderId(), payment.getProviderReference(), input.getReason(), payment.getPaymentMethodId()));
         if (!result.voided()) {
-            throw new IllegalStateException("provider did not void the authorization: " + result.reason());
+            // ops own VOID_FAILED: the order is cancelled anyway
+            log.warn("voidPayment: provider refused to void order {}: {}", input.getOrderId(), result.reason());
+            payment.setStatus(PaymentStatus.VOID_FAILED);
+            payment.setVoidFailedAt(Instant.now(clock));
+            payment.setFailureReason(result.reason());
+            payment = paymentRepository.save(payment);
+            eventPublisher.onPaymentVoidFailed(eventsMapper.asPaymentVoidFailed(payment));
+            return Optional.of(payment);
         }
         payment.setStatus(PaymentStatus.VOIDED);
         payment.setVoidedAt(Instant.now(clock));
         payment.setFailureReason(input.getReason());
         payment = paymentRepository.save(payment);
         eventPublisher.onPaymentVoided(eventsMapper.asPaymentVoided(payment).setReason(input.getReason()));
-        return payment;
+        return Optional.of(payment);
     }
 
     public Optional<Payment> reauthorizePayment(ReauthorizePaymentInput input) {
