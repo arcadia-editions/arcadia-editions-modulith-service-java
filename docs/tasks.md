@@ -124,11 +124,12 @@ path: ReservationExpired (10 minutes after OrderCreated) > expireReservation > g
       > OrderCancelled > sendOrderCancelledNotification > end orderCancelled; getPaymentStatus[PaymentStartedResult]: no release, payment owns the end
 review: [ ]
 
-- [/] T-62 bounded AFK getPaymentStatus: read-only; NO_PAYMENT when no Payment exists for orderId, STARTED otherwise (AUTHORIZATION_REQUESTED included) (replace the compile stub)
+- [x] T-62 bounded AFK getPaymentStatus: read-only; NO_PAYMENT when no Payment exists for orderId, STARTED otherwise (AUTHORIZATION_REQUESTED included) (replace the compile stub)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:293-297, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:163-164
       test data: data.sql ORD-002, data.sql ORD-027, data.sql ORD-028
       tests: PaymentsProcessingServiceTest
-- [ ] T-63 advanced AFK expireReservation: calls getPaymentStatus and releases the RESERVED lines of the order (RESERVATION_EXPIRED, StockReleased) only on NO_PAYMENT; no-op on STARTED or when nothing is RESERVED (replace the compile stub)
+- [/] T-63 advanced AFK expireReservation: calls getPaymentStatus and releases the RESERVED lines of the order (RESERVATION_EXPIRED, StockReleased) only on NO_PAYMENT; no-op on STARTED or when nothing is RESERVED (replace the compile stub)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:280-291, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:150-158
       test data: data.sql ORD-027, data.sql ORD-028, data.sql ORD-021
       tests: InventoryServiceTest
@@ -160,7 +161,7 @@ review: [ ]
       test data: data.sql ORD-003, data.sql ORD-021, data.sql ORD-022
       tests: OrdersCheckoutServiceTest
       blocked by: T-66
-- [ ] T-68 mechanical AFK voidPayment on OrderConfirmationRejected (listener and mapper already wired): the void reason is the rejection reason
+- [/] T-68 mechanical AFK voidPayment on OrderConfirmationRejected (listener and mapper already wired): the void reason is the rejection reason
       model: ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161
       test data: data.sql ORD-021
       tests: PaymentsProcessingServiceTest
