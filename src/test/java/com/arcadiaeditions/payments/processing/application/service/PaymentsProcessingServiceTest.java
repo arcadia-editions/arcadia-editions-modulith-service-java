@@ -596,6 +596,30 @@ class PaymentsProcessingServiceTest {
     }
 
     @Test
+    void voidPaymentOnOrderConfirmationRejectedTest() {
+        // ORD-021: late authorization after expiry; the void reason is the rejection reason
+        var rejected = new com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmationRejected()
+                .setOrderId("ORD-021").setCustomerId("CUST-021").setReason("ORDER_CANCELLED");
+        var input = com.arcadiaeditions.payments.processing.adapter.driving.event.checkout.mapper
+                .OrdersCheckoutEventsListenerMapper.INSTANCE.asVoidPaymentInput(rejected);
+        assertThat(input.getOrderId()).isEqualTo("ORD-021");
+        assertThat(input.getReason()).isEqualTo("ORDER_CANCELLED");
+
+        var payment = paymentsProcessingService.voidPayment(input).orElseThrow();
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+        assertThat(payment.getVoidedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getFailureReason()).isEqualTo("ORDER_CANCELLED");
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentVoided.class);
+        var event = (PaymentVoided) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-021");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-021");
+        assertThat(event.getReason()).isEqualTo("ORDER_CANCELLED");
+    }
+
+    @Test
     void capturePaymentFailedTest() {
         // ORD-006: pm_capture_fail -> CAPTURE_FAILED with failedAt and failureReason, exactly one PaymentCaptureFailed
         var payment = paymentsProcessingService.capturePayment(new CapturePaymentInput().setOrderId("ORD-006"));
