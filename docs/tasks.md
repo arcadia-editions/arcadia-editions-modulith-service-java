@@ -12,7 +12,12 @@ branch: afk/place-order-flow
      stand-in triggers pm_* / postal 00000 / @fail.invalid, pm_void_fail new, fixed now 2026-10-14T10:00:00Z.
      Known failing at the baseline (overlay): voidPaymentFrom{Failed,AuthorizationRequested}Test (T-56). Limits from the
      ZFL header: N = 3 attempts, T = 30 s processor timeout, backoff 5 s before attempt 2 and 15 s before attempt 3.
-     Flow tests are methods of PlaceOrderFlowTest. Paths unchanged from baseline 2 (stockGone, declined) have no tasks. -->
+     Flow tests are methods of PlaceOrderFlowTest. Paths unchanged from baseline 2 (stockGone, declined) have no tasks.
+     2026-11-19: learnings of the Kotlin AFK rounds 3 and 4 added to the tasks they concern, marked (Kotlin T-nn): P-10 A
+     (a throwing processor is FAILED processor_error), the JPA stale merge in reauthorizePayment, test-quality fixes.
+     Kotlin T-84 (backoff and processor call hold a listener thread): accepted for the demo, no task. Flow tests that
+     need @DirtiesContext go to a class of their own: Spring Modulith binds the Scenario listener to the first context
+     of a class only (Kotlin T-82). -->
 
 ## S1 completed (tracer bullet)
 path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult] > OrderCreated > authorizePayment[authorized]
@@ -20,7 +25,7 @@ path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult
       > capturePayment[PaymentCaptured] > recordPaymentCaptured, sendOrderConfirmation[sent] > end completed
 review: [ ]
 
-- [ ] T-48 advanced AFK authorizePayment: commit AUTHORIZATION_REQUESTED (attemptCount 1) in its own transaction before calling the provider, so a call in flight counts as started for getPaymentStatus; a provider call longer than 30 s ends as FAILED with PaymentFailed
+- [ ] T-48 advanced AFK authorizePayment: commit AUTHORIZATION_REQUESTED (attemptCount 1) in its own transaction before calling the provider, so a call in flight counts as started for getPaymentStatus; a provider call longer than 30 s ends as FAILED with PaymentFailed (processor_timeout); a provider call that throws ends as FAILED with PaymentFailed (processor_error, P-10 A of the Kotlin service, data.sql assumption) instead of leaving the Payment AUTHORIZATION_REQUESTED for good; one constant per reason shared with the stand-in processor; shut the processor-call executor down (@PreDestroy) (Kotlin T-75)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:107-122, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:119-128
       test data: data.sql ORD-002, data/jpa/Payment/2.json
       tests: PaymentsProcessingServiceTest
@@ -28,7 +33,7 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:215-221, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:105-110
       test data: data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
-- [ ] T-50 bounded AFK markReadyToShip: refused while Fulfillment.paymentCapturedAt is null (the warehouse ships only after capture); unchanged otherwise
+- [ ] T-50 bounded AFK markReadyToShip: refused while Fulfillment.paymentCapturedAt is null (the warehouse ships only after capture); unchanged otherwise. The refusal names its cause (payment not captured yet), not an InvalidStateTransitionException from SCHEDULED with allowedStates [SCHEDULED]; FulfillmentTransitions is generated, do not edit it (Kotlin T-76)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:51-56, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:112-114
       test data: data.sql ORD-006, data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
@@ -49,7 +54,7 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:124-136, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:138-145
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
-- [ ] T-53 advanced AFK reauthorizePayment: from FAILED with input.attemptCount == Payment.attemptCount, wait the backoff (5 s before attempt 2, 15 s before attempt 3), increment attemptCount and commit AUTHORIZATION_REQUESTED before the provider call (as T-48; ZDL transitions FAILED -> AUTHORIZATION_REQUESTED -> outcome, P-11 A), 30 s timeout; guard on FAILED in the service, not with the generated PaymentTransitions.ensureCanReauthorizePayment (it checks the last step's from); outcomes AUTHORIZED / DECLINED / FAILED with their events; Optional.empty() when there is no Payment (P-12 A); any other state or a stale attemptCount is a no-op (replace the compile stub)
+- [ ] T-53 advanced AFK reauthorizePayment: from FAILED with input.attemptCount == Payment.attemptCount, wait the backoff (5 s before attempt 2, 15 s before attempt 3), increment attemptCount and commit AUTHORIZATION_REQUESTED before the provider call (as T-48; ZDL transitions FAILED -> AUTHORIZATION_REQUESTED -> outcome, P-11 A), 30 s timeout; guard on FAILED in the service, not with the generated PaymentTransitions.ensureCanReauthorizePayment (it checks the last step's from); outcomes AUTHORIZED / DECLINED / FAILED with their events; Optional.empty() when there is no Payment (P-12 A); any other state or a stale attemptCount is a no-op (replace the compile stub). On JPA, do not save a Payment loaded before the REQUIRES_NEW block over the one that block committed (optimistic-lock failure on attempts 2 and 3): load and check inside the block, or re-read after it; a test with @Version semantics fails on the bug; a provider exception is FAILED processor_error as in T-48 (Kotlin T-80, T-75)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:138-146, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:130-136
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
@@ -70,7 +75,7 @@ path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment[void
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-56 bounded AFK voidPayment: Optional.empty(), no event, when there is no Payment or it is not AUTHORIZED or CAPTURE_FAILED (rewrite voidPaymentFromFailedTest and voidPaymentFromAuthorizationRequestedTest to assert the no-op); a refused void sets VOID_FAILED and voidFailedAt and emits PaymentVoidFailed; the stand-in refuses voids for paymentMethodId pm_void_fail
+- [ ] T-56 bounded AFK voidPayment: Optional.empty(), no event, when there is no Payment or it is not AUTHORIZED or CAPTURE_FAILED (rewrite voidPaymentFromFailedTest and voidPaymentFromAuthorizationRequestedTest to assert the no-op); a refused void sets VOID_FAILED and voidFailedAt and emits PaymentVoidFailed; the stand-in refuses voids for paymentMethodId pm_void_fail. The no-op tests compare fields (status, failureReason, voidedAt, voidFailedAt), not the entity (equals is by id); the refused-void test asserts failureReason and PaymentVoidFailed.reason; log.warn the provider's refusal reason (ops own VOID_FAILED) (Kotlin T-78)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-252, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:243-249
       test data: data.sql ORD-002, data.sql ORD-007, data.sql ORD-008, data.sql ORD-012, data.sql ORD-019, data.sql ORD-025
       tests: PaymentsProcessingServiceTest
@@ -78,7 +83,7 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:142-148
       test data: data.sql ORD-025, data.sql ORD-026
       tests: InventoryServiceTest
-- [ ] T-58 bounded AFK sendOrderCancelledNotification: when the reason is PAYMENT_VOID_FAILED the e-mail says the hold on the card may still show for a few days
+- [ ] T-58 bounded AFK sendOrderCancelledNotification: when the reason is PAYMENT_VOID_FAILED the e-mail says the hold on the card may still show until we release it (the ZFL: ops release the hold by hand), not "for a few days" (the person, 2026-11-18, Kotlin T-79)
       model: ../arcadia-editions-modulith-api/notifications-consumer-domain-model.zdl:96-98, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161
       test data: data.sql ORD-026
       tests: NotificationsConsumerServiceTest
@@ -97,7 +102,7 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:116-119, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:151-157
       test data: data.sql ORD-013, data.sql ORD-014, data.sql ORD-024
       tests: FulfillmentShippingServiceTest
-- [ ] T-61 bounded AFK Flow test capture failed: after the void and the cancellation the Fulfillment is CANCELLED and FulfillmentCancelled was emitted; the order is cancelled once
+- [ ] T-61 bounded AFK Flow test capture failed: after the void and the cancellation the Fulfillment is CANCELLED and FulfillmentCancelled was emitted; the order is cancelled once: record OrderCancelled and assert exactly one for the orderId (Kotlin T-85)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:190-200, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320
       test data: data.sql ORD-024
       tests: PlaceOrderFlowTest
@@ -157,7 +162,7 @@ review: [ ]
 path: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed > end notificationFailed
 review: [ ]
 
-- [ ] T-70 bounded AFK Flow test notification failed: the stand-in refuses the e-mail (@fail.invalid), Notification FAILED, the flow ends at NotificationDeliveryFailed with its type
+- [ ] T-70 bounded AFK Flow test notification failed: the stand-in refuses the e-mail (@fail.invalid), Notification FAILED, the flow ends at NotificationDeliveryFailed with its type; the business outcome is untouched: Fulfillment.paymentCapturedAt set, stock counters relative to the position read before the checkout (available -1, sold +1), NotificationDeliveryFailed.notificationId equals the stored Notification; no assertion that only proves the stand-in (Kotlin T-87)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
       test data: data.sql ORD-015
       tests: PlaceOrderFlowTest
@@ -165,7 +170,7 @@ review: [ ]
 ## S8 Polish
 review: [ ]
 
-- [ ] T-71 mechanical AFK startOrderCheckout contract: the 409 body follows the StockUnavailable schema of the 0.10.1 OpenAPI (orderId and unavailableItems, P-02 update); quantity >= 1 and unitPrice >= 0 (ZDL bounds) answer 400 before any reservation
+- [ ] T-71 mechanical AFK startOrderCheckout contract: the 409 body follows the StockUnavailable schema of the 0.10.1 OpenAPI (orderId and unavailableItems, P-02 update); quantity >= 1 and unitPrice >= 0 (ZDL bounds) answer 400 before any reservation: assert StockReservation and Order counts unchanged after each 400 request and the ProblemDetail field (items[0].quantity / items[0].unitPrice), one case per test (Kotlin T-77)
       model: ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:68-69, ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:95-99, ../arcadia-editions-modulith-api/orders-checkout-openapi-overlay.yml:10-20
       test data: data.sql ORD-020
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest

@@ -64,7 +64,7 @@
 -- Attempt limit 3 (arcadia.payments.max-attempts); FAILED a1 is below, FAILED a3 / RETRY_EXHAUSTED a3 at the limit | 3 | open: retry limit
 -- Provider references: STANDIN-<orderId> normally, STANDIN-CAPFAIL-<orderId> for pm_capture_fail | as listed | stand-in contract (tests force external decisions through these values)
 -- paymentMethodId pm_ok / PM-001 = any non-trigger value (happy path); triggers pm_decline, pm_fail_once, pm_fail_always, pm_capture_fail | as listed | stand-in contract (tests force external decisions through these values)
--- Payment.failureReason strings (card_declined, processor_unavailable, capture_rejected, carrier_unavailable) follow the stand-in reasons | as listed | -
+-- Payment.failureReason strings (card_declined, processor_unavailable, processor_timeout, processor_error, capture_rejected, carrier_unavailable) follow the stand-in reasons; processor_error is a provider call that throws (Kotlin P-10 A, 2026-11-18) | as listed | -
 -- Reservation window 10 minutes (expires_at = reserved_at + 10 min) | 600 s | open: reservation window
 -- Order cancellation_reason / reservation release_reason use the PAYMENT_* enum names | as listed | -
 -- ORD-001 payment changed from AUTHORIZED/PROV-001 to CAPTURED/STANDIN-ORD-001 so the completed chain is consistent (notification SENT implies capture); AUTHORIZED payments start at ORD-003..007 | - | -
