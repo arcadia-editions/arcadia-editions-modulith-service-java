@@ -50,45 +50,98 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
             EventPublisher eventPublisher,
             PaymentProvider paymentProvider,
             Clock clock,
+            org.springframework.transaction.PlatformTransactionManager transactionManager,
             com.arcadiaeditions.config.FlowProperties flowProperties) {
         this.flowProperties = flowProperties;
         this.paymentRepository = paymentRepository;
         this.eventPublisher = eventPublisher;
         this.paymentProvider = paymentProvider;
         this.clock = clock;
+        this.newTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        this.newTransaction.setPropagationBehavior(
+                org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    /** Commits AUTHORIZATION_REQUESTED apart from the caller's transaction, before the processor call. */
+    private final org.springframework.transaction.support.TransactionTemplate newTransaction;
+
+    /** Runs each processor call, so the caller can stop waiting after the processor timeout. */
+    private final java.util.concurrent.ExecutorService processorCalls =
+            java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
+
+    /** Stops the processor-call threads with the application. */
+    @jakarta.annotation.PreDestroy
+    public void shutdownProcessorCalls() {
+        processorCalls.shutdownNow();
+    }
+
+    /**
+     * One processor call, abandoned after the processor timeout (ZFL header: 30 s): it then answers FAILED
+     * processor_timeout; a call that throws answers FAILED processor_error (P-10 A).
+     */
+    private PaymentProvider.AuthorizationResult callProcessor(
+            java.util.concurrent.Callable<PaymentProvider.AuthorizationResult> call) {
+        var timeout = flowProperties.getPayments().getProcessorTimeout();
+        var future = processorCalls.submit(call);
+        try {
+            return future.get(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            future.cancel(true);
+            log.warn("payment processor did not answer within {}", timeout);
+            return PaymentProvider.AuthorizationResult.failed(PaymentProvider.PROCESSOR_TIMEOUT);
+        } catch (java.util.concurrent.ExecutionException e) {
+            // a processor that throws is a technical failure too: FAILED + PaymentFailed, not a rollback
+            log.warn("payment processor call failed", e.getCause() != null ? e.getCause() : e);
+            return PaymentProvider.AuthorizationResult.failed(PaymentProvider.PROCESSOR_ERROR);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted waiting for the payment processor", e);
+        }
     }
 
     public Payment authorizePayment(AuthorizePaymentInput input) {
 
         log.debug("Request authorizePayment: {}", input);
 
-        // one Payment per order: get-or-create by orderId
-        var existing = paymentRepository.findByOrderId(input.getOrderId());
-        // PaymentRetried carries no payment data: its input has only the orderId, the stored Payment is reloaded
-        boolean retried = input.getPaymentMethodId() == null
-                && existing.isPresent()
-                && existing.get().getStatus() == PaymentStatus.FAILED;
-        if (existing.isPresent() && !retried && existing.get().getStatus() != PaymentStatus.AUTHORIZATION_REQUESTED) {
-            // redelivery: the authorization is already resolved; nothing changes, nothing is emitted
-            log.debug(
-                    "authorizePayment: payment of order {} already {}",
-                    input.getOrderId(),
-                    existing.get().getStatus());
-            return existing.get();
-        }
-        var payment = existing.orElseGet(() -> {
-            var created = paymentsProcessingServiceMapper.update(new Payment(), input);
-            created.setStatus(PaymentStatus.AUTHORIZATION_REQUESTED);
-            created.setAttemptCount(1);
-            return created;
+        // AUTHORIZATION_REQUESTED is committed in its own transaction before the processor call, so a call in flight
+        // counts as started (getPaymentStatus); the outcome is saved afterwards, in the caller's transaction
+        var noOp = new boolean[] {false};
+        var payment = newTransaction.execute(status -> {
+            // one Payment per order: get-or-create by orderId
+            var existing = paymentRepository.findByOrderId(input.getOrderId());
+            // PaymentRetried carries no payment data: its input has only the orderId, the stored Payment is reloaded
+            boolean retried = input.getPaymentMethodId() == null
+                    && existing.isPresent()
+                    && existing.get().getStatus() == PaymentStatus.FAILED;
+            if (existing.isPresent() && !retried) {
+                // redelivery: a Payment exists (a call in flight or resolved); nothing changes, nothing is emitted
+                log.debug(
+                        "authorizePayment: payment of order {} already {}",
+                        input.getOrderId(),
+                        existing.get().getStatus());
+                noOp[0] = true;
+                return existing.get();
+            }
+            var requested = existing.orElseGet(() -> {
+                var created = paymentsProcessingServiceMapper.update(new Payment(), input);
+                created.setAttemptCount(1);
+                return created;
+            });
+            requested.setStatus(PaymentStatus.AUTHORIZATION_REQUESTED);
+            return paymentRepository.save(requested);
         });
+        if (noOp[0]) {
+            return payment;
+        }
 
-        var result = paymentProvider.authorize(new PaymentProvider.AuthorizationRequest(
+        var request = new PaymentProvider.AuthorizationRequest(
                 payment.getOrderId(),
                 payment.getPaymentMethodId(),
                 payment.getAmount(),
                 payment.getCurrency(),
-                payment.getAttemptCount()));
+                payment.getAttemptCount());
+        var result = callProcessor(() -> paymentProvider.authorize(request));
 
         switch (result.outcome()) {
             case AUTHORIZED -> {

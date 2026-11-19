@@ -20,11 +20,11 @@ public class StandInPaymentProvider implements PaymentProvider {
     @Override
     public AuthorizationResult authorize(AuthorizationRequest request) {
         if (PM_DECLINE.equals(request.paymentMethodId())) {
-            return AuthorizationResult.declined("card_declined");
+            return AuthorizationResult.declined(CARD_DECLINED);
         }
         if (PM_FAIL_ALWAYS.equals(request.paymentMethodId())
                 || (PM_FAIL_ONCE.equals(request.paymentMethodId()) && request.attempt() <= 1)) {
-            return AuthorizationResult.failed("processor_unavailable");
+            return AuthorizationResult.failed(PROCESSOR_UNAVAILABLE);
         }
         return AuthorizationResult.authorized(providerReference(request.orderId(), request.paymentMethodId()));
     }
@@ -33,7 +33,7 @@ public class StandInPaymentProvider implements PaymentProvider {
     public CaptureResult capture(CaptureRequest request) {
         // pm_capture_fail (providerReference STANDIN-CAPFAIL-<orderId>) -> not captured "capture_rejected"
         if (request.providerReference() != null && request.providerReference().startsWith("STANDIN-CAPFAIL-")) {
-            return new CaptureResult(false, "capture_rejected");
+            return new CaptureResult(false, CAPTURE_REJECTED);
         }
         return new CaptureResult(true, null);
     }

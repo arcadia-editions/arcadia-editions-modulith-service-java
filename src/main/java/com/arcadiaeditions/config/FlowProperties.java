@@ -3,7 +3,8 @@ package com.arcadiaeditions.config;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** Place order flow settings: arcadia.payments.max-attempts, arcadia.payments.retry-delay. */
+/** Place order flow settings: arcadia.payments.max-attempts, arcadia.payments.retry-delay,
+ * arcadia.payments.processor-timeout. */
 @ConfigurationProperties(prefix = "arcadia")
 public class FlowProperties {
 
@@ -20,6 +21,16 @@ public class FlowProperties {
     public static class Payments {
         private int maxAttempts = 3;
         private Duration retryDelay = Duration.ofSeconds(30);
+        /** ZFL header: one processor call lasts at most 30 seconds; then it is a technical failure. */
+        private Duration processorTimeout = Duration.ofSeconds(30);
+
+        public Duration getProcessorTimeout() {
+            return processorTimeout;
+        }
+
+        public void setProcessorTimeout(Duration processorTimeout) {
+            this.processorTimeout = processorTimeout;
+        }
 
         public int getMaxAttempts() {
             return maxAttempts;
