@@ -71,12 +71,13 @@ public class OrdersCheckoutApiController implements OrdersCheckoutApi {
         }
     }
 
-    /** startOrderCheckout stock unavailable (P-02 decision A): 409 problem detail with unavailableItems. */
+    /** startOrderCheckout stock unavailable (P-02 decision A): 409 problem detail with the StockUnavailable schema (orderId, unavailableItems). */
     @ExceptionHandler(StockUnavailableException.class)
     public org.springframework.http.ProblemDetail handleStockUnavailable(StockUnavailableException ex) {
         var problem = org.springframework.http.ProblemDetail.forStatusAndDetail(
                 org.springframework.http.HttpStatus.CONFLICT, ex.getMessage());
         problem.setTitle("Stock unavailable");
+        problem.setProperty("orderId", ex.getOrderId());
         problem.setProperty(
                 "unavailableItems",
                 ex.getUnavailableItems().stream()
