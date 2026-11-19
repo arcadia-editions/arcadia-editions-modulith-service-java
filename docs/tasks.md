@@ -25,7 +25,8 @@ path: StartOrderCheckout > startOrderCheckout > reserveStock[StockReservedResult
       > capturePayment[PaymentCaptured] > recordPaymentCaptured, sendOrderConfirmation[sent] > end completed
 review: [ ]
 
-- [/] T-48 advanced AFK authorizePayment: commit AUTHORIZATION_REQUESTED (attemptCount 1) in its own transaction before calling the provider, so a call in flight counts as started for getPaymentStatus; a provider call longer than 30 s ends as FAILED with PaymentFailed (processor_timeout); a provider call that throws ends as FAILED with PaymentFailed (processor_error, P-10 A of the Kotlin service, data.sql assumption) instead of leaving the Payment AUTHORIZATION_REQUESTED for good; one constant per reason shared with the stand-in processor; shut the processor-call executor down (@PreDestroy) (Kotlin T-75)
+- [x] T-48 advanced AFK authorizePayment: commit AUTHORIZATION_REQUESTED (attemptCount 1) in its own transaction before calling the provider, so a call in flight counts as started for getPaymentStatus; a provider call longer than 30 s ends as FAILED with PaymentFailed (processor_timeout); a provider call that throws ends as FAILED with PaymentFailed (processor_error, P-10 A of the Kotlin service, data.sql assumption) instead of leaving the Payment AUTHORIZATION_REQUESTED for good; one constant per reason shared with the stand-in processor; shut the processor-call executor down (@PreDestroy) (Kotlin T-75)
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:107-122, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:119-128
       test data: data.sql ORD-002, data/jpa/Payment/2.json
       tests: PaymentsProcessingServiceTest
@@ -34,12 +35,13 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:215-221, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:105-110
       test data: data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
-- [/] T-50 bounded AFK markReadyToShip: refused while Fulfillment.paymentCapturedAt is null (the warehouse ships only after capture); unchanged otherwise. The refusal names its cause (payment not captured yet), not an InvalidStateTransitionException from SCHEDULED with allowedStates [SCHEDULED]; FulfillmentTransitions is generated, do not edit it (Kotlin T-76)
+- [x] T-50 bounded AFK markReadyToShip: refused while Fulfillment.paymentCapturedAt is null (the warehouse ships only after capture); unchanged otherwise. The refusal names its cause (payment not captured yet), not an InvalidStateTransitionException from SCHEDULED with allowedStates [SCHEDULED]; FulfillmentTransitions is generated, do not edit it (Kotlin T-76)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:51-56, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:112-114
       test data: data.sql ORD-006, data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
       blocked by: T-49
-- [ ] T-51 advanced AFK Flow test completed: the Payment passes through AUTHORIZATION_REQUESTED before AUTHORIZED, the Fulfillment records paymentCapturedAt, markReadyToShip works only after it; ends at OrderConfirmationSent
+- [/] T-51 advanced AFK Flow test completed: the Payment passes through AUTHORIZATION_REQUESTED before AUTHORIZED, the Fulfillment records paymentCapturedAt, markReadyToShip works only after it; ends at OrderConfirmationSent
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:336-345, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:202-221
       test data: data.sql ORD-001
       tests: PlaceOrderFlowTest
@@ -51,7 +53,7 @@ path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[ret
       > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-52 bounded AFK retryPayment: Optional.empty(), no event, when there is no Payment (P-12 A); no-op, no event, unless the Payment is FAILED and input.attemptCount == Payment.attemptCount (redelivery); never increments attemptCount; retried below 3 attempts, retry-exhausted at 3
+- [/] T-52 bounded AFK retryPayment: Optional.empty(), no event, when there is no Payment (P-12 A); no-op, no event, unless the Payment is FAILED and input.attemptCount == Payment.attemptCount (redelivery); never increments attemptCount; retried below 3 attempts, retry-exhausted at 3
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:124-136, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:138-145
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
@@ -85,7 +87,8 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:142-148
       test data: data.sql ORD-025, data.sql ORD-026
       tests: InventoryServiceTest
-- [/] T-58 bounded AFK sendOrderCancelledNotification: when the reason is PAYMENT_VOID_FAILED the e-mail says the hold on the card may still show until we release it (the ZFL: ops release the hold by hand), not "for a few days" (the person, 2026-11-18, Kotlin T-79)
+- [x] T-58 bounded AFK sendOrderCancelledNotification: when the reason is PAYMENT_VOID_FAILED the e-mail says the hold on the card may still show until we release it (the ZFL: ops release the hold by hand), not "for a few days" (the person, 2026-11-18, Kotlin T-79)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-modulith-api/notifications-consumer-domain-model.zdl:96-98, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161
       test data: data.sql ORD-026
       tests: NotificationsConsumerServiceTest
@@ -100,7 +103,7 @@ path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment[
       > cancelOrder > OrderCancelled > cancelFulfillment > FulfillmentCancelled, sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [ ] T-60 bounded AFK cancelFulfillment: on OrderCancelled, SCHEDULED or READY_TO_SHIP becomes CANCELLED with cancelledAt and cancellationReason = OrderCancelled.reason, emits FulfillmentCancelled; Optional.empty(), no event, when there is no Fulfillment or it is CANCELLED or FAILED (replace the no-op compile stub)
+- [/] T-60 bounded AFK cancelFulfillment: on OrderCancelled, SCHEDULED or READY_TO_SHIP becomes CANCELLED with cancelledAt and cancellationReason = OrderCancelled.reason, emits FulfillmentCancelled; Optional.empty(), no event, when there is no Fulfillment or it is CANCELLED or FAILED (replace the no-op compile stub)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:116-119, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:151-157
       test data: data.sql ORD-013, data.sql ORD-014, data.sql ORD-024
       tests: FulfillmentShippingServiceTest
