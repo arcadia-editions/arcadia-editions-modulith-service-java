@@ -368,4 +368,99 @@ class InventoryServiceTest {
         org.junit.jupiter.api.Assertions.assertNull(result.getNotHeld());
         org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
     }
+
+    @Test
+    void expireReservationNoPaymentReleasesReservedLinesTest() {
+        var before = skuPosition("SKU-005");
+        int available = before.getAvailableQuantity();
+        int reserved = before.getReservedQuantity();
+        int sold = before.getSoldQuantity();
+
+        var result = inventoryService.expireReservation(new ExpireReservationInput().setOrderId("ORD-027"));
+
+        var now = context.clock.instant();
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        var saved = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-027".equals(r.getOrderId()))
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(1, saved.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, saved.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                StockReleaseReason.RESERVATION_EXPIRED, saved.get(0).getReleaseReason());
+        org.junit.jupiter.api.Assertions.assertEquals(now, saved.get(0).getReleasedAt());
+        var after = skuPosition("SKU-005");
+        org.junit.jupiter.api.Assertions.assertEquals(available + 1, after.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(reserved - 1, after.getReservedQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(sold, after.getSoldQuantity());
+
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var event = (com.arcadiaeditions.catalog.inventory.domain.events.StockReleased) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("ORD-027", event.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(StockReleaseReason.RESERVATION_EXPIRED, event.getReason());
+        org.junit.jupiter.api.Assertions.assertEquals(now, event.getReleasedAt());
+        org.junit.jupiter.api.Assertions.assertEquals(1, event.getItems().size());
+        org.junit.jupiter.api.Assertions.assertEquals("RES-028", event.getItems().get(0).getReservationId());
+        org.junit.jupiter.api.Assertions.assertEquals("SKU-005", event.getItems().get(0).getSku());
+        org.junit.jupiter.api.Assertions.assertEquals(1, event.getItems().get(0).getQuantity());
+    }
+
+    @Test
+    void expireReservationPaymentStartedReleasesNothingTest() {
+        var before = skuPosition("SKU-005");
+        int available = before.getAvailableQuantity();
+        int reserved = before.getReservedQuantity();
+
+        var result = inventoryService.expireReservation(new ExpireReservationInput().setOrderId("ORD-028"));
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.isEmpty());
+        var saved = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-028".equals(r.getOrderId()))
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(1, saved.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RESERVED, saved.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertNull(saved.get(0).getReleasedAt());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+        var after = skuPosition("SKU-005");
+        org.junit.jupiter.api.Assertions.assertEquals(available, after.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(reserved, after.getReservedQuantity());
+    }
+
+    @Test
+    void expireReservationNothingReservedIsNoOpTest() {
+        var before = skuPosition("SKU-002");
+        int available = before.getAvailableQuantity();
+        int reserved = before.getReservedQuantity();
+
+        var result = inventoryService.expireReservation(new ExpireReservationInput().setOrderId("ORD-021"));
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.isEmpty());
+        var saved = stockReservationRepository.findAll().stream()
+                .filter(r -> "ORD-021".equals(r.getOrderId()))
+                .toList();
+        org.junit.jupiter.api.Assertions.assertEquals(1, saved.size());
+        org.junit.jupiter.api.Assertions.assertEquals(ReservationStatus.RELEASED, saved.get(0).getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                StockReleaseReason.RESERVATION_EXPIRED, saved.get(0).getReleaseReason());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+        var after = skuPosition("SKU-002");
+        org.junit.jupiter.api.Assertions.assertEquals(available, after.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(reserved, after.getReservedQuantity());
+    }
+
+    @Test
+    void expireReservationRedeliveryAfterReleaseIsNoOpTest() {
+        var input = new ExpireReservationInput().setOrderId("ORD-027");
+        inventoryService.expireReservation(input);
+        context.eventPublisher().getEvents().clear();
+        var before = skuPosition("SKU-005");
+
+        var result = inventoryService.expireReservation(input);
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+        var after = skuPosition("SKU-005");
+        org.junit.jupiter.api.Assertions.assertEquals(before.getAvailableQuantity(), after.getAvailableQuantity());
+        org.junit.jupiter.api.Assertions.assertEquals(before.getReservedQuantity(), after.getReservedQuantity());
+    }
 }

@@ -20,9 +20,16 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
 
     public final java.time.Clock clock = com.arcadiaeditions.config.TestClock.FIXED;
 
+    public final com.arcadiaeditions.payments.processing.config.ServicesInMemoryConfig paymentsContext =
+            new com.arcadiaeditions.payments.processing.config.ServicesInMemoryConfig();
+
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
-    protected final InventoryServiceImpl inventoryService =
-            new InventoryServiceImpl(stockReservationRepository(), inventoryPositionRepository(), eventPublisher, clock);
+    protected final InventoryServiceImpl inventoryService = new InventoryServiceImpl(
+            stockReservationRepository(),
+            inventoryPositionRepository(),
+            eventPublisher,
+            paymentsContext.paymentsProcessingService(),
+            clock);
     protected final InventoryBackofficeServiceImpl inventoryBackofficeService =
             new InventoryBackofficeServiceImpl(inventoryPositionRepository(), eventPublisher);
 
@@ -53,6 +60,7 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
         inventoryPositionRepository().deleteAll();
         inventoryPositionRepository().saveAll(inventoryPositions);
         eventPublisher.getEvents().clear();
+        paymentsContext.reloadTestData();
     }
 
     @Bean
