@@ -99,6 +99,9 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * End "orderCancelled" by void refused (T-59): OrderConfirmed, FulfillmentFailed, PaymentVoidFailed, StockReleased
  * (PAYMENT_VOID_FAILED), OrderCancelled once to OrderCancelledNotificationSent, Payment VOID_FAILED,
  * place-order-flow.zfl:236-266, 299-309, 322-345 (data.sql ORD-026).
+ * End "notificationFailed" (both branches, NotificationDeliveryFailed): PaymentCaptured to sendOrderConfirmation
+ * failed (type ORDER_CONFIRMATION, order stays CONFIRMED), place-order-flow.zfl:207-212, 337-345; and OrderCancelled to
+ * sendOrderCancelledNotification failed (type ORDER_CANCELLED, order stays CANCELLED), place-order-flow.zfl:322-345.
  * Retry loop (T-55), place-order-flow.zfl:124-146, 254-266: attempts are counted only by authorizePayment (1) and
  * reauthorizePayment (2, 3), the test backoff ({@link #BACKOFF_BEFORE_ATTEMPT_2}, {@link #BACKOFF_BEFORE_ATTEMPT_3})
  * is waited before each reauthorization, and a redelivered PaymentFailed or PaymentRetried with a stale attemptCount
@@ -146,6 +149,8 @@ class PlaceOrderFlowTest {
         final Queue<PaymentVoidFailed> paymentVoidFailed = new ConcurrentLinkedQueue<>();
         final Queue<OrderCancelled> orderCancelled = new ConcurrentLinkedQueue<>();
         final Queue<FulfillmentCancelled> fulfillmentCancelled = new ConcurrentLinkedQueue<>();
+        final Queue<OrderConfirmationSent> orderConfirmationSent = new ConcurrentLinkedQueue<>();
+        final Queue<OrderCancelledNotificationSent> orderCancelledNotificationSent = new ConcurrentLinkedQueue<>();
 
         @EventListener
         void on(PaymentFailed event) {
@@ -185,6 +190,16 @@ class PlaceOrderFlowTest {
         @EventListener
         void on(FulfillmentCancelled event) {
             fulfillmentCancelled.add(event);
+        }
+
+        @EventListener
+        void on(OrderConfirmationSent event) {
+            orderConfirmationSent.add(event);
+        }
+
+        @EventListener
+        void on(OrderCancelledNotificationSent event) {
+            orderCancelledNotificationSent.add(event);
         }
     }
 
@@ -1069,8 +1084,8 @@ class PlaceOrderFlowTest {
 
     @Test
     void notificationFailed_startCheckoutToNotificationDeliveryFailed(Scenario scenario) {
-        // place-order-flow.zfl:322-345: the stand-in refuses @fail.invalid (data.sql ORD-015 e-mail domain); the failed
-        // confirmation hides nothing of the business outcome, which is the happy path
+        // place-order-flow.zfl:207-212, 337-345: PaymentCaptured > sendOrderConfirmation[failed] on a fresh order; the
+        // stand-in refuses the @fail.invalid domain (the one of data.sql ORD-015); the business outcome is the happy path
         InventoryPosition before = position("SKU-001");
         String requestBody = """
             {
@@ -1129,7 +1144,11 @@ class PlaceOrderFlowTest {
                                         payment -> assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CAPTURED));
                         assertThat(fulfillmentRepository.findByOrderId(orderId)).hasValueSatisfying(fulfillment -> {
                             assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED);
-                            assertThat(fulfillment.getPaymentCapturedAt()).isNotNull();
+                            assertThat(fulfillment.getPaymentCapturedAt())
+                                    .isEqualTo(paymentRepository
+                                            .findByOrderId(orderId)
+                                            .orElseThrow()
+                                            .getCapturedAt());
                         });
                         assertThat(stockReservationRepository.findByOrderId(orderId))
                                 .singleElement()
@@ -1138,6 +1157,87 @@ class PlaceOrderFlowTest {
                         InventoryPosition after = position("SKU-001");
                         assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity() - 1);
                         assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity() + 1);
+
+                        // exactly one outcome: no confirmation was sent for this order
+                        assertThat(paymentEvents.orderConfirmationSent).noneMatch(e -> orderId.equals(e.getOrderId()));
+                    });
+                });
+    }
+
+    @Test
+    void notificationFailed_orderCancelledToNotificationDeliveryFailed(Scenario scenario) {
+        // place-order-flow.zfl:322-345: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed;
+        // pm_decline cancels the order, the stand-in refuses the @fail.invalid domain (data.sql ORD-015 e-mail domain)
+        InventoryPosition before = position("SKU-002");
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-NOTIF-CANC",
+              "customerEmail": "flow.notifcanc@fail.invalid",
+              "paymentMethodId": "pm_decline",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-002", "quantity": 1, "unitPrice": 59.90 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(NotificationDeliveryFailed.class)
+                .matchingMappedValue(NotificationDeliveryFailed::getCustomerId, "CUS-FLOW-NOTIF-CANC")
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(orderId).startsWith("ORD-");
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getType()).isEqualTo(NotificationType.ORDER_CANCELLED);
+                    assertThat(event.getRecipient()).isEqualTo("flow.notifcanc@fail.invalid");
+                    assertThat(event.getFailedAt()).isNotNull();
+
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CANCELLED))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.FAILED);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                });
+
+                        // the cancellation is untouched
+                        assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                            assertThat(order.getCancellationReason()).isEqualTo("PAYMENT_DECLINED");
+                        });
+                        assertThat(stockReservationRepository.findByOrderId(orderId))
+                                .singleElement()
+                                .satisfies(r -> assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED));
+
+                        InventoryPosition after = position("SKU-002");
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                        assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                        // exactly one outcome: neither a cancellation nor a confirmation was sent
+                        assertThat(paymentEvents.orderCancelledNotificationSent)
+                                .noneMatch(e -> orderId.equals(e.getOrderId()));
+                        assertThat(paymentEvents.orderConfirmationSent).noneMatch(e -> orderId.equals(e.getOrderId()));
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                                .isEmpty();
                     });
                 });
     }
