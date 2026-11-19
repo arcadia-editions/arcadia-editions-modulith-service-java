@@ -129,8 +129,23 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
                 });
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (no-op until then)
     public Optional<Fulfillment> cancelFulfillment(CancelFulfillmentInput input) {
-        return Optional.empty();
+
+        log.debug("Request cancelFulfillment: {}", input);
+
+        // no-op, no event, when there is no Fulfillment or it is FAILED or CANCELLED (redelivery)
+        return fulfillmentRepository
+                .findByOrderId(input.getOrderId())
+                .filter(f -> f.getStatus() == FulfillmentStatus.SCHEDULED
+                        || f.getStatus() == FulfillmentStatus.READY_TO_SHIP)
+                .map(f -> {
+                    FulfillmentTransitions.ensureCanCancelFulfillment(f);
+                    f.setStatus(FulfillmentStatus.CANCELLED);
+                    f.setCancelledAt(Instant.now(clock));
+                    f.setCancellationReason(input.getReason());
+                    var saved = fulfillmentRepository.save(f);
+                    eventPublisher.onFulfillmentCancelled(eventsMapper.asFulfillmentCancelled(saved));
+                    return saved;
+                });
     }
 }
