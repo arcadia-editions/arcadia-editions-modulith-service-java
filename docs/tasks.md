@@ -41,7 +41,8 @@ review: [ ]
       test data: data.sql ORD-006, data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
       blocked by: T-49
-- [/] T-51 advanced AFK Flow test completed: the Payment passes through AUTHORIZATION_REQUESTED before AUTHORIZED, the Fulfillment records paymentCapturedAt, markReadyToShip works only after it; ends at OrderConfirmationSent
+- [x] T-51 advanced AFK Flow test completed: the Payment passes through AUTHORIZATION_REQUESTED before AUTHORIZED, the Fulfillment records paymentCapturedAt, markReadyToShip works only after it; ends at OrderConfirmationSent
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:336-345, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:202-221
       test data: data.sql ORD-001
       tests: PlaceOrderFlowTest
@@ -53,7 +54,8 @@ path: OrderCreated > authorizePayment[failed] > PaymentFailed > retryPayment[ret
       > sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [/] T-52 bounded AFK retryPayment: Optional.empty(), no event, when there is no Payment (P-12 A); no-op, no event, unless the Payment is FAILED and input.attemptCount == Payment.attemptCount (redelivery); never increments attemptCount; retried below 3 attempts, retry-exhausted at 3
+- [x] T-52 bounded AFK retryPayment: Optional.empty(), no event, when there is no Payment (P-12 A); no-op, no event, unless the Payment is FAILED and input.attemptCount == Payment.attemptCount (redelivery); never increments attemptCount; retried below 3 attempts, retry-exhausted at 3
+      done: claude-sonnet sonnet (2 fix rounds)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:124-136, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:138-145
       test data: data.sql ORD-008, data.sql ORD-009
       tests: PaymentsProcessingServiceTest
