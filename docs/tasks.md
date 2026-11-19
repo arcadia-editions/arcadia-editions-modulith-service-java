@@ -178,7 +178,7 @@ review: [ ]
 ## S8 Polish
 review: [ ]
 
-- [ ] T-71 mechanical AFK startOrderCheckout contract: the 409 body follows the StockUnavailable schema of the 0.10.1 OpenAPI (orderId and unavailableItems, P-02 update); quantity >= 1 and unitPrice >= 0 (ZDL bounds) answer 400 before any reservation: assert StockReservation and Order counts unchanged after each 400 request and the ProblemDetail field (items[0].quantity / items[0].unitPrice), one case per test (Kotlin T-77)
+- [/] T-71 mechanical AFK startOrderCheckout contract: the 409 body follows the StockUnavailable schema of the 0.10.1 OpenAPI (orderId and unavailableItems, P-02 update); quantity >= 1 and unitPrice >= 0 (ZDL bounds) answer 400 before any reservation: assert StockReservation and Order counts unchanged after each 400 request and the ProblemDetail field (items[0].quantity / items[0].unitPrice), one case per test (Kotlin T-77)
       model: ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:68-69, ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:95-99, ../arcadia-editions-modulith-api/orders-checkout-openapi-overlay.yml:10-20
       test data: data.sql ORD-020
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest
