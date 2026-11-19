@@ -105,7 +105,8 @@ review: [ ]
       tests: PlaceOrderFlowTest
       blocked by: T-56, T-57, T-58
 
-- [/] T-73 bounded AFK voidPayment refused: Payment.failureReason and PaymentVoidFailed.reason are the void's input reason (why the void was asked, e.g. carrier_unavailable), as the approved fixtures ORD-025/ORD-026 store it; the provider's refusal reason (void_rejected) is only logged (log.warn, as T-56 asks). Update the T-56 refused-void test and assert Payment.failureReason in the T-59 flow test
+- [x] T-73 bounded AFK voidPayment refused: Payment.failureReason and PaymentVoidFailed.reason are the void's input reason (why the void was asked, e.g. carrier_unavailable), as the approved fixtures ORD-025/ORD-026 store it; the provider's refusal reason (void_rejected) is only logged (log.warn, as T-56 asks). Update the T-56 refused-void test and assert Payment.failureReason in the T-59 flow test
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:243-249
       test data: data.sql ORD-025, data.sql ORD-026
       tests: PaymentsProcessingServiceTest, PlaceOrderFlowTest
@@ -150,7 +151,7 @@ review: [ ]
       test data: data.sql ORD-002, data.sql ORD-027, data.sql ORD-028
       tests: InventoryServiceTest
       blocked by: T-63
-- [ ] T-65 advanced AFK Flow test reservation expired: with no payment started the stock is released and the order cancelled; with a payment started the timer releases nothing and payment ends the order
+- [/] T-65 advanced AFK Flow test reservation expired: with no payment started the stock is released and the order cancelled; with a payment started the timer releases nothing and payment ends the order
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:268-309
       test data: data.sql ORD-021, data.sql ORD-027, data.sql ORD-028
       tests: PlaceOrderFlowTest
