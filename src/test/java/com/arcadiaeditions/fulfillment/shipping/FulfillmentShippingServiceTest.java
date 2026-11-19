@@ -253,4 +253,86 @@ class FulfillmentShippingServiceTest {
         assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.READY_TO_SHIP);
         assertThat(context.eventPublisher().getEvents()).hasSize(1);
     }
+
+    private CancelFulfillmentInput cancelInput(String orderId, String reason) {
+        return new CancelFulfillmentInput().setOrderId(orderId).setReason(reason);
+    }
+
+    @Test
+    void cancelFulfillmentFromScheduledTest() {
+        // OrderCancelled of ORD-013: FUL-005 SCHEDULED -> CANCELLED, exactly one FulfillmentCancelled
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-013", "payment_capture_failed"));
+
+        assertThat(result).isPresent();
+        var fulfillment = result.get();
+        assertThat(fulfillment.getFulfillmentId()).isEqualTo("FUL-005");
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
+        assertThat(fulfillment.getCancelledAt()).isEqualTo(TestClock.NOW);
+        assertThat(fulfillment.getCancellationReason()).isEqualTo("payment_capture_failed");
+        assertThat(fulfillmentRepository.findByOrderId("ORD-013").orElseThrow().getStatus())
+                .isEqualTo(FulfillmentStatus.CANCELLED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(FulfillmentCancelled.class);
+        var event = (FulfillmentCancelled) events.get(0);
+        assertThat(event.getFulfillmentId()).isEqualTo("FUL-005");
+        assertThat(event.getOrderId()).isEqualTo("ORD-013");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-013");
+        assertThat(event.getReason()).isEqualTo("payment_capture_failed");
+        assertThat(event.getCancelledAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void cancelFulfillmentFromReadyToShipTest() {
+        // ORD-001: FUL-001 made READY_TO_SHIP, then OrderCancelled -> CANCELLED
+        fulfillmentShippingService.markReadyToShip(1L);
+        context.eventPublisher().getEvents().clear();
+
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-001", "customer_request"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
+        assertThat(result.get().getCancellationReason()).isEqualTo("customer_request");
+        assertThat(context.eventPublisher().getEvents()).hasSize(1);
+        assertThat(context.eventPublisher().getEvents().get(0)).isInstanceOf(FulfillmentCancelled.class);
+    }
+
+    @Test
+    void cancelFulfillmentNoFulfillmentTest() {
+        // ORD-014 has no Fulfillment: no-op
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-014", "payment_declined"));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentsOf("ORD-014")).isZero();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void cancelFulfillmentRedeliveryTest() {
+        // ORD-024: FUL-010 already CANCELLED: unchanged, no event
+        var before = fulfillmentRepository.findByOrderId("ORD-024").orElseThrow();
+        var reason = before.getCancellationReason();
+        var at = before.getCancelledAt();
+
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-024", "other"));
+
+        assertThat(result).isEmpty();
+        var after = fulfillmentRepository.findByOrderId("ORD-024").orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
+        assertThat(after.getCancellationReason()).isEqualTo(reason);
+        assertThat(after.getCancelledAt()).isEqualTo(at);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void cancelFulfillmentFailedTest() {
+        // ORD-007: FUL-003 FAILED: no-op
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-007", "x"));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentRepository.findByOrderId("ORD-007").orElseThrow().getStatus())
+                .isEqualTo(FulfillmentStatus.FAILED);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
 }
