@@ -94,7 +94,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * End "orderCancelled" by fulfillment failure: OrderConfirmed, FulfillmentFailed, PaymentVoided, StockReleased,
  * OrderCancelled to OrderCancelledNotificationSent, place-order-flow.zfl:160-170, 204-260, 262-266.
  * End "orderCancelled" by capture failure: FulfillmentScheduled, PaymentCaptureFailed, PaymentVoided, StockReleased,
- * OrderCancelled to OrderCancelledNotificationSent, place-order-flow.zfl:172-182, 204-260, 262-266. Repository state is
+ * OrderCancelled, cancelFulfillment to FulfillmentCancelled (reason PAYMENT_VOIDED), OrderCancelledNotificationSent,
+ * place-order-flow.zfl:190-200, 204-260, 262-266, 311-320. Repository state is
  * read with Awaitility: the terminal event can arrive before the last listener's transaction is visible.
  * End "orderCancelled" by void refused (T-59): OrderConfirmed, FulfillmentFailed, PaymentVoidFailed, StockReleased
  * (PAYMENT_VOID_FAILED), OrderCancelled once to OrderCancelledNotificationSent, Payment VOID_FAILED,
@@ -887,7 +888,6 @@ class PlaceOrderFlowTest {
                             .satisfies(e -> {
                                 assertThat(e.getReason()).isEqualTo("capture_rejected");
                                 assertThat(e.getFailedAt()).isNotNull();
-                                assertThat(e.getReason()).isEqualTo("carrier_unavailable");
                             });
                     assertThat(paymentEvents.paymentVoided.stream()
                                     .filter(e -> orderId.equals(e.getOrderId())))
@@ -911,11 +911,17 @@ class PlaceOrderFlowTest {
                         assertThat(fulfillmentRepository.findByOrderId(orderId)).hasValueSatisfying(fulfillment -> {
                             assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
                             assertThat(fulfillment.getCancelledAt()).isNotNull();
+                            assertThat(fulfillment.getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
+                            assertThat(paymentEvents.fulfillmentCancelled.stream()
+                                            .filter(e -> orderId.equals(e.getOrderId())))
+                                    .singleElement()
+                                    .satisfies(e -> {
+                                        assertThat(e.getCancelledAt()).isNotNull();
+                                        assertThat(e.getReason()).isEqualTo("PAYMENT_VOIDED");
+                                        assertThat(e.getFulfillmentId()).isEqualTo(fulfillment.getFulfillmentId());
+                                        assertThat(e.getCustomerId()).isEqualTo("CUS-FLOW-CAPTURE");
+                                    });
                         });
-                        assertThat(paymentEvents.fulfillmentCancelled.stream()
-                                        .filter(e -> orderId.equals(e.getOrderId())))
-                                .singleElement()
-                                .satisfies(e -> assertThat(e.getCancelledAt()).isNotNull());
 
                         // the order is cancelled once
                         assertThat(paymentEvents.orderCancelled.stream().filter(e -> orderId.equals(e.getOrderId())))
@@ -953,6 +959,10 @@ class PlaceOrderFlowTest {
                         assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
                                 .isEmpty();
                     });
+
+                    // still once after the await block: no late duplicate OrderCancelled
+                    assertThat(paymentEvents.orderCancelled.stream().filter(e -> orderId.equals(e.getOrderId())))
+                            .hasSize(1);
                 });
     }
 
