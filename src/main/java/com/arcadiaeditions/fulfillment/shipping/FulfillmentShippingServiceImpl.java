@@ -99,6 +99,10 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
                 .findById(id)
                 .map(existingFulfillment -> {
                     FulfillmentTransitions.ensureCanMarkReadyToShip(existingFulfillment);
+                    // the warehouse ships only after capture: refused, no transition, no event
+                    if (existingFulfillment.getPaymentCapturedAt() == null) {
+                        throw new PaymentNotCapturedException(existingFulfillment.getFulfillmentId());
+                    }
                     existingFulfillment.setStatus(FulfillmentStatus.READY_TO_SHIP);
                     return existingFulfillment;
                 })
