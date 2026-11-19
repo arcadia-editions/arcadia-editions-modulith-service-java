@@ -23,7 +23,7 @@ class SharedConfigTest {
     void flowPropertiesDefaults() {
         var p = new FlowProperties().getPayments();
         assertEquals(3, p.getMaxAttempts());
-        assertEquals(Duration.ofSeconds(30), p.getRetryDelay());
+        assertEquals(java.util.List.of(Duration.ofSeconds(5), Duration.ofSeconds(15)), p.getRetryBackoff());
     }
 
     @Test

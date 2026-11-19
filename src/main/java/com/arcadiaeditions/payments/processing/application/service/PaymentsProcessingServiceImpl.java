@@ -110,11 +110,7 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         var payment = newTransaction.execute(status -> {
             // one Payment per order: get-or-create by orderId
             var existing = paymentRepository.findByOrderId(input.getOrderId());
-            // PaymentRetried carries no payment data: its input has only the orderId, the stored Payment is reloaded
-            boolean retried = input.getPaymentMethodId() == null
-                    && existing.isPresent()
-                    && existing.get().getStatus() == PaymentStatus.FAILED;
-            if (existing.isPresent() && !retried) {
+            if (existing.isPresent()) {
                 // redelivery: a Payment exists (a call in flight or resolved); nothing changes, nothing is emitted
                 log.debug(
                         "authorizePayment: payment of order {} already {}",
@@ -123,15 +119,8 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
                 noOp[0] = true;
                 return existing.get();
             }
-            var requested = existing.orElseGet(() -> {
-                var created = paymentsProcessingServiceMapper.update(new Payment(), input);
-                created.setAttemptCount(1);
-                return created;
-            });
-            if (retried) {
-                // interim until T-54: reauthorizePayment will own this attempt (ZDL 130-136)
-                requested.setAttemptCount(requested.getAttemptCount() + 1);
-            }
+            var requested = paymentsProcessingServiceMapper.update(new Payment(), input);
+            requested.setAttemptCount(1);
             requested.setStatus(PaymentStatus.AUTHORIZATION_REQUESTED);
             return paymentRepository.save(requested);
         });
