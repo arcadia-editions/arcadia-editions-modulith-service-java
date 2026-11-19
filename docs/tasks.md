@@ -29,11 +29,12 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:107-122, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:119-128
       test data: data.sql ORD-002, data/jpa/Payment/2.json
       tests: PaymentsProcessingServiceTest
-- [/] T-49 bounded AFK recordPaymentCaptured: on PaymentCaptured set Fulfillment.paymentCapturedAt (SCHEDULED, no state change, no event); no-op when no Fulfillment exists or it is already set (replace the no-op compile stub)
+- [x] T-49 bounded AFK recordPaymentCaptured: on PaymentCaptured set Fulfillment.paymentCapturedAt (SCHEDULED, no state change, no event); no-op when no Fulfillment exists or it is already set (replace the no-op compile stub)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:215-221, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:105-110
       test data: data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
-- [ ] T-50 bounded AFK markReadyToShip: refused while Fulfillment.paymentCapturedAt is null (the warehouse ships only after capture); unchanged otherwise. The refusal names its cause (payment not captured yet), not an InvalidStateTransitionException from SCHEDULED with allowedStates [SCHEDULED]; FulfillmentTransitions is generated, do not edit it (Kotlin T-76)
+- [/] T-50 bounded AFK markReadyToShip: refused while Fulfillment.paymentCapturedAt is null (the warehouse ships only after capture); unchanged otherwise. The refusal names its cause (payment not captured yet), not an InvalidStateTransitionException from SCHEDULED with allowedStates [SCHEDULED]; FulfillmentTransitions is generated, do not edit it (Kotlin T-76)
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:51-56, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:112-114
       test data: data.sql ORD-006, data.sql ORD-023, data.sql ORD-001
       tests: FulfillmentShippingServiceTest
@@ -79,11 +80,12 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-252, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:243-249
       test data: data.sql ORD-002, data.sql ORD-007, data.sql ORD-008, data.sql ORD-012, data.sql ORD-019, data.sql ORD-025
       tests: PaymentsProcessingServiceTest
-- [/] T-57 mechanical AFK releaseStock on PaymentVoidFailed (listener and mapper already wired): reason PAYMENT_VOID_FAILED from a CONFIRMED reservation, sold back to available
+- [x] T-57 mechanical AFK releaseStock on PaymentVoidFailed (listener and mapper already wired): reason PAYMENT_VOID_FAILED from a CONFIRMED reservation, sold back to available
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:142-148
       test data: data.sql ORD-025, data.sql ORD-026
       tests: InventoryServiceTest
-- [ ] T-58 bounded AFK sendOrderCancelledNotification: when the reason is PAYMENT_VOID_FAILED the e-mail says the hold on the card may still show until we release it (the ZFL: ops release the hold by hand), not "for a few days" (the person, 2026-11-18, Kotlin T-79)
+- [/] T-58 bounded AFK sendOrderCancelledNotification: when the reason is PAYMENT_VOID_FAILED the e-mail says the hold on the card may still show until we release it (the ZFL: ops release the hold by hand), not "for a few days" (the person, 2026-11-18, Kotlin T-79)
       model: ../arcadia-editions-modulith-api/notifications-consumer-domain-model.zdl:96-98, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161
       test data: data.sql ORD-026
       tests: NotificationsConsumerServiceTest
