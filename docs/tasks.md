@@ -103,7 +103,8 @@ path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment[
       > cancelOrder > OrderCancelled > cancelFulfillment > FulfillmentCancelled, sendOrderCancelledNotification > end orderCancelled
 review: [ ]
 
-- [/] T-60 bounded AFK cancelFulfillment: on OrderCancelled, SCHEDULED or READY_TO_SHIP becomes CANCELLED with cancelledAt and cancellationReason = OrderCancelled.reason, emits FulfillmentCancelled; Optional.empty(), no event, when there is no Fulfillment or it is CANCELLED or FAILED (replace the no-op compile stub)
+- [x] T-60 bounded AFK cancelFulfillment: on OrderCancelled, SCHEDULED or READY_TO_SHIP becomes CANCELLED with cancelledAt and cancellationReason = OrderCancelled.reason, emits FulfillmentCancelled; Optional.empty(), no event, when there is no Fulfillment or it is CANCELLED or FAILED (replace the no-op compile stub)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:311-320, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:116-119, ../arcadia-editions-modulith-api/fulfillment-shipping-domain-model.zdl:151-157
       test data: data.sql ORD-013, data.sql ORD-014, data.sql ORD-024
       tests: FulfillmentShippingServiceTest
@@ -143,7 +144,7 @@ path: PaymentAuthorized (after expiry) > confirmOrder > confirmStockReservation[
       > OrderConfirmationRejected > voidPayment[voided] > PaymentVoided > releaseStock (no-op, RELEASED) > end orderCancelled
 review: [ ]
 
-- [ ] T-66 bounded AFK confirmStockReservation NOT_HELD: when the order has no RESERVED or CONFIRMED reservation (released by the timer) answer NOT_HELD, no change, no event; CONFIRMED stays the redelivery answer
+- [/] T-66 bounded AFK confirmStockReservation NOT_HELD: when the order has no RESERVED or CONFIRMED reservation (released by the timer) answer NOT_HELD, no change, no event; CONFIRMED stays the redelivery answer
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:166-176, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:161-163
       test data: data.sql ORD-003, data.sql ORD-004, data.sql ORD-022
       tests: InventoryServiceTest
