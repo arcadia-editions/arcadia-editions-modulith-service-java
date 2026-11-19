@@ -164,10 +164,19 @@ public class InventoryServiceImpl implements InventoryService {
         return saved;
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (NOT_HELD outcome); the body below is the baseline behavior
     public ConfirmStockReservationResult confirmStockReservation(ConfirmStockReservationInput input) {
+        var held = stockReservationRepository.findByOrderId(input.getOrderId()).stream()
+                .filter(r -> r.getStatus() == ReservationStatus.RESERVED || r.getStatus() == ReservationStatus.CONFIRMED)
+                .toList();
+        if (held.isEmpty()) {
+            // e.g. released by the reservation timer: no change, no event
+            return new ConfirmStockReservationResult()
+                    .setOutcome(ConfirmStockReservationOutcome.NOT_HELD)
+                    .setNotHeld(new StockReservationNotHeldResult().setOrderId(input.getOrderId()));
+        }
         var confirmed = confirmReservedStock(input);
-        var confirmedAt = confirmed.isEmpty() ? null : confirmed.get(0).getConfirmedAt();
+        // redelivery: nothing to confirm now, answer with the original confirmation time
+        var confirmedAt = (confirmed.isEmpty() ? held : confirmed).get(0).getConfirmedAt();
         return new ConfirmStockReservationResult()
                 .setOutcome(ConfirmStockReservationOutcome.CONFIRMED)
                 .setConfirmed(new StockReservationConfirmedResult()
