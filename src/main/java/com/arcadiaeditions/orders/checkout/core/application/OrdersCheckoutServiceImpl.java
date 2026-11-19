@@ -4,6 +4,7 @@ import com.arcadiaeditions.catalog.inventory.service.InventoryService;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ConfirmStockReservationInput;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockInput;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockItemInput;
+import com.arcadiaeditions.catalog.inventory.domain.ConfirmStockReservationOutcome;
 import com.arcadiaeditions.catalog.inventory.domain.ReserveStockOutcome;
 import com.arcadiaeditions.common.BusinessIds;
 import com.arcadiaeditions.orders.checkout.core.application.mappers.*;
@@ -105,9 +106,17 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
             log.debug("confirmOrder redelivery, order already CONFIRMED: {}", input.getOrderId());
             return existing;
         }
+        if (existing.getStatus() == OrderStatus.CANCELLED) {
+            reject(existing, "ORDER_CANCELLED");
+            return existing;
+        }
         OrderTransitions.ensureCanConfirmOrder(existing);
-        inventoryService.confirmStockReservation(
+        var stock = inventoryService.confirmStockReservation(
                 new ConfirmStockReservationInput().setOrderId(existing.getOrderId()));
+        if (stock.getOutcome() == ConfirmStockReservationOutcome.NOT_HELD) {
+            reject(existing, "STOCK_NOT_HELD");
+            return existing;
+        }
         existing.setStatus(OrderStatus.CONFIRMED);
         existing.setConfirmedAt(clock.instant());
         var order = orderRepository.save(existing);
@@ -115,6 +124,13 @@ public class OrdersCheckoutServiceImpl implements OrdersCheckoutService {
         var orderConfirmed = eventsMapper.asOrderConfirmed(order);
         eventPublisher.onOrderConfirmed(orderConfirmed);
         return order;
+    }
+
+    private void reject(Order order, String reason) {
+        var rejected = eventsMapper.asOrderConfirmationRejected(order);
+        rejected.setReason(reason);
+        rejected.setRejectedAt(clock.instant());
+        eventPublisher.onOrderConfirmationRejected(rejected);
     }
 
     public Order cancelOrder(CancelOrderInput input) {
