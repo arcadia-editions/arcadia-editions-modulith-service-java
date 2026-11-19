@@ -139,6 +139,14 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
             return payment;
         }
 
+        return authorizeRequested(payment);
+    }
+
+    /**
+     * The processor call of a Payment committed AUTHORIZATION_REQUESTED, and its outcome saved (in the caller's
+     * transaction) with its event: AUTHORIZED, DECLINED or FAILED.
+     */
+    private Payment authorizeRequested(Payment payment) {
         var request = new PaymentProvider.AuthorizationRequest(
                 payment.getOrderId(),
                 payment.getPaymentMethodId(),
@@ -285,9 +293,80 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         return payment;
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (PaymentRetried still reaches authorizePayment until then)
     public Optional<Payment> reauthorizePayment(ReauthorizePaymentInput input) {
-        throw new UnsupportedOperationException("reauthorizePayment: " + input.getOrderId());
+
+        log.debug("Request reauthorizePayment: {}", input);
+
+        // every read and the AUTHORIZATION_REQUESTED save run in transactions of their own, so the caller's
+        // persistence context never holds a copy older than the one committed before the processor call (JPA @Version)
+        var found = newTransaction.execute(status -> paymentRepository.findByOrderId(input.getOrderId()));
+        if (found == null || found.isEmpty()) {
+            // P-12 A: no Payment for the order; nothing to reauthorize, no event
+            log.debug("reauthorizePayment: no payment for order {}", input.getOrderId());
+            return Optional.empty();
+        }
+        if (!canReauthorize(found.get(), input)) {
+            return found;
+        }
+
+        // ZFL header: backoff before the next attempt (5 s before attempt 2, 15 s before attempt 3)
+        waitBackoffBefore(input.getAttemptCount() + 1);
+
+        // P-11 A: FAILED -> AUTHORIZATION_REQUESTED with attemptCount + 1, committed before the processor call;
+        // checked again after the wait, against the Payment loaded in this same block
+        var noOp = new boolean[] {false};
+        var payment = newTransaction.execute(status -> {
+            var current = paymentRepository.findByOrderId(input.getOrderId()).orElseThrow();
+            if (!canReauthorize(current, input)) {
+                noOp[0] = true;
+                return current;
+            }
+            current.setAttemptCount(current.getAttemptCount() + 1);
+            current.setStatus(PaymentStatus.AUTHORIZATION_REQUESTED);
+            return paymentRepository.save(current);
+        });
+        if (noOp[0]) {
+            return Optional.of(payment);
+        }
+        return Optional.of(authorizeRequested(payment));
+    }
+
+    /**
+     * Guarded here, not with PaymentTransitions.ensureCanReauthorizePayment (it checks AUTHORIZATION_REQUESTED, the
+     * from of the last step): only FAILED at input.attemptCount, below the attempt limit; anything else is a
+     * redelivered or stale PaymentRetried, a no-op with no event.
+     */
+    private boolean canReauthorize(Payment payment, ReauthorizePaymentInput input) {
+        if (payment.getStatus() == PaymentStatus.FAILED
+                && Objects.equals(input.getAttemptCount(), payment.getAttemptCount())
+                && payment.getAttemptCount() < flowProperties.getPayments().getMaxAttempts()) {
+            return true;
+        }
+        log.debug(
+                "reauthorizePayment no-op, payment {} at attempt {}, input attempt {}: {}",
+                payment.getStatus(),
+                payment.getAttemptCount(),
+                input.getAttemptCount(),
+                input.getOrderId());
+        return false;
+    }
+
+    /** Waits the backoff before this attempt (arcadia.payments.retry-backoff: element 0 before attempt 2). */
+    private void waitBackoffBefore(int attempt) {
+        var backoff = flowProperties.getPayments().getRetryBackoff();
+        if (attempt < 2 || backoff == null || backoff.isEmpty()) {
+            return;
+        }
+        var delay = backoff.get(Math.min(attempt - 2, backoff.size() - 1));
+        if (delay == null || delay.isZero() || delay.isNegative()) {
+            return;
+        }
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted waiting the payment retry backoff", e);
+        }
     }
 
     // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md
