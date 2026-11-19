@@ -71,7 +71,8 @@ review: [ ]
       test data: data.sql ORD-002, data.sql ORD-008
       tests: PaymentsProcessingServiceTest
       blocked by: T-53
-- [/] T-55 advanced AFK Flow tests of the retry loop: attempts counted only by authorizePayment (1) and reauthorizePayment (2, 3), a redelivered PaymentFailed or PaymentRetried with a stale attemptCount changes nothing, backoff respected (fixed Clock or a test backoff)
+- [x] T-55 advanced AFK Flow tests of the retry loop: attempts counted only by authorizePayment (1) and reauthorizePayment (2, 3), a redelivered PaymentFailed or PaymentRetried with a stale attemptCount changes nothing, backoff respected (fixed Clock or a test backoff)
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:124-146, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266
       test data: data.sql ORD-008, data.sql ORD-009, data.sql ORD-015
       tests: PlaceOrderFlowTest
@@ -97,7 +98,7 @@ review: [ ]
       model: ../arcadia-editions-modulith-api/notifications-consumer-domain-model.zdl:96-98, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:152-161
       test data: data.sql ORD-026
       tests: NotificationsConsumerServiceTest
-- [ ] T-59 advanced AFK Flow test void refused: fulfillment fails, the void is refused, the stock is released (PAYMENT_VOID_FAILED), the order is cancelled once and the customer told; ends at OrderCancelledNotificationSent with the Payment VOID_FAILED
+- [/] T-59 advanced AFK Flow test void refused: fulfillment fails, the void is refused, the stock is released (PAYMENT_VOID_FAILED), the order is cancelled once and the customer told; ends at OrderCancelledNotificationSent with the Payment VOID_FAILED
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-266, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:299-309, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:322-345
       test data: data.sql ORD-026
       tests: PlaceOrderFlowTest
@@ -129,12 +130,13 @@ review: [ ]
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:293-297, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:163-164
       test data: data.sql ORD-002, data.sql ORD-027, data.sql ORD-028
       tests: PaymentsProcessingServiceTest
-- [/] T-63 advanced AFK expireReservation: calls getPaymentStatus and releases the RESERVED lines of the order (RESERVATION_EXPIRED, StockReleased) only on NO_PAYMENT; no-op on STARTED or when nothing is RESERVED (replace the compile stub)
+- [x] T-63 advanced AFK expireReservation: calls getPaymentStatus and releases the RESERVED lines of the order (RESERVATION_EXPIRED, StockReleased) only on NO_PAYMENT; no-op on STARTED or when nothing is RESERVED (replace the compile stub)
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:280-291, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:150-158
       test data: data.sql ORD-027, data.sql ORD-028, data.sql ORD-021
       tests: InventoryServiceTest
       blocked by: T-48, T-62
-- [ ] T-64 advanced AFK ReservationExpired timer (reopens T-35 of baseline 2): a scheduler on StockReservation.expiresAt with the injected Clock that runs expireReservation once per order whose RESERVED reservations are past their deadline; channel reservation-expired-event-v1 as the ZDL @timer names it
+- [/] T-64 advanced AFK ReservationExpired timer (reopens T-35 of baseline 2): a scheduler on StockReservation.expiresAt with the injected Clock that runs expireReservation once per order whose RESERVED reservations are past their deadline; channel reservation-expired-event-v1 as the ZDL @timer names it
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:268-278, ../arcadia-editions-modulith-api/catalog-inventory-domain-model.zdl:150-158
       test data: data.sql ORD-002, data.sql ORD-027, data.sql ORD-028
       tests: InventoryServiceTest
