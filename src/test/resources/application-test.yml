@@ -8,12 +8,3 @@ spring.sql.init.mode: always
 DATASOURCE_URL: jdbc:postgresql://localhost:5432/app
 DATASOURCE_USERNAME: postgres
 DATASOURCE_PASSWORD: admin123
-KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-
-# No Kafka in tests: no binder binding and no event externalization (in-process @ApplicationModuleListener events keep working)
-spring.modulith.events.externalization.enabled: false
-spring.cloud.function.ineligible-definitions: modulesRuntime
-spring.cloud.stream.function.definition: ""
-spring.cloud.stream.auto-startup: false
-spring.cloud.stream.kafka.binder.auto-create-topics: false
-spring.cloud.stream.kafka.binder.auto-add-partitions: false
