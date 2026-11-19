@@ -16,6 +16,7 @@ import com.arcadiaeditions.fulfillment.shipping.FulfillmentRepository;
 import com.arcadiaeditions.fulfillment.shipping.FulfillmentShippingService;
 import com.arcadiaeditions.fulfillment.shipping.PaymentNotCapturedException;
 import com.arcadiaeditions.fulfillment.shipping.domain.FulfillmentStatus;
+import com.arcadiaeditions.fulfillment.shipping.domain.events.FulfillmentCancelled;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationStatus;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationType;
 import com.arcadiaeditions.notifications.consumer.domain.events.NotificationDeliveryFailed;
@@ -144,6 +145,7 @@ class PlaceOrderFlowTest {
         final Queue<PaymentVoided> paymentVoided = new ConcurrentLinkedQueue<>();
         final Queue<PaymentVoidFailed> paymentVoidFailed = new ConcurrentLinkedQueue<>();
         final Queue<OrderCancelled> orderCancelled = new ConcurrentLinkedQueue<>();
+        final Queue<FulfillmentCancelled> fulfillmentCancelled = new ConcurrentLinkedQueue<>();
 
         @EventListener
         void on(PaymentFailed event) {
@@ -178,6 +180,11 @@ class PlaceOrderFlowTest {
         @EventListener
         void on(OrderCancelled event) {
             orderCancelled.add(event);
+        }
+
+        @EventListener
+        void on(FulfillmentCancelled event) {
+            fulfillmentCancelled.add(event);
         }
     }
 
@@ -884,10 +891,19 @@ class PlaceOrderFlowTest {
                             assertThat(payment.getCapturedAt()).isNull();
                         });
 
-                        // fulfillment was scheduled; the capture failed after it
-                        assertThat(fulfillmentRepository.findByOrderId(orderId))
-                                .hasValueSatisfying(fulfillment ->
-                                        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED));
+                        // fulfillment was scheduled; the capture failed after it; the cancellation then cancelled it
+                        assertThat(fulfillmentRepository.findByOrderId(orderId)).hasValueSatisfying(fulfillment -> {
+                            assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
+                            assertThat(fulfillment.getCancelledAt()).isNotNull();
+                        });
+                        assertThat(paymentEvents.fulfillmentCancelled.stream()
+                                        .filter(e -> orderId.equals(e.getOrderId())))
+                                .singleElement()
+                                .satisfies(e -> assertThat(e.getCancelledAt()).isNotNull());
+
+                        // the order is cancelled once
+                        assertThat(paymentEvents.orderCancelled.stream().filter(e -> orderId.equals(e.getOrderId())))
+                                .hasSize(1);
 
                         // the reservation was CONFIRMED (sold) at OrderConfirmed; releasing it moves sold back to available
                         assertThat(stockReservationRepository.findByOrderId(orderId))
