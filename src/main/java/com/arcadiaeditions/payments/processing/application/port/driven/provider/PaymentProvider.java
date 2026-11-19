@@ -16,6 +16,7 @@ public interface PaymentProvider {
     /** The processor call threw (P-10 A of the Kotlin service, data.sql assumption). */
     String PROCESSOR_ERROR = "processor_error";
     String CAPTURE_REJECTED = "capture_rejected";
+    String VOID_REJECTED = "void_rejected";
 
     AuthorizationResult authorize(AuthorizationRequest request);
 
@@ -54,7 +55,7 @@ public interface PaymentProvider {
     /** {@code captured} false carries the {@code reason}. */
     record CaptureResult(boolean captured, String reason) {}
 
-    record VoidRequest(String orderId, String providerReference, String reason) {}
+    record VoidRequest(String orderId, String providerReference, String reason, String paymentMethodId) {}
 
     record VoidResult(boolean voided, String reason) {}
 }

@@ -634,63 +634,96 @@ class PaymentsProcessingServiceTest {
         assertThat(event.getVoidedAt()).isEqualTo(TestClock.NOW);
     }
 
+    private void assertVoidNoOp(String orderId, PaymentStatus status) {
+        var before = paymentRepository.findByOrderId(orderId).orElseThrow();
+        var statusBefore = before.getStatus();
+        var reasonBefore = before.getFailureReason();
+        var voidedAtBefore = before.getVoidedAt();
+        var voidFailedAtBefore = before.getVoidFailedAt();
+
+        var result = paymentsProcessingService.voidPayment(new VoidPaymentInput().setOrderId(orderId).setReason("x"));
+
+        assertThat(result).isEmpty();
+        var after = paymentRepository.findByOrderId(orderId).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(status).isEqualTo(statusBefore);
+        assertThat(after.getFailureReason()).isEqualTo(reasonBefore);
+        assertThat(after.getVoidedAt()).isEqualTo(voidedAtBefore);
+        assertThat(after.getVoidFailedAt()).isEqualTo(voidFailedAtBefore);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
     @Test
     void voidPaymentFromAuthorizationRequestedTest() {
-        var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-002").setReason("x")).orElseThrow();
-
-        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
-        assertThat(context.eventPublisher().getEvents()).hasSize(1);
-        assertThat(context.eventPublisher().getEvents().get(0)).isInstanceOf(PaymentVoided.class);
+        // ORD-002: AUTHORIZATION_REQUESTED -> no-op
+        assertVoidNoOp("ORD-002", PaymentStatus.AUTHORIZATION_REQUESTED);
     }
 
     @Test
     void voidPaymentFromFailedTest() {
-        var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-008").setReason("x")).orElseThrow();
-
-        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
-        assertThat(context.eventPublisher().getEvents()).hasSize(1);
-        assertThat(context.eventPublisher().getEvents().get(0)).isInstanceOf(PaymentVoided.class);
+        // ORD-008: FAILED -> no-op
+        assertVoidNoOp("ORD-008", PaymentStatus.FAILED);
     }
 
     @Test
     void voidPaymentAlreadyVoidedTest() {
-        // ORD-016: already VOIDED; redelivery is a no-op, nothing changes, nothing emitted
-        var payment = paymentsProcessingService.voidPayment(
-                new VoidPaymentInput().setOrderId("ORD-016").setReason("carrier_unavailable")).orElseThrow();
+        // ORD-019: already VOIDED; redelivery is a no-op
+        assertVoidNoOp("ORD-019", PaymentStatus.VOIDED);
+    }
 
-        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOIDED);
-        assertThat(payment.getVoidedAt()).isEqualTo(Instant.parse("2026-10-14T09:50:56Z"));
-        assertThat(paymentsOf("ORD-016")).isEqualTo(1);
-        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    @Test
+    void voidPaymentAlreadyVoidFailedTest() {
+        // ORD-025: VOID_FAILED, redelivery is a no-op
+        assertVoidNoOp("ORD-025", PaymentStatus.VOID_FAILED);
+    }
+
+    @Test
+    void voidPaymentDeclinedNoOpTest() {
+        assertVoidNoOp("ORD-010", PaymentStatus.DECLINED);
     }
 
     @Test
     void voidPaymentTwiceTest() {
         var input = new VoidPaymentInput().setOrderId("ORD-007").setReason("carrier_unavailable");
-        paymentsProcessingService.voidPayment(input);
+        assertThat(paymentsProcessingService.voidPayment(input)).isPresent();
 
-        paymentsProcessingService.voidPayment(input);
+        assertThat(paymentsProcessingService.voidPayment(input)).isEmpty();
 
         assertThat(context.eventPublisher().getEvents()).hasSize(1);
     }
 
     @Test
     void voidPaymentNotFoundTest() {
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> paymentsProcessingService.voidPayment(
+        // no Payment: no-op, no event
+        assertThat(paymentsProcessingService.voidPayment(
                         new VoidPaymentInput().setOrderId("ORD-999").setReason("x")))
-                .isInstanceOf(java.util.NoSuchElementException.class);
+                .isEmpty();
         assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 
     @Test
-    void voidPaymentInvalidStateTest() {
-        // ORD-010 is DECLINED: no void from there
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> paymentsProcessingService.voidPayment(
-                        new VoidPaymentInput().setOrderId("ORD-010").setReason("x")))
-                .isInstanceOf(PaymentTransitions.InvalidStateTransitionException.class);
-        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    void voidPaymentRefusedTest() {
+        // ORD-007 AUTHORIZED, the stand-in refuses voids for pm_void_fail
+        var seed = paymentRepository.findByOrderId("ORD-007").orElseThrow();
+        paymentRepository.save(seed.setPaymentMethodId("pm_void_fail"));
+
+        var payment = paymentsProcessingService.voidPayment(
+                new VoidPaymentInput().setOrderId("ORD-007").setReason("carrier_unavailable")).orElseThrow();
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOID_FAILED);
+        assertThat(payment.getVoidFailedAt()).isEqualTo(TestClock.NOW);
+        assertThat(payment.getVoidedAt()).isNull();
+        assertThat(payment.getFailureReason()).isEqualTo("void_rejected");
+        assertThat(paymentRepository.findByOrderId("ORD-007").orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.VOID_FAILED);
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(PaymentVoidFailed.class);
+        var event = (PaymentVoidFailed) events.get(0);
+        assertThat(event.getOrderId()).isEqualTo("ORD-007");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-007");
+        assertThat(event.getProviderReference()).isEqualTo("STANDIN-ORD-007");
+        assertThat(event.getReason()).isEqualTo("void_rejected");
+        assertThat(event.getFailedAt()).isEqualTo(TestClock.NOW);
     }
 
     // --- reauthorizePayment (T-53): ZDL 130-136, P-11 A, P-12 A ---
