@@ -88,7 +88,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
 @EnableScenarios
-@TestPropertySource(properties = "arcadia.payments.retry-delay=0")
+@TestPropertySource(properties = "arcadia.payments.retry-backoff=0s,0s")
 @RecordApplicationEvents
 class PlaceOrderFlowTest {
 
