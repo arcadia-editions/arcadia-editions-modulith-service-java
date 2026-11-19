@@ -872,6 +872,7 @@ class PlaceOrderFlowTest {
                             .satisfies(e -> {
                                 assertThat(e.getReason()).isEqualTo("capture_rejected");
                                 assertThat(e.getFailedAt()).isNotNull();
+                                assertThat(e.getReason()).isEqualTo("carrier_unavailable");
                             });
                     assertThat(paymentEvents.paymentVoided.stream()
                                     .filter(e -> orderId.equals(e.getOrderId())))
@@ -995,6 +996,7 @@ class PlaceOrderFlowTest {
                                 assertThat(e.getCustomerId()).isEqualTo("CUS-FLOW-VOIDFAIL");
                                 assertThat(e.getProviderReference()).isEqualTo("STANDIN-" + orderId);
                                 assertThat(e.getFailedAt()).isNotNull();
+                                assertThat(e.getReason()).isEqualTo("carrier_unavailable");
                             });
                     assertThat(paymentEvents.paymentVoided.stream().filter(e -> orderId.equals(e.getOrderId())))
                             .isEmpty();
@@ -1020,6 +1022,8 @@ class PlaceOrderFlowTest {
                             assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOID_FAILED);
                             assertThat(payment.getAuthorizedAt()).isNotNull();
                             assertThat(payment.getVoidFailedAt()).isNotNull();
+                            // the void input reason (why the void was asked), as ORD-026 stores it; not the provider refusal
+                            assertThat(payment.getFailureReason()).isEqualTo("carrier_unavailable");
                             assertThat(payment.getVoidedAt()).isNull();
                             assertThat(payment.getCapturedAt()).isNull();
                         });

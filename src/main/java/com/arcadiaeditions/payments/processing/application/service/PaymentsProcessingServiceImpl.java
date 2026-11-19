@@ -271,11 +271,11 @@ public class PaymentsProcessingServiceImpl implements PaymentsProcessingService 
         var result = paymentProvider.voidAuthorization(new PaymentProvider.VoidRequest(
                 payment.getOrderId(), payment.getProviderReference(), input.getReason(), payment.getPaymentMethodId()));
         if (!result.voided()) {
-            // ops own VOID_FAILED: the order is cancelled anyway
+            // ops own VOID_FAILED: the order is cancelled anyway; failureReason keeps the void input reason, the provider refusal is only logged
             log.warn("voidPayment: provider refused to void order {}: {}", input.getOrderId(), result.reason());
             payment.setStatus(PaymentStatus.VOID_FAILED);
             payment.setVoidFailedAt(Instant.now(clock));
-            payment.setFailureReason(result.reason());
+            payment.setFailureReason(input.getReason());
             payment = paymentRepository.save(payment);
             eventPublisher.onPaymentVoidFailed(eventsMapper.asPaymentVoidFailed(payment));
             return Optional.of(payment);

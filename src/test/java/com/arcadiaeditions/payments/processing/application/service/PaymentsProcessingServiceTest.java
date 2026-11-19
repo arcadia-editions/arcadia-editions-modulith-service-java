@@ -736,7 +736,7 @@ class PaymentsProcessingServiceTest {
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.VOID_FAILED);
         assertThat(payment.getVoidFailedAt()).isEqualTo(TestClock.NOW);
         assertThat(payment.getVoidedAt()).isNull();
-        assertThat(payment.getFailureReason()).isEqualTo("void_rejected");
+        assertThat(payment.getFailureReason()).isEqualTo("carrier_unavailable");
         assertThat(paymentRepository.findByOrderId("ORD-007").orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.VOID_FAILED);
         var events = context.eventPublisher().getEvents();
@@ -746,7 +746,7 @@ class PaymentsProcessingServiceTest {
         assertThat(event.getOrderId()).isEqualTo("ORD-007");
         assertThat(event.getCustomerId()).isEqualTo("CUST-007");
         assertThat(event.getProviderReference()).isEqualTo("STANDIN-ORD-007");
-        assertThat(event.getReason()).isEqualTo("void_rejected");
+        assertThat(event.getReason()).isEqualTo("carrier_unavailable");
         assertThat(event.getFailedAt()).isEqualTo(TestClock.NOW);
     }
 
