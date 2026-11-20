@@ -187,7 +187,8 @@ review: [ ]
       test data: data.sql ORD-021
       tests: PaymentsProcessingServiceTest
       blocked by: T-56
-- [/] T-69 advanced AFK Flow test late authorization: the authorization arrives after the timer released the stock; confirmOrder rejects, the hold is voided, releaseStock and cancelOrder are no-ops, the order is cancelled once
+- [x] T-69 advanced AFK Flow test late authorization: the authorization arrives after the timer released the stock; confirmOrder rejects, the hold is voided, releaseStock and cancelOrder are no-ops, the order is cancelled once
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:148-176, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-266, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:299-309
       test data: data.sql ORD-021, data.sql ORD-022
       tests: PlaceOrderFlowTest
