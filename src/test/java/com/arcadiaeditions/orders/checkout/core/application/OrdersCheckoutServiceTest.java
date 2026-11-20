@@ -164,11 +164,39 @@ class OrdersCheckoutServiceTest {
     }
 
     @Test
-    void confirmOrderFromCancelledIsInvalidTest() {
-        org.junit.jupiter.api.Assertions.assertThrows(
-                OrderTransitions.InvalidStateTransitionException.class,
-                () -> ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-013")));
-        org.junit.jupiter.api.Assertions.assertTrue(context.eventPublisher().getEvents().isEmpty());
+    void confirmOrderOnCancelledRejectsWithoutCallingInventoryTest() { // ORD-021
+        com.arcadiaeditions.catalog.inventory.service.InventoryService inventory =
+                spy(context.inventoryContext.<com.arcadiaeditions.catalog.inventory.service.InventoryService>inventoryService());
+        var service = new OrdersCheckoutServiceImpl(
+                orderRepository, context.eventPublisher(), inventory, context.clock);
+
+        var order = service.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-021"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CANCELLED, order.getStatus());
+        verifyNoInteractions(inventory);
+        assertRejected("ORD-021", "CUST-021", "ORDER_CANCELLED");
+    }
+
+    @Test
+    void confirmOrderNotHeldRejectsAndStaysCreatedTest() { // ORD-022
+        var order = ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-022"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CREATED, order.getStatus());
+        org.junit.jupiter.api.Assertions.assertNull(order.getConfirmedAt());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                OrderStatus.CREATED,
+                orderRepository.findByOrderId("ORD-022").orElseThrow().getStatus());
+        assertRejected("ORD-022", "CUST-022", "STOCK_NOT_HELD");
+    }
+
+    private void assertRejected(String orderId, String customerId, String reason) {
+        var events = context.eventPublisher().getEvents();
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        var rejected = (com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmationRejected) events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals(orderId, rejected.getOrderId());
+        org.junit.jupiter.api.Assertions.assertEquals(customerId, rejected.getCustomerId());
+        org.junit.jupiter.api.Assertions.assertEquals(reason, rejected.getReason());
+        org.junit.jupiter.api.Assertions.assertEquals(context.clock.instant(), rejected.getRejectedAt());
     }
 
     @Test

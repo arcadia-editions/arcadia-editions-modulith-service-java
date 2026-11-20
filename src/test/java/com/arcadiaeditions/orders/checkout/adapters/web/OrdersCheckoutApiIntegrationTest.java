@@ -129,6 +129,7 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
             .expectStatus().isEqualTo(409)
             .expectBody()
             .jsonPath("$.status").isEqualTo(409)
+            .jsonPath("$.orderId").isNotEmpty()
             .jsonPath("$.unavailableItems").isArray()
             .jsonPath("$.unavailableItems.length()").isEqualTo(1)
             .jsonPath("$.unavailableItems[0].sku").isEqualTo("SKU-004")
@@ -153,6 +154,49 @@ public class OrdersCheckoutApiIntegrationTest extends BaseWebTestClientTest {
                 "select count(*) from event_publication where event_type like '%.StockUnavailable'"
                         + " and serialized_event like '%CUST-T15%'", Integer.class);
         org.junit.jupiter.api.Assertions.assertTrue(publications >= 1, "StockUnavailable publication registered");
+    }
+
+    private void assertInvalidItemIs400WithoutSideEffects(String quantity, String unitPrice, String field) {
+        String requestBody = """
+            {
+              "customerId" : "CUST-T71",
+              "customerEmail" : "customer-t71@example.com",
+              "paymentMethodId" : "PM-T71",
+              "currency" : "EUR",
+              "items" : [ { "sku" : "SKU-001", "quantity" : %s, "unitPrice" : %s } ],
+              "shippingAddress" : {
+                "name" : "Buyer", "line1" : "1 Book Lane", "city" : "Madrid",
+                "postalCode" : "28001", "country" : "ES"
+              }
+            }
+        """.formatted(quantity, unitPrice);
+        int orders = jdbcTemplate.queryForObject("select count(*) from checkout_order", Integer.class);
+        int reservations = jdbcTemplate.queryForObject("select count(*) from stock_reservation", Integer.class);
+
+        webTestClient.method(POST).uri("/api/orders/start-checkout")
+            .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(requestBody)
+            .exchange()
+            .expectStatus().isEqualTo(400)
+            .expectBody()
+            .jsonPath("$.status").isEqualTo(400)
+            .jsonPath("$['startOrderCheckoutInputDTO." + field + "']").isNotEmpty();
+
+        org.junit.jupiter.api.Assertions.assertEquals(orders,
+                jdbcTemplate.queryForObject("select count(*) from checkout_order", Integer.class));
+        org.junit.jupiter.api.Assertions.assertEquals(reservations,
+                jdbcTemplate.queryForObject("select count(*) from stock_reservation", Integer.class));
+    }
+
+    @Test
+    public void testStartOrderCheckout_400_QuantityZero() {
+        assertInvalidItemIs400WithoutSideEffects("0", "10", "items[0].quantity");
+    }
+
+    @Test
+    public void testStartOrderCheckout_400_UnitPriceNegative() {
+        assertInvalidItemIs400WithoutSideEffects("1", "-0.01", "items[0].unitPrice");
     }
 
     /**

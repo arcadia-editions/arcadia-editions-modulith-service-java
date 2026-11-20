@@ -21,12 +21,14 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
     public final java.time.Clock clock = com.arcadiaeditions.config.TestClock.FIXED;
 
     private InMemoryEventPublisher eventPublisher = new InMemoryEventPublisher();
+    private final InMemoryTransactionManager transactionManager = new InMemoryTransactionManager();
     protected final PaymentsProcessingServiceImpl paymentsProcessingService =
             new PaymentsProcessingServiceImpl(
                     paymentRepository(),
                     eventPublisher,
                     new com.arcadiaeditions.payments.processing.adapter.driven.provider.StandInPaymentProvider(),
                     clock,
+                    transactionManager,
                     new com.arcadiaeditions.config.FlowProperties());
 
     @Bean
@@ -43,6 +45,12 @@ public class ServicesInMemoryConfig extends RepositoriesInMemoryConfig {
         paymentRepository().deleteAll();
         paymentRepository().saveAll(payments);
         eventPublisher.getEvents().clear();
+        transactionManager.reset();
+    }
+
+    /** The in-memory transaction manager, for tests that check what was committed and when. */
+    public InMemoryTransactionManager transactionManager() {
+        return transactionManager;
     }
 
     @Bean

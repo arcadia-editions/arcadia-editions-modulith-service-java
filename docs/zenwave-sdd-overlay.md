@@ -113,7 +113,7 @@ The orchestrator gives the workers the focused command (with the task's `tests:`
     (get-or-create). One `Payment` per order.
   - **Branch outcomes.** `@transition(to:)` names the happy-path target; alternative outcomes set their lifecycle
     state in code (e.g. capture failure → `CAPTURE_FAILED`).
-  - **Reservation expiry.** Out of scope for this iteration; no scheduler.
+  - **Reservation expiry.** ~~Out of scope; no scheduler.~~ Superseded by board T-63/T-64 (baseline 4): `ReservationExpiredScheduler` polls `arcadia.timers.reservation-expired-event-v1.fixed-delay` (PT30S), off in the `test` profile.
   - **Stock unavailable.** The order is not persisted; the request is answered 409 with the unavailable items.
     `StockUnavailable` still carries a generated `orderId` as correlation id.
   - **Prices.** The client's `items[].unitPrice` and `currency` are accepted as sent; `totalAmount` =

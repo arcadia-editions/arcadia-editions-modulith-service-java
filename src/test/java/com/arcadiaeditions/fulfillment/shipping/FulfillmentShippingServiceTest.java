@@ -1,6 +1,7 @@
 package com.arcadiaeditions.fulfillment.shipping;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.arcadiaeditions.config.TestClock;
@@ -162,7 +163,176 @@ class FulfillmentShippingServiceTest {
         assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 
+    private RecordPaymentCapturedInput capturedInput(String orderId, Instant at) {
+        return new RecordPaymentCapturedInput().setOrderId(orderId).setCapturedAt(at);
+    }
+
     @Test
-    void markReadyToShipTest() { // TODO: implement this test
+    void recordPaymentCapturedTest() {
+        // PaymentCaptured of ORD-023: FUL-009 SCHEDULED without paymentCapturedAt -> set, no state change, no event
+        var capturedAt = Instant.parse("2026-10-14T09:50:48Z");
+        var result = fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-023", capturedAt));
+
+        assertThat(result).isPresent();
+        var fulfillment = result.get();
+        assertThat(fulfillment.getFulfillmentId()).isEqualTo("FUL-009");
+        assertThat(fulfillment.getPaymentCapturedAt()).isEqualTo(capturedAt);
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED);
+        assertThat(fulfillmentRepository.findByOrderId("ORD-023").orElseThrow().getPaymentCapturedAt())
+                .isEqualTo(capturedAt);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void recordPaymentCapturedRedeliveryTest() {
+        // ORD-001: paymentCapturedAt already set; unchanged, no event
+        var result = fulfillmentShippingService.recordPaymentCaptured(
+                capturedInput("ORD-001", Instant.parse("2026-12-01T00:00:00Z")));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentRepository.findByOrderId("ORD-001").orElseThrow().getPaymentCapturedAt())
+                .isEqualTo(Instant.parse("2026-09-26T13:06:35Z"));
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void recordPaymentCapturedNoFulfillmentTest() {
+        // ORD-004 has no Fulfillment: no-op
+        var result = fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-004", TestClock.NOW));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentsOf("ORD-004")).isZero();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void recordPaymentCapturedNotScheduledTest() {
+        // ORD-007: FUL-003 FAILED: no-op
+        var result = fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-007", TestClock.NOW));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentRepository.findByOrderId("ORD-007").orElseThrow().getPaymentCapturedAt())
+                .isNull();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void markReadyToShipTest() {
+        // ORD-001: FUL-001 SCHEDULED with paymentCapturedAt -> READY_TO_SHIP, exactly one FulfillmentReadyToShip
+        var fulfillment = fulfillmentShippingService.markReadyToShip(1L);
+
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.READY_TO_SHIP);
+        assertThat(fulfillmentRepository.findById(1L).orElseThrow().getStatus())
+                .isEqualTo(FulfillmentStatus.READY_TO_SHIP);
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(FulfillmentReadyToShip.class);
+        assertThat(((FulfillmentReadyToShip) events.get(0)).getOrderId()).isEqualTo("ORD-001");
+    }
+
+    @Test
+    void markReadyToShipRefusedUntilPaymentCapturedTest() {
+        // ORD-023 and ORD-006: SCHEDULED without paymentCapturedAt -> refused naming the cause, no change, no event
+        for (var id : List.of(401L, 51L)) {
+            assertThatThrownBy(() -> fulfillmentShippingService.markReadyToShip(id))
+                    .isInstanceOf(PaymentNotCapturedException.class)
+                    .hasMessageContaining("payment not captured yet");
+            var unchanged = fulfillmentRepository.findById(id).orElseThrow();
+            assertThat(unchanged.getStatus()).isEqualTo(FulfillmentStatus.SCHEDULED);
+        }
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void markReadyToShipAfterPaymentCapturedTest() {
+        // ORD-023: PaymentCaptured recorded first, then the warehouse may mark it
+        fulfillmentShippingService.recordPaymentCaptured(capturedInput("ORD-023", TestClock.NOW));
+
+        var fulfillment = fulfillmentShippingService.markReadyToShip(401L);
+
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.READY_TO_SHIP);
+        assertThat(context.eventPublisher().getEvents()).hasSize(1);
+    }
+
+    private CancelFulfillmentInput cancelInput(String orderId, String reason) {
+        return new CancelFulfillmentInput().setOrderId(orderId).setReason(reason);
+    }
+
+    @Test
+    void cancelFulfillmentFromScheduledTest() {
+        // OrderCancelled of ORD-013: FUL-005 SCHEDULED -> CANCELLED, exactly one FulfillmentCancelled
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-013", "PAYMENT_VOIDED"));
+
+        assertThat(result).isPresent();
+        var fulfillment = result.get();
+        assertThat(fulfillment.getFulfillmentId()).isEqualTo("FUL-005");
+        assertThat(fulfillment.getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
+        assertThat(fulfillment.getCancelledAt()).isEqualTo(TestClock.NOW);
+        assertThat(fulfillment.getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
+        assertThat(fulfillmentRepository.findByOrderId("ORD-013").orElseThrow().getStatus())
+                .isEqualTo(FulfillmentStatus.CANCELLED);
+
+        var events = context.eventPublisher().getEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).isInstanceOf(FulfillmentCancelled.class);
+        var event = (FulfillmentCancelled) events.get(0);
+        assertThat(event.getFulfillmentId()).isEqualTo("FUL-005");
+        assertThat(event.getOrderId()).isEqualTo("ORD-013");
+        assertThat(event.getCustomerId()).isEqualTo("CUST-013");
+        assertThat(event.getReason()).isEqualTo("PAYMENT_VOIDED");
+        assertThat(event.getCancelledAt()).isEqualTo(TestClock.NOW);
+    }
+
+    @Test
+    void cancelFulfillmentFromReadyToShipTest() {
+        // ORD-001: FUL-001 made READY_TO_SHIP, then OrderCancelled -> CANCELLED
+        fulfillmentShippingService.markReadyToShip(1L);
+        context.eventPublisher().getEvents().clear();
+
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-001", "PAYMENT_VOIDED"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
+        assertThat(result.get().getCancellationReason()).isEqualTo("PAYMENT_VOIDED");
+        assertThat(context.eventPublisher().getEvents()).hasSize(1);
+        assertThat(context.eventPublisher().getEvents().get(0)).isInstanceOf(FulfillmentCancelled.class);
+    }
+
+    @Test
+    void cancelFulfillmentNoFulfillmentTest() {
+        // ORD-014 has no Fulfillment: no-op
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-014", "PAYMENT_DECLINED"));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentsOf("ORD-014")).isZero();
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void cancelFulfillmentRedeliveryTest() {
+        // ORD-024: FUL-010 already CANCELLED: unchanged, no event
+        var before = fulfillmentRepository.findByOrderId("ORD-024").orElseThrow();
+        var reason = before.getCancellationReason();
+        var at = before.getCancelledAt();
+
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-024", "PAYMENT_VOIDED"));
+
+        assertThat(result).isEmpty();
+        var after = fulfillmentRepository.findByOrderId("ORD-024").orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(FulfillmentStatus.CANCELLED);
+        assertThat(after.getCancellationReason()).isEqualTo(reason);
+        assertThat(after.getCancelledAt()).isEqualTo(at);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
+    }
+
+    @Test
+    void cancelFulfillmentFailedTest() {
+        // ORD-007: FUL-003 FAILED: no-op
+        var result = fulfillmentShippingService.cancelFulfillment(cancelInput("ORD-007", "PAYMENT_VOIDED"));
+
+        assertThat(result).isEmpty();
+        assertThat(fulfillmentRepository.findByOrderId("ORD-007").orElseThrow().getStatus())
+                .isEqualTo(FulfillmentStatus.FAILED);
+        assertThat(context.eventPublisher().getEvents()).isEmpty();
     }
 }

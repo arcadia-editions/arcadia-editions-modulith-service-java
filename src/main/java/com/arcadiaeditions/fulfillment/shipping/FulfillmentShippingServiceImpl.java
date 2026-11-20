@@ -99,6 +99,10 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
                 .findById(id)
                 .map(existingFulfillment -> {
                     FulfillmentTransitions.ensureCanMarkReadyToShip(existingFulfillment);
+                    // the warehouse ships only after capture: refused, no transition, no event
+                    if (existingFulfillment.getPaymentCapturedAt() == null) {
+                        throw new PaymentNotCapturedException(existingFulfillment.getFulfillmentId());
+                    }
                     existingFulfillment.setStatus(FulfillmentStatus.READY_TO_SHIP);
                     return existingFulfillment;
                 })
@@ -110,13 +114,38 @@ public class FulfillmentShippingServiceImpl implements FulfillmentShippingServic
         return fulfillment;
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (no-op until then)
     public Optional<Fulfillment> recordPaymentCaptured(RecordPaymentCapturedInput input) {
-        return Optional.empty();
+
+        log.debug("Request recordPaymentCaptured: {}", input);
+
+        // no state change, no event; no-op when there is no Fulfillment, it is not SCHEDULED or already recorded
+        return fulfillmentRepository
+                .findByOrderId(input.getOrderId())
+                .filter(f -> f.getStatus() == FulfillmentStatus.SCHEDULED)
+                .filter(f -> f.getPaymentCapturedAt() == null)
+                .map(f -> {
+                    f.setPaymentCapturedAt(input.getCapturedAt());
+                    return fulfillmentRepository.save(f);
+                });
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (no-op until then)
     public Optional<Fulfillment> cancelFulfillment(CancelFulfillmentInput input) {
-        return Optional.empty();
+
+        log.debug("Request cancelFulfillment: {}", input);
+
+        // no-op, no event, when there is no Fulfillment or it is FAILED or CANCELLED (redelivery)
+        return fulfillmentRepository
+                .findByOrderId(input.getOrderId())
+                .filter(f -> f.getStatus() == FulfillmentStatus.SCHEDULED
+                        || f.getStatus() == FulfillmentStatus.READY_TO_SHIP)
+                .map(f -> {
+                    FulfillmentTransitions.ensureCanCancelFulfillment(f);
+                    f.setStatus(FulfillmentStatus.CANCELLED);
+                    f.setCancelledAt(Instant.now(clock));
+                    f.setCancellationReason(input.getReason());
+                    var saved = fulfillmentRepository.save(f);
+                    eventPublisher.onFulfillmentCancelled(eventsMapper.asFulfillmentCancelled(saved));
+                    return saved;
+                });
     }
 }

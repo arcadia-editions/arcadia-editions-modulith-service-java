@@ -250,6 +250,30 @@ class NotificationsConsumerServiceTest {
         assertThat(event.getSentAt()).isEqualTo(TestClock.NOW);
     }
 
+    /** Reason PAYMENT_VOID_FAILED: the e-mail says the hold may still show until we release it, not "a few days". */
+    @Test
+    void sendOrderCancelledNotificationVoidFailedMentionsHoldTest() {
+        var notification = notificationsConsumerService.sendOrderCancelledNotification(
+                cancelledInput("ORD-006", "CUST-006", "customer006@example.com").setReason("PAYMENT_VOID_FAILED"));
+
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(notification.getBody())
+                .contains("ORD-006")
+                .contains("PAYMENT_VOID_FAILED")
+                .containsIgnoringCase("hold")
+                .containsIgnoringCase("until we release it")
+                .doesNotContain("few days");
+    }
+
+    /** Other reasons do not mention the hold. */
+    @Test
+    void sendOrderCancelledNotificationOtherReasonNoHoldTest() {
+        var notification = notificationsConsumerService.sendOrderCancelledNotification(
+                cancelledInput("ORD-006", "CUST-006", "customer006@example.com"));
+
+        assertThat(notification.getBody()).doesNotContainIgnoringCase("hold");
+    }
+
     /** Redelivery of OrderCancelled for ORD-014 (ORDER_CANCELLED already SENT, NOT-003): no change, no event. */
     @Test
     void sendOrderCancelledNotificationRedeliveryTest() {

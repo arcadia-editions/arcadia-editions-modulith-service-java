@@ -39,6 +39,9 @@ public class InventoryServiceImpl implements InventoryService {
     private final EventsMapper eventsMapper = EventsMapper.INSTANCE;
     private final EventPublisher eventPublisher;
 
+    private final com.arcadiaeditions.payments.processing.application.port.driving.PaymentsProcessingService
+            paymentsProcessingService;
+
     /**
      * Constructor.
      */
@@ -46,10 +49,13 @@ public class InventoryServiceImpl implements InventoryService {
             StockReservationRepository stockReservationRepository,
             InventoryPositionRepository inventoryPositionRepository,
             EventPublisher eventPublisher,
+            com.arcadiaeditions.payments.processing.application.port.driving.PaymentsProcessingService
+                    paymentsProcessingService,
             Clock clock) {
         this.stockReservationRepository = stockReservationRepository;
         this.inventoryPositionRepository = inventoryPositionRepository;
         this.eventPublisher = eventPublisher;
+        this.paymentsProcessingService = paymentsProcessingService;
         this.clock = clock;
     }
 
@@ -116,6 +122,13 @@ public class InventoryServiceImpl implements InventoryService {
         var releasable = stockReservationRepository.findByOrderId(input.getOrderId()).stream()
                 .filter(r -> r.getStatus() == ReservationStatus.RESERVED || r.getStatus() == ReservationStatus.CONFIRMED)
                 .toList();
+        releasable.forEach(StockReservationTransitions::ensureCanReleaseStock);
+        return release(input.getOrderId(), input.getReason(), releasable);
+    }
+
+    /** Releases the given reservations of the order, puts their stock back and emits one StockReleased. */
+    private List<StockReservation> release(
+            String orderId, StockReleaseReason reason, List<StockReservation> releasable) {
         if (releasable.isEmpty()) {
             return List.of();
         }
@@ -125,13 +138,12 @@ public class InventoryServiceImpl implements InventoryService {
         var reservedBack = new java.util.TreeMap<String, Integer>();
         var soldBack = new java.util.TreeMap<String, Integer>();
         releasable.forEach(reservation -> {
-            StockReservationTransitions.ensureCanReleaseStock(reservation);
             var counter = reservation.getStatus() == ReservationStatus.CONFIRMED ? soldBack : reservedBack;
             counter.merge(reservation.getSku(), reservation.getQuantity(), Integer::sum);
             reservation
                     .setStatus(ReservationStatus.RELEASED)
                     .setReleasedAt(releasedAt)
-                    .setReleaseReason(input.getReason());
+                    .setReleaseReason(reason);
         });
         var skus = new java.util.TreeSet<String>();
         skus.addAll(reservedBack.keySet());
@@ -151,8 +163,8 @@ public class InventoryServiceImpl implements InventoryService {
         var saved = stockReservationRepository.saveAll(releasable);
 
         var event = new StockReleased()
-                .setOrderId(input.getOrderId())
-                .setReason(input.getReason())
+                .setOrderId(orderId)
+                .setReason(reason)
                 .setReleasedAt(releasedAt)
                 .setItems(saved.stream()
                         .map(r -> new StockReleasedItem()
@@ -164,10 +176,19 @@ public class InventoryServiceImpl implements InventoryService {
         return saved;
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md (NOT_HELD outcome); the body below is the baseline behavior
     public ConfirmStockReservationResult confirmStockReservation(ConfirmStockReservationInput input) {
+        var held = stockReservationRepository.findByOrderId(input.getOrderId()).stream()
+                .filter(r -> r.getStatus() == ReservationStatus.RESERVED || r.getStatus() == ReservationStatus.CONFIRMED)
+                .toList();
+        if (held.isEmpty()) {
+            // e.g. released by the reservation timer: no change, no event
+            return new ConfirmStockReservationResult()
+                    .setOutcome(ConfirmStockReservationOutcome.NOT_HELD)
+                    .setNotHeld(new StockReservationNotHeldResult().setOrderId(input.getOrderId()));
+        }
         var confirmed = confirmReservedStock(input);
-        var confirmedAt = confirmed.isEmpty() ? null : confirmed.get(0).getConfirmedAt();
+        // redelivery: nothing to confirm now, answer with the original confirmation time
+        var confirmedAt = (confirmed.isEmpty() ? held : confirmed).get(0).getConfirmedAt();
         return new ConfirmStockReservationResult()
                 .setOutcome(ConfirmStockReservationOutcome.CONFIRMED)
                 .setConfirmed(new StockReservationConfirmedResult()
@@ -220,8 +241,28 @@ public class InventoryServiceImpl implements InventoryService {
         return saved;
     }
 
-    // baseline/place-order-flow-3 compile stub: implemented by a task of docs/tasks.md
     public List<StockReservation> expireReservation(ExpireReservationInput input) {
-        throw new UnsupportedOperationException("expireReservation: " + input.getOrderId());
+
+        log.debug("Request expireReservation: {}", input);
+
+        // only the RESERVED reservations of the order; nothing RESERVED (late fire, redelivery) is a no-op
+        var reserved = stockReservationRepository.findByOrderId(input.getOrderId()).stream()
+                .filter(r -> r.getStatus() == ReservationStatus.RESERVED)
+                .toList();
+        if (reserved.isEmpty()) {
+            return List.of();
+        }
+
+        // released only when no payment has started; once started (even in flight) payment owns the end
+        var paymentStatus = paymentsProcessingService.getPaymentStatus(
+                new com.arcadiaeditions.payments.processing.application.port.driving.dto.GetPaymentStatusInput()
+                        .setOrderId(input.getOrderId()));
+        if (paymentStatus.getOutcome()
+                != com.arcadiaeditions.payments.processing.domain.GetPaymentStatusOutcome.NO_PAYMENT) {
+            return List.of();
+        }
+
+        reserved.forEach(StockReservationTransitions::ensureCanExpireReservation);
+        return release(input.getOrderId(), StockReleaseReason.RESERVATION_EXPIRED, reserved);
     }
 }
