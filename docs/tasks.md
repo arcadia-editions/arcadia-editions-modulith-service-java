@@ -220,7 +220,7 @@ review: [x] (review-S7-fix1 PASS 2026-11-20, claude-opus; T-72 verified)
       blocked by: T-55
 
 ## S8 Polish
-review: [ ] (review-S8 PASS 2026-11-20 for T-71; T-76 added by the exit check: S7 already had 2 reviews)
+review: [x] (review-S8 PASS for T-71; review-S8-r2 PASS 2026-11-20, claude-opus, T-76; suite 161+42 green)
 
 - [x] T-71 mechanical AFK startOrderCheckout contract: the 409 body follows the StockUnavailable schema of the 0.10.1 OpenAPI (orderId and unavailableItems, P-02 update); quantity >= 1 and unitPrice >= 0 (ZDL bounds) answer 400 before any reservation: assert StockReservation and Order counts unchanged after each 400 request and the ProblemDetail field (items[0].quantity / items[0].unitPrice), one case per test (Kotlin T-77)
       done: claude-sonnet sonnet
