@@ -220,10 +220,16 @@ review: [x] (review-S7-fix1 PASS 2026-11-20, claude-opus; T-72 verified)
       blocked by: T-55
 
 ## S8 Polish
-review: [x] (review-S8 PASS 2026-11-20, claude-opus; 3 suite failures outside S8: T-56, T-61)
+review: [ ] (review-S8 PASS 2026-11-20 for T-71; T-76 added by the exit check: S7 already had 2 reviews)
 
 - [x] T-71 mechanical AFK startOrderCheckout contract: the 409 body follows the StockUnavailable schema of the 0.10.1 OpenAPI (orderId and unavailableItems, P-02 update); quantity >= 1 and unitPrice >= 0 (ZDL bounds) answer 400 before any reservation: assert StockReservation and Order counts unchanged after each 400 request and the ProblemDetail field (items[0].quantity / items[0].unitPrice), one case per test (Kotlin T-77)
       done: claude-sonnet sonnet
       model: ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:68-69, ../arcadia-editions-modulith-api/orders-checkout-domain-model.zdl:95-99, ../arcadia-editions-modulith-api/orders-checkout-openapi-overlay.yml:10-20
       test data: data.sql ORD-020
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest
+
+- [/] T-76 mechanical AFK Flow test notificationFailed, stock-unavailable branch: StartOrderCheckout with SKU-004 and an @fail.invalid e-mail > StockUnavailable > sendStockUnavailableNotification[failed] > NotificationDeliveryFailed (type STOCK_UNAVAILABLE); 409 answered, no Order or StockReservation persisted, Notification FAILED with the event's notificationId, no StockUnavailableNotificationSent; add this branch to the class javadoc list of ends
+      model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:223-234, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:336-345, ../arcadia-editions-modulith-api/notifications-consumer-domain-model.zdl:92-94
+      test data: data.sql SKU-004
+      tests: PlaceOrderFlowTest
+      fixes: .zenwave/handoff/place-order-flow/reports/check.md
