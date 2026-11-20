@@ -1,11 +1,11 @@
 package com.arcadiaeditions.orders.checkout.core.application;
 
+import com.arcadiaeditions.catalog.inventory.domain.ConfirmStockReservationOutcome;
+import com.arcadiaeditions.catalog.inventory.domain.ReserveStockOutcome;
 import com.arcadiaeditions.catalog.inventory.service.InventoryService;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ConfirmStockReservationInput;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockInput;
 import com.arcadiaeditions.catalog.inventory.service.dtos.ReserveStockItemInput;
-import com.arcadiaeditions.catalog.inventory.domain.ConfirmStockReservationOutcome;
-import com.arcadiaeditions.catalog.inventory.domain.ReserveStockOutcome;
 import com.arcadiaeditions.common.BusinessIds;
 import com.arcadiaeditions.orders.checkout.core.application.mappers.*;
 import com.arcadiaeditions.orders.checkout.core.domain.*;

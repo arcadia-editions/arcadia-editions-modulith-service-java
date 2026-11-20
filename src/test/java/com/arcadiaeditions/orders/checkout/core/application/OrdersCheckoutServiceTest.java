@@ -165,13 +165,15 @@ class OrdersCheckoutServiceTest {
 
     @Test
     void confirmOrderOnCancelledRejectsWithoutCallingInventoryTest() { // ORD-021
-        var order = ordersCheckoutService.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-021"));
+        com.arcadiaeditions.catalog.inventory.service.InventoryService inventory =
+                spy(context.inventoryContext.<com.arcadiaeditions.catalog.inventory.service.InventoryService>inventoryService());
+        var service = new OrdersCheckoutServiceImpl(
+                orderRepository, context.eventPublisher(), inventory, context.clock);
+
+        var order = service.confirmOrder(new ConfirmOrderInput().setOrderId("ORD-021"));
 
         org.junit.jupiter.api.Assertions.assertEquals(OrderStatus.CANCELLED, order.getStatus());
-        // inventory not called: the RELEASED reservation is untouched
-        context.inventoryContext.stockReservationRepository().findByOrderId("ORD-021").forEach(r ->
-                org.junit.jupiter.api.Assertions.assertEquals(
-                        com.arcadiaeditions.catalog.inventory.domain.ReservationStatus.RELEASED, r.getStatus()));
+        verifyNoInteractions(inventory);
         assertRejected("ORD-021", "CUST-021", "ORDER_CANCELLED");
     }
 
