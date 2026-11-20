@@ -81,7 +81,7 @@ review: [x] (review-S2 PASS 2026-11-20, claude-opus fresh context)
 ## S3 orderCancelled (void refused)
 path: OrderConfirmed > scheduleFulfillment[FulfillmentFailed] > voidPayment[void-failed] > PaymentVoidFailed > releaseStock > StockReleased
       > cancelOrder > OrderCancelled > sendOrderCancelledNotification > end orderCancelled
-review: [ ]
+review: [x] (review-S3 PASS 2026-11-20, claude-opus; notes only)
 
 - [x] T-56 bounded AFK voidPayment: Optional.empty(), no event, when there is no Payment or it is not AUTHORIZED or CAPTURE_FAILED (rewrite voidPaymentFromFailedTest and voidPaymentFromAuthorizationRequestedTest to assert the no-op); a refused void sets VOID_FAILED and voidFailedAt and emits PaymentVoidFailed; the stand-in refuses voids for paymentMethodId pm_void_fail. The no-op tests compare fields (status, failureReason, voidedAt, voidFailedAt), not the entity (equals is by id); the refused-void test asserts failureReason and PaymentVoidFailed.reason; log.warn the provider's refusal reason (ops own VOID_FAILED) (Kotlin T-78)
       done: claude-sonnet sonnet
@@ -115,7 +115,7 @@ review: [ ]
 ## S4 orderCancelled (capture failed, fulfillment cancelled)
 path: FulfillmentScheduled > capturePayment[PaymentCaptureFailed] > voidPayment[voided] > PaymentVoided > releaseStock > StockReleased
       > cancelOrder > OrderCancelled > cancelFulfillment > FulfillmentCancelled, sendOrderCancelledNotification > end orderCancelled
-review: [ ] (review-S4 2026-11-20: PASS with 3 SHOULD FIX, accepted as T-74)
+review: [x] (review-S4-fix1 PASS 2026-11-20, claude-opus; T-74 verified)
 
 - [x] T-60 bounded AFK cancelFulfillment: on OrderCancelled, SCHEDULED or READY_TO_SHIP becomes CANCELLED with cancelledAt and cancellationReason = OrderCancelled.reason, emits FulfillmentCancelled; Optional.empty(), no event, when there is no Fulfillment or it is CANCELLED or FAILED (replace the no-op compile stub)
       done: claude-sonnet sonnet
@@ -158,7 +158,8 @@ review: [ ]
       test data: data.sql ORD-002, data.sql ORD-027, data.sql ORD-028
       tests: InventoryServiceTest
       blocked by: T-63
-- [/] T-65 advanced AFK Flow test reservation expired: with no payment started the stock is released and the order cancelled; with a payment started the timer releases nothing and payment ends the order
+- [x] T-65 advanced AFK Flow test reservation expired: with no payment started the stock is released and the order cancelled; with a payment started the timer releases nothing and payment ends the order
+      done: claude-opus opus
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:42-69, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:268-309
       test data: data.sql ORD-021, data.sql ORD-027, data.sql ORD-028
       tests: PlaceOrderFlowTest
@@ -186,7 +187,7 @@ review: [ ]
       test data: data.sql ORD-021
       tests: PaymentsProcessingServiceTest
       blocked by: T-56
-- [ ] T-69 advanced AFK Flow test late authorization: the authorization arrives after the timer released the stock; confirmOrder rejects, the hold is voided, releaseStock and cancelOrder are no-ops, the order is cancelled once
+- [/] T-69 advanced AFK Flow test late authorization: the authorization arrives after the timer released the stock; confirmOrder rejects, the hold is voided, releaseStock and cancelOrder are no-ops, the order is cancelled once
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:148-176, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:236-266, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:299-309
       test data: data.sql ORD-021, data.sql ORD-022
       tests: PlaceOrderFlowTest
