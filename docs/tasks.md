@@ -228,7 +228,8 @@ review: [ ] (review-S8 PASS 2026-11-20 for T-71; T-76 added by the exit check: S
       test data: data.sql ORD-020
       tests: OrdersCheckoutApiControllerTest, OrdersCheckoutApiIntegrationTest
 
-- [/] T-76 mechanical AFK Flow test notificationFailed, stock-unavailable branch: StartOrderCheckout with SKU-004 and an @fail.invalid e-mail > StockUnavailable > sendStockUnavailableNotification[failed] > NotificationDeliveryFailed (type STOCK_UNAVAILABLE); 409 answered, no Order or StockReservation persisted, Notification FAILED with the event's notificationId, no StockUnavailableNotificationSent; add this branch to the class javadoc list of ends
+- [x] T-76 mechanical AFK Flow test notificationFailed, stock-unavailable branch: StartOrderCheckout with SKU-004 and an @fail.invalid e-mail > StockUnavailable > sendStockUnavailableNotification[failed] > NotificationDeliveryFailed (type STOCK_UNAVAILABLE); 409 answered, no Order or StockReservation persisted, Notification FAILED with the event's notificationId, no StockUnavailableNotificationSent; add this branch to the class javadoc list of ends
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:223-234, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:336-345, ../arcadia-editions-modulith-api/notifications-consumer-domain-model.zdl:92-94
       test data: data.sql SKU-004
       tests: PlaceOrderFlowTest
