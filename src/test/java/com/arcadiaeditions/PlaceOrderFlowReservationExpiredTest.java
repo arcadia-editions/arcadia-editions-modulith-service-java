@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mockingDetails;
 import static org.springframework.http.HttpMethod.POST;
 
 import com.arcadiaeditions.catalog.inventory.domain.InventoryPosition;
@@ -13,6 +14,8 @@ import com.arcadiaeditions.catalog.inventory.domain.events.StockReleased;
 import com.arcadiaeditions.catalog.inventory.repository.jpa.InventoryPositionRepository;
 import com.arcadiaeditions.catalog.inventory.repository.jpa.StockReservationRepository;
 import com.arcadiaeditions.catalog.inventory.scheduling.ReservationExpiredScheduler;
+import com.arcadiaeditions.catalog.inventory.service.InventoryService;
+import com.arcadiaeditions.catalog.inventory.service.dtos.ReleaseStockInput;
 import com.arcadiaeditions.config.TestClock;
 import com.arcadiaeditions.fulfillment.shipping.FulfillmentRepository;
 import com.arcadiaeditions.notifications.consumer.domain.NotificationStatus;
@@ -57,6 +60,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
+import org.springframework.modulith.events.core.EventPublicationRepository;
 import org.springframework.modulith.test.EnableScenarios;
 import org.springframework.modulith.test.Scenario;
 import org.springframework.test.context.ActiveProfiles;
@@ -220,11 +224,28 @@ class PlaceOrderFlowReservationExpiredTest {
     @MockitoSpyBean
     PaymentsProcessingService paymentsProcessingService;
 
+    @MockitoSpyBean
+    InventoryService inventoryService;
+
+    @Autowired
+    EventPublicationRepository eventPublicationRepository;
+
     WebTestClient webTestClient;
+
+    /** What every InventoryService.releaseStock call returned. */
+    final Queue<Object> releaseStockResults = new ConcurrentLinkedQueue<>();
 
     @BeforeEach
     void setup() {
         clock.set(TestClock.NOW);
+        releaseStockResults.clear();
+        doAnswer(call -> {
+                    Object result = call.callRealMethod();
+                    releaseStockResults.add(result);
+                    return result;
+                })
+                .when(inventoryService)
+                .releaseStock(any());
         webTestClient = MockMvcWebTestClient.bindToApplicationContext(context).build();
     }
 
@@ -650,6 +671,24 @@ class PlaceOrderFlowReservationExpiredTest {
                     assertThat(p.getVoidedAt()).isNotNull();
                     assertThat(p.getCapturedAt()).isNull();
                 }));
+        // the PaymentVoided listener ran to the end: releaseStock was called once for the order and returned empty (a
+        // no-op on the RELEASED lines), and no publication of the late chain is left incomplete (a listener that threw
+        // leaves its event_publication incomplete)
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            var releaseCalls = mockingDetails(inventoryService).getInvocations().stream()
+                    .filter(i -> i.getMethod().getName().equals("releaseStock"))
+                    .filter(i -> orderId.equals(((ReleaseStockInput) i.getArgument(0)).getOrderId()))
+                    .toList();
+            assertThat(releaseCalls).as("releaseStock calls for %s", orderId).hasSize(1);
+            // the late chain is the last releaseStock of the test: its result is the last one recorded
+            assertThat((List<?>) releaseStockResults.stream().reduce((a, b) -> b).orElseThrow())
+                    .as("releaseStock returns nothing released for %s", orderId)
+                    .isEmpty();
+            assertThat(eventPublicationRepository.findIncompletePublications().stream()
+                            .filter(p -> lateChainOrderId(p.getEvent()).equals(orderId)))
+                    .as("incomplete publications of the late chain of %s", orderId)
+                    .isEmpty();
+        });
         // releaseStock and cancelOrder would run after PaymentVoided: give them time to emit what they must not
         await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
             assertThat(events.stockReleased.stream()
@@ -667,6 +706,15 @@ class PlaceOrderFlowReservationExpiredTest {
             assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
             assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
         });
+    }
+
+    private static String lateChainOrderId(Object event) {
+        if (event instanceof PaymentAuthorized e) return String.valueOf(e.getOrderId());
+        if (event instanceof OrderConfirmationRejected e) return String.valueOf(e.getOrderId());
+        if (event instanceof PaymentVoided e) return String.valueOf(e.getOrderId());
+        if (event instanceof StockReleased e) return String.valueOf(e.getOrderId());
+        if (event instanceof OrderCancelled e) return String.valueOf(e.getOrderId());
+        return "";
     }
 
     /** PaymentStartedResult: the timer step ends; the line stays RESERVED and the order CREATED, no event. */
