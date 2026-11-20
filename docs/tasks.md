@@ -168,7 +168,7 @@ review: [x] (review-S5 PASS 2026-11-20, claude-opus fresh; SHOULD FIX findAll sc
 ## S6 orderCancelled (late authorization rejected)
 path: PaymentAuthorized (after expiry) > confirmOrder > confirmStockReservation[StockReservationNotHeldResult] or order CANCELLED
       > OrderConfirmationRejected > voidPayment[voided] > PaymentVoided > releaseStock (no-op, RELEASED) > end orderCancelled
-review: [ ]
+review: [ ] (review-S6 2026-11-20, claude-sonnet fallback: PASS with 2 SHOULD FIX, accepted as T-75)
 
 - [x] T-66 bounded AFK confirmStockReservation NOT_HELD: when the order has no RESERVED or CONFIRMED reservation (released by the timer) answer NOT_HELD, no change, no event; CONFIRMED stays the redelivery answer
       done: claude-sonnet sonnet
@@ -193,6 +193,12 @@ review: [ ]
       test data: data.sql ORD-021, data.sql ORD-022
       tests: PlaceOrderFlowTest
       blocked by: T-64, T-67, T-68
+
+- [/] T-75 bounded AFK Fix round of review S6 (tests only): (1) OrdersCheckoutServiceTest.confirmOrderOnCancelledRejectsWithoutCallingInventoryTest proves inventory is not called (spy or mock of InventoryService, verifyNoInteractions / never().confirmStockReservation), or is renamed to what it proves; (2) PlaceOrderFlowReservationExpiredTest.assertLateChainEndsAtTheRelease tells a throwing listener from a silent no-op: assert no incomplete event_publication for the order after the late chain (pattern of PlaceOrderFlowTest.publishAndAwaitListeners) and/or that releaseStock ran and returned empty; (3) OrdersCheckoutServiceImpl import order (ConfirmStockReservationOutcome)
+      model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:148-176, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266
+      test data: data.sql ORD-021, data.sql ORD-022
+      tests: OrdersCheckoutServiceTest, PlaceOrderFlowReservationExpiredTest
+      fixes: .zenwave/handoff/place-order-flow/reports/review-S6.md
 
 ## S7 notificationFailed
 path: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed > end notificationFailed
