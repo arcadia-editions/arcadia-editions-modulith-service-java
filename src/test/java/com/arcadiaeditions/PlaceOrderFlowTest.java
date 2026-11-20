@@ -101,8 +101,10 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * (PAYMENT_VOID_FAILED), OrderCancelled once to OrderCancelledNotificationSent, Payment VOID_FAILED,
  * place-order-flow.zfl:236-266, 299-309, 322-345 (data.sql ORD-026).
  * End "notificationFailed" (both branches, NotificationDeliveryFailed): PaymentCaptured to sendOrderConfirmation
- * failed (type ORDER_CONFIRMATION, order stays CONFIRMED), place-order-flow.zfl:207-212, 337-345; and OrderCancelled to
- * sendOrderCancelledNotification failed (type ORDER_CANCELLED, order stays CANCELLED), place-order-flow.zfl:322-345.
+ * failed (type ORDER_CONFIRMATION, order stays CONFIRMED), place-order-flow.zfl:207-212, 337-345; OrderCancelled to
+ * sendOrderCancelledNotification failed (type ORDER_CANCELLED, order stays CANCELLED), place-order-flow.zfl:322-345;
+ * and StockUnavailable to sendStockUnavailableNotification failed (type STOCK_UNAVAILABLE, 409 answered, no Order or
+ * StockReservation), place-order-flow.zfl:223-234, 336-345.
  * Retry loop (T-55), place-order-flow.zfl:124-146, 254-266: attempts are counted only by authorizePayment (1) and
  * reauthorizePayment (2, 3), the test backoff ({@link #BACKOFF_BEFORE_ATTEMPT_2}, {@link #BACKOFF_BEFORE_ATTEMPT_3})
  * is waited before each reauthorization, and a redelivered PaymentFailed or PaymentRetried with a stale attemptCount
@@ -152,6 +154,8 @@ class PlaceOrderFlowTest {
         final Queue<FulfillmentCancelled> fulfillmentCancelled = new ConcurrentLinkedQueue<>();
         final Queue<OrderConfirmationSent> orderConfirmationSent = new ConcurrentLinkedQueue<>();
         final Queue<OrderCancelledNotificationSent> orderCancelledNotificationSent = new ConcurrentLinkedQueue<>();
+        final Queue<StockUnavailableNotificationSent> stockUnavailableNotificationSent =
+                new ConcurrentLinkedQueue<>();
 
         @EventListener
         void on(PaymentFailed event) {
@@ -201,6 +205,11 @@ class PlaceOrderFlowTest {
         @EventListener
         void on(OrderCancelledNotificationSent event) {
             orderCancelledNotificationSent.add(event);
+        }
+
+        @EventListener
+        void on(StockUnavailableNotificationSent event) {
+            stockUnavailableNotificationSent.add(event);
         }
     }
 
@@ -1170,6 +1179,84 @@ class PlaceOrderFlowTest {
 
                         // exactly one outcome: no confirmation was sent for this order
                         assertThat(paymentEvents.orderConfirmationSent).noneMatch(e -> orderId.equals(e.getOrderId()));
+                    });
+                });
+    }
+
+    @Test
+    void notificationFailed_stockUnavailableToNotificationDeliveryFailed(Scenario scenario) {
+        // place-order-flow.zfl:223-234, 336-345: StockUnavailable > sendStockUnavailableNotification[failed]; SKU-004 has
+        // zero available, the stand-in refuses the @fail.invalid domain; the 409 is still answered
+        InventoryPosition before = sku004Position();
+        String requestBody = """
+            {
+              "customerId": "CUS-FLOW-STOCKNOTIF",
+              "customerEmail": "flow.stocknotif@fail.invalid",
+              "paymentMethodId": "pm_ok",
+              "currency": "EUR",
+              "items": [ { "sku": "SKU-004", "quantity": 1, "unitPrice": 79.00 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "line2": "2B",
+                "city": "Madrid",
+                "region": "Madrid",
+                "postalCode": "28099",
+                "country": "ES"
+              }
+            }
+            """;
+
+        scenario.stimulate(() -> (Map<?, ?>) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(409)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody())
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(NotificationDeliveryFailed.class)
+                .matchingMappedValue(NotificationDeliveryFailed::getCustomerId, "CUS-FLOW-STOCKNOTIF")
+                .toArriveAndVerify((event, problem) -> {
+                    assertThat((List<?>) problem.get("unavailableItems"))
+                            .singleElement()
+                            .isEqualTo(Map.of("sku", "SKU-004", "requestedQuantity", 1, "availableQuantity", 0));
+
+                    List<StockUnavailable> stockUnavailable = applicationEvents.stream(StockUnavailable.class)
+                            .filter(e -> "CUS-FLOW-STOCKNOTIF".equals(e.getCustomerId()))
+                            .toList();
+                    assertThat(stockUnavailable).hasSize(1);
+                    String orderId = stockUnavailable.get(0).getOrderId();
+                    assertThat(orderId).startsWith("ORD-");
+
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(event.getType()).isEqualTo(NotificationType.STOCK_UNAVAILABLE);
+                    assertThat(event.getRecipient()).isEqualTo("flow.stocknotif@fail.invalid");
+                    assertThat(event.getFailedAt()).isNotNull();
+
+                    await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                        assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.STOCK_UNAVAILABLE))
+                                .hasValueSatisfying(notification -> {
+                                    assertThat(notification.getStatus()).isEqualTo(NotificationStatus.FAILED);
+                                    assertThat(notification.getNotificationId()).isEqualTo(event.getNotificationId());
+                                });
+
+                        assertThat(orderRepository.findByOrderId(orderId)).isEmpty();
+                        assertThat(stockReservationRepository.findByOrderId(orderId)).isEmpty();
+
+                        InventoryPosition after = sku004Position();
+                        assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+                        assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+                        assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+
+                        // exactly one outcome: no "sent" event for this order
+                        assertThat(paymentEvents.stockUnavailableNotificationSent)
+                                .noneMatch(e -> orderId.equals(e.getOrderId()));
                     });
                 });
     }
