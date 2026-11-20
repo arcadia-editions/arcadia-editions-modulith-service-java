@@ -21,11 +21,17 @@ import com.arcadiaeditions.notifications.consumer.domain.events.OrderCancelledNo
 import com.arcadiaeditions.notifications.consumer.domain.events.OrderConfirmationSent;
 import com.arcadiaeditions.notifications.consumer.repository.jpa.NotificationRepository;
 import com.arcadiaeditions.orders.checkout.core.domain.OrderStatus;
+import com.arcadiaeditions.orders.checkout.core.domain.events.OrderConfirmationRejected;
 import com.arcadiaeditions.orders.checkout.core.domain.events.OrderCancelled;
 import com.arcadiaeditions.orders.checkout.core.outbound.jpa.OrderRepository;
 import com.arcadiaeditions.payments.processing.application.port.driven.jpa.PaymentRepository;
 import com.arcadiaeditions.payments.processing.application.port.driven.provider.PaymentProvider;
+import com.arcadiaeditions.payments.processing.application.port.driving.PaymentsProcessingService;
+import com.arcadiaeditions.payments.processing.application.port.driving.dto.AuthorizePaymentInput;
 import com.arcadiaeditions.payments.processing.domain.PaymentStatus;
+import com.arcadiaeditions.payments.processing.domain.event.PaymentAuthorized;
+import com.arcadiaeditions.payments.processing.domain.event.PaymentVoided;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -76,6 +82,18 @@ import org.testcontainers.containers.wait.strategy.Wait;
  *   <li>Payment started (data.sql ORD-028, AUTHORIZATION_REQUESTED): the timer releases nothing.</li>
  *   <li>Payment started, call in flight (live order, provider held while the timer fires past expiresAt): nothing is
  *       released; payment ends the order (authorized, confirmed, OrderConfirmationSent).</li>
+ * </ol>
+ *
+ * Late authorization (T-69), place-order-flow.zfl:148-176, 236-266, 299-309: the authorization arrives after the timer
+ * released the stock. confirmOrder rejects (OrderConfirmationRejected), voidPayment voids the hold (PaymentVoided),
+ * releaseStock is a no-op on the RELEASED lines (no StockReleased), so cancelOrder does not run again: the order is
+ * cancelled once, by the timer.
+ * <ol>
+ *   <li>Live order: authorizePayment held until the timer released the stock and cancelled the order; the late
+ *       PaymentAuthorized is rejected ORDER_CANCELLED.</li>
+ *   <li>data.sql ORD-021 (CANCELLED, RELEASED, AUTHORIZED late): rejected ORDER_CANCELLED.</li>
+ *   <li>data.sql ORD-022 (CREATED, RELEASED, AUTHORIZED late): confirmStockReservation NOT_HELD, rejected
+ *       STOCK_NOT_HELD, the order stays CREATED.</li>
  * </ol>
  *
  * Ordered: every fire at or after the fixed now expires ORD-027, so the fixture case runs first.
@@ -134,6 +152,8 @@ class PlaceOrderFlowReservationExpiredTest {
     static class Config {
         final Queue<StockReleased> stockReleased = new ConcurrentLinkedQueue<>();
         final Queue<OrderCancelled> orderCancelled = new ConcurrentLinkedQueue<>();
+        final Queue<OrderConfirmationRejected> orderConfirmationRejected = new ConcurrentLinkedQueue<>();
+        final Queue<PaymentVoided> paymentVoided = new ConcurrentLinkedQueue<>();
 
         @Bean
         @Primary
@@ -149,6 +169,16 @@ class PlaceOrderFlowReservationExpiredTest {
         @EventListener
         void on(OrderCancelled event) {
             orderCancelled.add(event);
+        }
+
+        @EventListener
+        void on(OrderConfirmationRejected event) {
+            orderConfirmationRejected.add(event);
+        }
+
+        @EventListener
+        void on(PaymentVoided event) {
+            paymentVoided.add(event);
         }
     }
 
@@ -185,6 +215,10 @@ class PlaceOrderFlowReservationExpiredTest {
     /** The stand-in processor, real behavior; held only to fire the timer while an authorization is in flight. */
     @MockitoSpyBean
     PaymentProvider paymentProvider;
+
+    /** Real behavior; held only so the timer releases the stock before the payment of a live order starts. */
+    @MockitoSpyBean
+    PaymentsProcessingService paymentsProcessingService;
 
     WebTestClient webTestClient;
 
@@ -391,6 +425,248 @@ class PlaceOrderFlowReservationExpiredTest {
                     assertThat(events.orderCancelled.stream().filter(e -> orderId.equals(e.getOrderId())))
                             .isEmpty();
                 });
+    }
+
+    @Test
+    @Order(3)
+    void lateAuthorization_afterTimerReleasedTheStock_rejectedVoided_orderCancelledOnce(Scenario scenario) {
+        var customerId = "CUS-FLOW-LATE-AUTH";
+        // data.sql SKU-001: plenty; pm_ok, postal 28098 and example.com are non-trigger stand-in values
+        var sku = "SKU-001";
+        InventoryPosition before = position(sku);
+        var heldOrderId = new AtomicReference<String>();
+        var authorizeEntered = new CountDownLatch(1);
+        var cancelledByTimer = new CountDownLatch(1);
+        // late OrderCreated delivery: no Payment exists for the live order when the timer fires
+        doAnswer(invocation -> {
+                    AuthorizePaymentInput input = invocation.getArgument(0);
+                    if (customerId.equals(input.getCustomerId())) {
+                        heldOrderId.set(input.getOrderId());
+                        authorizeEntered.countDown();
+                        assertThat(cancelledByTimer.await(25, TimeUnit.SECONDS)).isTrue();
+                    }
+                    return invocation.callRealMethod();
+                })
+                .when(paymentsProcessingService)
+                .authorizePayment(any());
+
+        CompletableFuture<List<String>> timer = CompletableFuture.supplyAsync(() -> {
+            try {
+                assertThat(authorizeEntered.await(25, TimeUnit.SECONDS)).isTrue();
+                var orderId = heldOrderId.get();
+                assertThat(paymentRepository.findByOrderId(orderId)).isEmpty();
+                var expiresAt = stockReservationRepository.findByOrderId(orderId).getFirst().getExpiresAt();
+                assertThat(expiresAt).isEqualTo(TestClock.NOW.plus(Duration.ofMinutes(10)));
+
+                // ten minutes after OrderCreated: NoPaymentResult, the line is released and the order cancelled
+                clock.set(expiresAt.plusSeconds(1));
+                List<String> fired = reservationExpiredScheduler.expireDueReservations();
+                await().atMost(Duration.ofSeconds(10))
+                        .untilAsserted(() -> assertThat(orderRepository.findByOrderId(orderId))
+                                .hasValueSatisfying(o -> assertThat(o.getStatus()).isEqualTo(OrderStatus.CANCELLED)));
+                return fired;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            } finally {
+                cancelledByTimer.countDown();
+            }
+        });
+
+        String requestBody = """
+            {
+              "customerId": "%s",
+              "customerEmail": "flow.lateauth@example.com",
+              "paymentMethodId": "pm_ok",
+              "currency": "EUR",
+              "items": [ { "sku": "%s", "quantity": 1, "unitPrice": 29.95 } ],
+              "shippingAddress": {
+                "name": "Flow Customer",
+                "line1": "Calle Mayor 1",
+                "city": "Madrid",
+                "postalCode": "28098",
+                "country": "ES"
+              }
+            }
+            """.formatted(customerId, sku);
+
+        scenario.stimulate(() -> (String) webTestClient
+                        .method(POST)
+                        .uri("/api/orders/start-checkout")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .exchange()
+                        .expectStatus()
+                        .isEqualTo(201)
+                        .expectBody(Map.class)
+                        .returnResult()
+                        .getResponseBody()
+                        .get("orderId"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(PaymentVoided.class)
+                .matchingMappedValue(PaymentVoided::getCustomerId, customerId)
+                .toArriveAndVerify((event, orderId) -> {
+                    assertThat(event.getOrderId()).isEqualTo(orderId);
+                    assertThat(heldOrderId.get()).isEqualTo(orderId);
+                    assertThat(timer.join()).contains(orderId);
+                    // the hold is voided; the void reason is the rejection reason
+                    assertThat(event.getReason()).isEqualTo("ORDER_CANCELLED");
+                    assertThat(event.getProviderReference()).isEqualTo("STANDIN-" + orderId);
+                    assertThat(events.orderConfirmationRejected.stream().filter(e -> orderId.equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> {
+                                assertThat(e.getReason()).isEqualTo("ORDER_CANCELLED");
+                                assertThat(e.getCustomerId()).isEqualTo(customerId);
+                                assertThat(e.getRejectedAt()).isEqualTo(clock.instant());
+                            });
+
+                    assertLateChainEndsAtTheRelease(orderId, before, sku);
+                    // released once, by the timer (RESERVATION_EXPIRED); cancelled once
+                    assertThat(events.stockReleased.stream().filter(e -> orderId.equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> assertThat(e.getReason()).isEqualTo(StockReleaseReason.RESERVATION_EXPIRED));
+                    assertThat(events.orderCancelled.stream().filter(e -> orderId.equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> assertThat(e.getReason()).isEqualTo("RESERVATION_EXPIRED"));
+                    assertThat(stockReservationRepository.findByOrderId(orderId))
+                            .singleElement()
+                            .satisfies(r -> {
+                                assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                                assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.RESERVATION_EXPIRED);
+                                assertThat(r.getConfirmedAt()).isNull();
+                            });
+                    assertThat(orderRepository.findByOrderId(orderId)).hasValueSatisfying(order -> {
+                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                        assertThat(order.getCancellationReason()).isEqualTo("RESERVATION_EXPIRED");
+                        assertThat(order.getConfirmedAt()).isNull();
+                    });
+                    // the customer is told of the cancellation, never of a confirmation; nothing to fulfil
+                    await().atMost(Duration.ofSeconds(10))
+                            .untilAsserted(() -> assertThat(notificationRepository.findByOrderIdAndType(
+                                            orderId, NotificationType.ORDER_CANCELLED))
+                                    .hasValueSatisfying(n -> assertThat(n.getStatus()).isEqualTo(NotificationStatus.SENT)));
+                    assertThat(notificationRepository.findByOrderIdAndType(orderId, NotificationType.ORDER_CONFIRMATION))
+                            .isEmpty();
+                    assertThat(fulfillmentRepository.findByOrderId(orderId)).isEmpty();
+                });
+    }
+
+    @Test
+    @Order(4)
+    void lateAuthorization_orderAlreadyCancelled_rejectedOrderCancelled_voided_nothingReleasedNorCancelled(
+            Scenario scenario) {
+        // data.sql ORD-021: CANCELLED (RESERVATION_EXPIRED), its line RELEASED by the timer, Payment AUTHORIZED late
+        InventoryPosition before = position("SKU-002");
+        scenario.publish(lateAuthorization("ORD-021", "CUST-021", "2026-10-14T09:51:01Z"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(PaymentVoided.class)
+                .matchingMappedValue(PaymentVoided::getOrderId, "ORD-021")
+                .toArriveAndVerify(event -> {
+                    assertThat(event.getReason()).isEqualTo("ORDER_CANCELLED");
+                    assertThat(event.getVoidedAt()).isEqualTo(TestClock.NOW);
+                    assertThat(events.orderConfirmationRejected.stream().filter(e -> "ORD-021".equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> {
+                                assertThat(e.getReason()).isEqualTo("ORDER_CANCELLED");
+                                assertThat(e.getCustomerId()).isEqualTo("CUST-021");
+                                assertThat(e.getRejectedAt()).isEqualTo(TestClock.NOW);
+                            });
+                    assertLateChainEndsAtTheRelease("ORD-021", before, "SKU-002");
+                    assertThat(events.stockReleased.stream().filter(e -> "ORD-021".equals(e.getOrderId())))
+                            .isEmpty();
+                    assertThat(events.orderCancelled.stream().filter(e -> "ORD-021".equals(e.getOrderId())))
+                            .isEmpty();
+                    // as stored: cancelled once, by the timer
+                    assertThat(orderRepository.findByOrderId("ORD-021")).hasValueSatisfying(order -> {
+                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+                        assertThat(order.getCancellationReason()).isEqualTo("RESERVATION_EXPIRED");
+                        assertThat(order.getCancelledAt()).isEqualTo(Instant.parse("2026-10-14T09:50:41Z"));
+                        assertThat(order.getConfirmedAt()).isNull();
+                    });
+                });
+    }
+
+    @Test
+    @Order(5)
+    void lateAuthorization_stockReleasedOrderNotYetCancelled_rejectedStockNotHeld_voided_orderStaysCreated(
+            Scenario scenario) {
+        // data.sql ORD-022: CREATED, its line RELEASED by the timer (cancelOrder not yet run), Payment AUTHORIZED late
+        InventoryPosition before = position("SKU-002");
+        scenario.publish(lateAuthorization("ORD-022", "CUST-022", "2026-10-14T09:59:42Z"))
+                .andWaitAtMost(Duration.ofSeconds(30))
+                .andWaitForEventOfType(PaymentVoided.class)
+                .matchingMappedValue(PaymentVoided::getOrderId, "ORD-022")
+                .toArriveAndVerify(event -> {
+                    assertThat(event.getReason()).isEqualTo("STOCK_NOT_HELD");
+                    assertThat(event.getVoidedAt()).isEqualTo(TestClock.NOW);
+                    assertThat(events.orderConfirmationRejected.stream().filter(e -> "ORD-022".equals(e.getOrderId())))
+                            .singleElement()
+                            .satisfies(e -> {
+                                assertThat(e.getReason()).isEqualTo("STOCK_NOT_HELD");
+                                assertThat(e.getRejectedAt()).isEqualTo(TestClock.NOW);
+                            });
+                    assertLateChainEndsAtTheRelease("ORD-022", before, "SKU-002");
+                    assertThat(events.stockReleased.stream().filter(e -> "ORD-022".equals(e.getOrderId())))
+                            .isEmpty();
+                    assertThat(events.orderCancelled.stream().filter(e -> "ORD-022".equals(e.getOrderId())))
+                            .isEmpty();
+                    // NOT_HELD changes nothing: the line stays as the timer left it, the order is not confirmed
+                    assertThat(stockReservationRepository.findByOrderId("ORD-022"))
+                            .singleElement()
+                            .satisfies(r -> {
+                                assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+                                assertThat(r.getReleaseReason()).isEqualTo(StockReleaseReason.RESERVATION_EXPIRED);
+                                assertThat(r.getConfirmedAt()).isNull();
+                            });
+                    assertThat(orderRepository.findByOrderId("ORD-022")).hasValueSatisfying(order -> {
+                        assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
+                        assertThat(order.getConfirmedAt()).isNull();
+                    });
+                });
+    }
+
+    /** The late PaymentAuthorized of a data.sql AUTHORIZED Payment (stand-in reference STANDIN-orderId). */
+    private static PaymentAuthorized lateAuthorization(String orderId, String customerId, String authorizedAt) {
+        return new PaymentAuthorized()
+                .setOrderId(orderId)
+                .setCustomerId(customerId)
+                .setAmount(new BigDecimal("59.90"))
+                .setCurrency("EUR")
+                .setProviderReference("STANDIN-" + orderId)
+                .setAuthorizedAt(Instant.parse(authorizedAt));
+    }
+
+    /**
+     * After PaymentVoided: the Payment is VOIDED, never captured; releaseStock (PAYMENT_VOIDED) is a no-op on the
+     * RELEASED lines: no StockReleased of that reason, no OrderCancelled beyond the timer's, counters as before.
+     */
+    private void assertLateChainEndsAtTheRelease(String orderId, InventoryPosition before, String sku) {
+        assertThat(events.paymentVoided.stream().filter(e -> orderId.equals(e.getOrderId())))
+                .hasSize(1);
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(paymentRepository.findByOrderId(orderId))
+                .hasValueSatisfying(p -> {
+                    assertThat(p.getStatus()).isEqualTo(PaymentStatus.VOIDED);
+                    assertThat(p.getVoidedAt()).isNotNull();
+                    assertThat(p.getCapturedAt()).isNull();
+                }));
+        // releaseStock and cancelOrder would run after PaymentVoided: give them time to emit what they must not
+        await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            assertThat(events.stockReleased.stream()
+                            .filter(e -> orderId.equals(e.getOrderId()))
+                            .filter(e -> e.getReason() != StockReleaseReason.RESERVATION_EXPIRED))
+                    .isEmpty();
+            assertThat(events.orderCancelled.stream()
+                            .filter(e -> orderId.equals(e.getOrderId()))
+                            .filter(e -> !"RESERVATION_EXPIRED".equals(e.getReason())))
+                    .isEmpty();
+            assertThat(events.orderCancelled.stream().filter(e -> orderId.equals(e.getOrderId())))
+                    .hasSizeLessThanOrEqualTo(1);
+            InventoryPosition after = position(sku);
+            assertThat(after.getAvailableQuantity()).isEqualTo(before.getAvailableQuantity());
+            assertThat(after.getReservedQuantity()).isEqualTo(before.getReservedQuantity());
+            assertThat(after.getSoldQuantity()).isEqualTo(before.getSoldQuantity());
+        });
     }
 
     /** PaymentStartedResult: the timer step ends; the line stays RESERVED and the order CREATED, no event. */
