@@ -139,7 +139,7 @@ review: [x] (review-S4-fix1 PASS 2026-11-20, claude-opus; T-74 verified)
 ## S5 orderCancelled (reservation expired, query timer)
 path: ReservationExpired (10 minutes after OrderCreated) > expireReservation > getPaymentStatus[NoPaymentResult] > StockReleased > cancelOrder
       > OrderCancelled > sendOrderCancelledNotification > end orderCancelled; getPaymentStatus[PaymentStartedResult]: no release, payment owns the end
-review: [x] (review-S5 PASS 2026-11-20, claude-opus fresh; SHOULD FIX findAll scan needs a finder in a Protected repository: decision for the person)
+review: [x] (review-S5 PASS 2026-11-20, claude-opus fresh; SHOULD FIX findAll scan accepted by the person for the demo, 2026-11-20)
 
 - [x] T-62 bounded AFK getPaymentStatus: read-only; NO_PAYMENT when no Payment exists for orderId, STARTED otherwise (AUTHORIZATION_REQUESTED included) (replace the compile stub)
       done: claude-sonnet sonnet
