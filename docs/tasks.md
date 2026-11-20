@@ -195,7 +195,7 @@ review: [ ]
 
 ## S7 notificationFailed
 path: OrderCancelled > sendOrderCancelledNotification[failed] > NotificationDeliveryFailed > end notificationFailed
-review: [ ] (review-S7 2026-11-20: PASS with SHOULD FIX, accepted as T-72)
+review: [x] (review-S7-fix1 PASS 2026-11-20, claude-opus; T-72 verified)
 
 - [x] T-70 bounded AFK Flow test notification failed: the stand-in refuses the e-mail (@fail.invalid), Notification FAILED, the flow ends at NotificationDeliveryFailed with its type; the business outcome is untouched: Fulfillment.paymentCapturedAt set, stock counters relative to the position read before the checkout (available -1, sold +1), NotificationDeliveryFailed.notificationId equals the stored Notification; no assertion that only proves the stand-in (Kotlin T-87)
       done: claude-sonnet sonnet
