@@ -194,7 +194,8 @@ review: [ ] (review-S6 2026-11-20, claude-sonnet fallback: PASS with 2 SHOULD FI
       tests: PlaceOrderFlowTest
       blocked by: T-64, T-67, T-68
 
-- [/] T-75 bounded AFK Fix round of review S6 (tests only): (1) OrdersCheckoutServiceTest.confirmOrderOnCancelledRejectsWithoutCallingInventoryTest proves inventory is not called (spy or mock of InventoryService, verifyNoInteractions / never().confirmStockReservation), or is renamed to what it proves; (2) PlaceOrderFlowReservationExpiredTest.assertLateChainEndsAtTheRelease tells a throwing listener from a silent no-op: assert no incomplete event_publication for the order after the late chain (pattern of PlaceOrderFlowTest.publishAndAwaitListeners) and/or that releaseStock ran and returned empty; (3) OrdersCheckoutServiceImpl import order (ConfirmStockReservationOutcome)
+- [x] T-75 bounded AFK Fix round of review S6 (tests only): (1) OrdersCheckoutServiceTest.confirmOrderOnCancelledRejectsWithoutCallingInventoryTest proves inventory is not called (spy or mock of InventoryService, verifyNoInteractions / never().confirmStockReservation), or is renamed to what it proves; (2) PlaceOrderFlowReservationExpiredTest.assertLateChainEndsAtTheRelease tells a throwing listener from a silent no-op: assert no incomplete event_publication for the order after the late chain (pattern of PlaceOrderFlowTest.publishAndAwaitListeners) and/or that releaseStock ran and returned empty; (3) OrdersCheckoutServiceImpl import order (ConfirmStockReservationOutcome)
+      done: claude-sonnet sonnet
       model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:148-176, ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:254-266
       test data: data.sql ORD-021, data.sql ORD-022
       tests: OrdersCheckoutServiceTest, PlaceOrderFlowReservationExpiredTest
