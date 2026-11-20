@@ -168,7 +168,7 @@ review: [x] (review-S5 PASS 2026-11-20, claude-opus fresh; SHOULD FIX findAll sc
 ## S6 orderCancelled (late authorization rejected)
 path: PaymentAuthorized (after expiry) > confirmOrder > confirmStockReservation[StockReservationNotHeldResult] or order CANCELLED
       > OrderConfirmationRejected > voidPayment[voided] > PaymentVoided > releaseStock (no-op, RELEASED) > end orderCancelled
-review: [ ] (review-S6 2026-11-20, claude-sonnet fallback: PASS with 2 SHOULD FIX, accepted as T-75)
+review: [x] (review-S6-fix1 PASS 2026-11-20, claude-sonnet fallback; T-75 verified)
 
 - [x] T-66 bounded AFK confirmStockReservation NOT_HELD: when the order has no RESERVED or CONFIRMED reservation (released by the timer) answer NOT_HELD, no change, no event; CONFIRMED stays the redelivery answer
       done: claude-sonnet sonnet
