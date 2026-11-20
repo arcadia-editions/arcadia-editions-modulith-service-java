@@ -139,11 +139,11 @@ review: [x] (review-S4-fix1 PASS 2026-11-20, claude-opus; T-74 verified)
 ## S5 orderCancelled (reservation expired, query timer)
 path: ReservationExpired (10 minutes after OrderCreated) > expireReservation > getPaymentStatus[NoPaymentResult] > StockReleased > cancelOrder
       > OrderCancelled > sendOrderCancelledNotification > end orderCancelled; getPaymentStatus[PaymentStartedResult]: no release, payment owns the end
-review: [ ]
+review: [x] (review-S5 PASS 2026-11-20, claude-opus fresh; SHOULD FIX findAll scan needs a finder in a Protected repository: decision for the person)
 
 - [x] T-62 bounded AFK getPaymentStatus: read-only; NO_PAYMENT when no Payment exists for orderId, STARTED otherwise (AUTHORIZATION_REQUESTED included) (replace the compile stub)
       done: claude-sonnet sonnet
-      model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:293-297, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:163-164
+      model: ../arcadia-editions-architecture/business-flows/place-order-flow.zfl:293-297, ../arcadia-editions-modulith-api/payments-processing-domain-model.zdl:166-167
       test data: data.sql ORD-002, data.sql ORD-027, data.sql ORD-028
       tests: PaymentsProcessingServiceTest
 - [x] T-63 advanced AFK expireReservation: calls getPaymentStatus and releases the RESERVED lines of the order (RESERVATION_EXPIRED, StockReleased) only on NO_PAYMENT; no-op on STARTED or when nothing is RESERVED (replace the compile stub)
